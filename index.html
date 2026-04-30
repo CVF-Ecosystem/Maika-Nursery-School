@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Maika — Nhà trẻ tư thục</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+/* === RESET & BASE === */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Nunito',sans-serif;color:#1E1B4B;overflow-x:hidden;background:#F5F3FF}
+a{text-decoration:none;color:inherit}
+button,input,select,textarea{font-family:'Nunito',sans-serif}
+button{transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);cursor:pointer}
+button:hover{transform:translateY(-2px)}
+button:active{transform:scale(0.97)}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#7C3AED!important;box-shadow:0 0 0 3px rgba(124,58,237,0.12)!important}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#DDD6FE;border-radius:99px}
+
+/* === VIEWS === */
+.view{display:none}
+.view.active{display:block}
+
+/* ===================== LANDING ===================== */
+#view-landing{background:#fff}
+nav{position:fixed;top:0;left:0;right:0;z-index:999;height:68px;display:flex;align-items:center;padding:0 6%;justify-content:space-between;transition:all .3s}
+nav.solid{background:rgba(255,255,255,.97);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(109,40,217,.1)}
+.n-logo{display:flex;align-items:center;gap:10px;cursor:pointer}
+.n-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6D28D9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:22px}
+.n-name{font-weight:900;font-size:18px;color:#fff;transition:color .3s}
+nav.solid .n-name{color:#1E1B4B}
+.n-links{display:flex;align-items:center;gap:22px}
+.n-links a,.n-links button.nl{font-weight:700;font-size:14px;color:rgba(255,255,255,.82);transition:color .2s;background:none;border:none;cursor:pointer;padding:0}
+nav.solid .n-links a,nav.solid .n-links button.nl{color:#5B5490}
+.n-links a:hover,.n-links button.nl:hover{color:#fff;transform:none}
+nav.solid .n-links a:hover,nav.solid .n-links button.nl:hover{color:#6D28D9;transform:none}
+.n-btn{padding:9px 20px;border-radius:50px;background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff!important;font-weight:800!important;font-size:13px;border:none;box-shadow:0 4px 14px rgba(109,40,217,.4)}
+.n-btn:hover{box-shadow:0 8px 22px rgba(109,40,217,.5)}
+
+.hero{min-height:100vh;background:linear-gradient(145deg,#1E1B4B,#2D2870 40%,#4C1D95 72%,#6D28D9);display:flex;align-items:center;padding:100px 6% 60px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;width:650px;height:650px;border-radius:50%;background:rgba(167,139,250,.1);top:-220px;right:-200px;pointer-events:none;animation:bob 9s ease-in-out infinite}
+.hero::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;background:rgba(245,158,11,.08);bottom:-130px;left:-100px;pointer-events:none;animation:bob 7s ease-in-out infinite reverse}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+.hero-txt{max-width:580px;position:relative;z-index:1}
+.pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:50px;padding:7px 18px;color:#C4B5FD;font-size:13px;font-weight:700;margin-bottom:24px}
+.hero h1{font-size:clamp(38px,5.5vw,66px);font-weight:900;color:#fff;line-height:1.08;letter-spacing:-2px;margin-bottom:20px}
+.hero h1 span{background:linear-gradient(90deg,#FBBF24,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:17px;color:rgba(255,255,255,.72);line-height:1.7;margin-bottom:36px;max-width:510px;font-weight:600}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap}
+.btn-y{padding:15px 32px;border-radius:50px;background:linear-gradient(135deg,#F59E0B,#FBBF24);color:#1E1B4B;font-weight:900;font-size:15px;box-shadow:0 6px 22px rgba(245,158,11,.48);transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.btn-y:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(245,158,11,.6)}
+.btn-g{padding:15px 32px;border-radius:50px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.28);color:#fff;font-weight:700;font-size:15px;transition:all .2s}
+.btn-g:hover{background:rgba(255,255,255,.2);transform:translateY(-2px)}
+.hero-cards{position:absolute;right:6%;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:1fr 1fr;gap:14px;width:360px;z-index:1}
+.hc{background:rgba(255,255,255,.1);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:20px;color:#fff;transition:transform .3s;text-align:center}
+.hc:hover{transform:translateY(-6px)}
+.hc:nth-child(2){margin-top:26px}
+.hc:nth-child(4){margin-top:-18px}
+.hc-num{font-size:28px;font-weight:900;color:#FBBF24;line-height:1}
+.hc-lbl{font-size:12px;color:rgba(255,255,255,.7);font-weight:700;margin-top:4px}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;box-shadow:0 4px 28px rgba(109,40,217,.08)}
+.si{text-align:center;padding:42px 20px;border-right:1px solid #EDE9FE;position:relative}
+.si:last-child{border-right:none}
+.si::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:56px;height:3px;background:linear-gradient(90deg,#6D28D9,#A78BFA);border-radius:0 0 4px 4px}
+.si-num{font-size:44px;font-weight:900;color:#6D28D9;letter-spacing:-2px;line-height:1}
+.si-lbl{font-size:14px;color:#7C6D9B;font-weight:700;margin-top:8px}
+
+section.ls{padding:88px 6%}
+.ltag{display:inline-flex;align-items:center;gap:6px;background:#EDE9FE;color:#6D28D9;font-size:12px;font-weight:800;padding:5px 14px;border-radius:50px;letter-spacing:.5px;margin-bottom:14px}
+h2.lh2{font-size:clamp(28px,3.8vw,44px);font-weight:900;color:#1E1B4B;line-height:1.12;letter-spacing:-1px;margin-bottom:12px}
+p.lsub{font-size:16px;color:#7C6D9B;line-height:1.7;max-width:540px;font-weight:600}
+
+section.ls#programs{background:linear-gradient(135deg,#F8F7FF,#EDE9FE)}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:50px}
+.pc{background:#fff;border-radius:24px;padding:28px;box-shadow:0 4px 18px rgba(109,40,217,.08);transition:all .3s;position:relative;overflow:hidden}
+.pc::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+.pc.a::before{background:linear-gradient(90deg,#6D28D9,#A78BFA)}
+.pc.b::before{background:linear-gradient(90deg,#F59E0B,#FBBF24)}
+.pc.c::before{background:linear-gradient(90deg,#059669,#34D399)}
+.pc:hover{transform:translateY(-7px);box-shadow:0 14px 36px rgba(109,40,217,.15)}
+.pc-icon{width:58px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:16px}
+.pc-age{font-size:11px;font-weight:800;padding:4px 12px;border-radius:50px;display:inline-block;margin-bottom:12px}
+.pc h3{font-size:20px;font-weight:900;color:#1E1B4B;margin-bottom:10px}
+.pc p{font-size:14px;color:#7C6D9B;line-height:1.7}
+.pc-feats{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.pc-feat{font-size:13px;color:#4B4899;font-weight:600}
+
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:50px}
+.fc{background:#F8F7FF;border:1.5px solid #EDE9FE;border-radius:20px;padding:26px;transition:all .3s}
+.fc:hover{background:#EDE9FE;border-color:#A78BFA;transform:translateY(-4px)}
+.fc-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#6D28D9,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px;box-shadow:0 4px 14px rgba(109,40,217,.3)}
+.fc h4{font-size:16px;font-weight:800;color:#1E1B4B;margin-bottom:8px}
+.fc p{font-size:14px;color:#7C6D9B;line-height:1.7}
+
+section.ls#gallery{background:#1E1B4B;padding:88px 6%}
+section.ls#gallery h2.lh2{color:#fff}
+section.ls#gallery p.lsub{color:#8B83C3}
+.ggrid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:200px 200px;gap:14px;margin-top:46px}
+.gi{border-radius:18px;overflow:hidden;position:relative;cursor:pointer;transition:transform .25s}
+.gi:hover{transform:scale(1.04)}
+.gi:nth-child(1){grid-column:span 2;grid-row:span 2}
+.gi:nth-child(5){grid-column:span 2}
+.gi-inner{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:rgba(255,255,255,.9);font-weight:700;font-size:14px}
+.gi:nth-child(1) .gi-inner .gi-emoji{font-size:72px}
+.gi-emoji{font-size:42px}
+.gi-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(30,27,75,.85),transparent 55%);opacity:0;transition:opacity .25s;display:flex;align-items:flex-end;padding:14px}
+.gi:hover .gi-ov{opacity:1}
+.gi-ov span{color:#fff;font-size:13px;font-weight:700}
+
+section.ls#testimonials{background:#F8F7FF}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:50px}
+.tc{background:#fff;border-radius:22px;padding:26px;box-shadow:0 4px 18px rgba(109,40,217,.08);border:1.5px solid #EDE9FE;position:relative}
+.tc::before{content:'"';position:absolute;top:14px;right:20px;font-size:72px;color:#EDE9FE;font-family:Georgia,serif;line-height:1;pointer-events:none}
+.tc-stars{margin-bottom:12px;font-size:14px;letter-spacing:2px;color:#F59E0B}
+.tc p{font-size:14px;color:#4B4899;line-height:1.8;margin-bottom:16px;position:relative;z-index:1}
+.tc-author{display:flex;align-items:center;gap:12px}
+.tc-av{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0}
+.tc-name{font-weight:800;font-size:13px;color:#1E1B4B}
+.tc-role{font-size:12px;color:#7C6D9B;font-weight:600}
+
+section.ls#cta{background:linear-gradient(135deg,#4C1D95,#6D28D9,#7C3AED);padding:96px 6%;text-align:center;position:relative;overflow:hidden}
+section.ls#cta::before{content:'';position:absolute;width:420px;height:420px;border-radius:50%;background:rgba(167,139,250,.12);top:-160px;left:-100px;pointer-events:none}
+section.ls#cta::after{content:'';position:absolute;width:320px;height:320px;border-radius:50%;background:rgba(245,158,11,.1);bottom:-90px;right:-70px;pointer-events:none}
+.cta-h2{font-size:clamp(28px,4.5vw,50px);font-weight:900;color:#fff;letter-spacing:-1px;margin-bottom:14px;position:relative;z-index:1}
+.cta-sub{font-size:17px;color:rgba(255,255,255,.75);margin-bottom:40px;font-weight:600;position:relative;z-index:1}
+.cta-form{display:flex;gap:12px;max-width:480px;margin:0 auto;position:relative;z-index:1}
+.cta-inp{flex:1;padding:14px 20px;border-radius:50px;border:none;font-family:'Nunito',sans-serif;font-size:14px;color:#1E1B4B}
+.cta-sbm{padding:14px 24px;border-radius:50px;background:linear-gradient(135deg,#F59E0B,#FBBF24);color:#1E1B4B;font-weight:900;font-size:14px;border:none;white-space:nowrap;transition:all .2s}
+.cta-sbm:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(245,158,11,.5)}
+.cta-msg-el{font-size:14px;color:#FCD34D;font-weight:700;min-height:22px;margin-top:14px;position:relative;z-index:1}
+.cta-info{display:flex;justify-content:center;gap:44px;flex-wrap:wrap;margin-top:48px;position:relative;z-index:1}
+.ci{text-align:center;color:rgba(255,255,255,.8)}
+.ci-icon{font-size:26px;margin-bottom:6px}
+.ci-text{font-size:13px;font-weight:700;line-height:1.6}
+
+footer.lf{background:#0F0D2E;padding:56px 6% 26px}
+.fgrid2{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:44px}
+.footer-desc{font-size:14px;color:rgba(255,255,255,.42);line-height:1.8;margin-top:14px;max-width:260px}
+footer.lf h4{font-size:12px;font-weight:800;color:#8B83C3;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
+footer.lf a{display:block;font-size:14px;color:rgba(255,255,255,.48);margin-bottom:10px;font-weight:600;transition:color .2s}
+footer.lf a:hover{color:#A78BFA}
+.fbottom{border-top:1px solid rgba(255,255,255,.07);padding-top:22px;display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,.3);flex-wrap:wrap;gap:8px}
+
+/* ===================== PARENT PORTAL ===================== */
+#view-parent{min-height:100vh;background:#F5F3FF}
+.ph-header{background:linear-gradient(135deg,#1E1B4B,#2D2870,#4C1D95);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(30,27,75,.3)}
+.ph-logo{display:flex;align-items:center;gap:10px;cursor:pointer}
+.ph-logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:18px}
+.ph-tabs{background:#fff;border-bottom:1px solid #EDE9FE;padding:0 28px;display:flex;position:sticky;top:64px;z-index:90;box-shadow:0 1px 8px rgba(109,40,217,.05)}
+.ph-tab{padding:15px 22px;border:none;background:none;font-weight:700;font-size:14px;color:#7C6D9B;cursor:pointer;border-bottom:2.5px solid transparent;transition:all .15s}
+.ph-tab:hover{color:#6D28D9;background:#F8F7FF;transform:none}
+.ph-tab.active{color:#6D28D9;border-bottom-color:#6D28D9}
+.ph-main{max-width:960px;margin:0 auto;padding:28px 24px}
+
+/* ann */
+.ann-card{background:#fff;border-radius:18px;padding:22px 24px;margin-bottom:14px;box-shadow:0 2px 14px rgba(109,40,217,.07);border-left:4px solid #7C3AED;transition:all .2s;cursor:pointer}
+.ann-card:hover{box-shadow:0 6px 22px rgba(109,40,217,.13);transform:translateY(-2px)}
+.ann-body-txt{font-size:14px;color:#4B4899;line-height:1.75;margin-top:14px;padding-top:14px;border-top:1.5px dashed #EDE9FE;display:none;white-space:pre-wrap}
+.ann-card.open .ann-body-txt{display:block}
+/* gallery */
+.gal-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.gfbtn{padding:6px 16px;border-radius:50px;border:1.5px solid #DDD6FE;background:#fff;color:#7C6D9B;font-weight:700;font-size:13px;transition:all .15s}
+.gfbtn.active{background:#6D28D9;color:#fff;border-color:#6D28D9;box-shadow:0 4px 12px rgba(109,40,217,.3)}
+.pgal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.pgal-item{border-radius:16px;overflow:hidden;aspect-ratio:4/3;position:relative;cursor:pointer;transition:transform .2s}
+.pgal-item:hover{transform:scale(1.04)}
+.pgal-inner{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:700;font-size:13px;color:rgba(255,255,255,.9)}
+.pgal-ov{position:absolute;inset:0;background:linear-gradient(0deg,rgba(30,27,75,.85),transparent 55%);opacity:0;transition:opacity .2s;display:flex;align-items:flex-end;padding:12px}
+.pgal-item:hover .pgal-ov{opacity:1}
+.pgal-ov span{color:#fff;font-size:12px;font-weight:700}
+/* report */
+.rep-hero{background:linear-gradient(135deg,#6D28D9,#8B5CF6);border-radius:20px;padding:22px 26px;color:#fff;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.rep-chip{background:#F5F3FF;border-radius:12px;padding:12px 14px}
+.rep-cl{font-size:10px;font-weight:800;color:#7C6D9B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.rep-cv{font-size:14px;font-weight:700;color:#1E1B4B}
+/* msg */
+.msg-list{display:flex;flex-direction:column;gap:4px;max-height:380px;overflow-y:auto;padding:4px;margin-bottom:14px}
+.mb{border-radius:16px;padding:13px 15px;max-width:78%}
+.mb.school{background:#EDE9FE;color:#1E1B4B;align-self:flex-start;border-radius:4px 16px 16px 16px}
+.mb.parent{background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff;align-self:flex-end;border-radius:16px 4px 16px 16px}
+.mb-name{font-size:11px;font-weight:800;opacity:.7;margin-bottom:3px}
+.mb-text{font-size:14px;line-height:1.6}
+.mb-time{font-size:11px;opacity:.6;margin-top:5px;text-align:right}
+
+/* ===================== ADMIN APP ===================== */
+#view-admin{min-height:100vh;display:flex}
+#view-admin .admin-root{flex:1}
+
+/* ===================== MODAL LOGIN ===================== */
+.login-overlay{position:fixed;inset:0;background:rgba(15,13,46,.85);z-index:2000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.login-box{background:#fff;border-radius:24px;padding:40px 36px;width:400px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.lb-logo{text-align:center;margin-bottom:28px}
+.lb-logo-icon{width:62px;height:62px;border-radius:18px;background:linear-gradient(135deg,#6D28D9,#A78BFA);display:inline-flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 6px 20px rgba(109,40,217,.4);margin-bottom:12px}
+.login-inp{width:100%;padding:12px 16px;border-radius:12px;border:1.5px solid #DDD6FE;font-size:14px;color:#1E1B4B;background:#F8F7FF}
+.login-btn-submit{width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff;font-weight:800;font-size:15px;box-shadow:0 6px 20px rgba(109,40,217,.4);margin-top:6px}
+.login-err{font-size:12px;color:#DC2626;background:#FEF2F2;border-radius:8px;padding:8px 12px;font-weight:600;display:none}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}
+
+@media(max-width:900px){
+  .hero-cards{display:none}
+  .pgrid,.fgrid,.tgrid{grid-template-columns:1fr}
+  .ggrid{grid-template-columns:1fr 1fr}
+  .fgrid2{grid-template-columns:1fr 1fr}
+  .rep-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ======================================================= -->
+<!-- VIEW: LANDING                                           -->
+<!-- ======================================================= -->
+<div class="view active" id="view-landing">
+
+<nav id="nav">
+  <div class="n-logo" onclick="goHome()">
+    <div class="n-icon">🌸</div>
+    <span class="n-name">Maika</span>
+  </div>
+  <div class="n-links">
+    <a href="#programs">Chương trình</a>
+    <a href="#features">Tiện ích</a>
+    <a href="#gallery">Hình ảnh</a>
+    <a href="#testimonials">Phụ huynh</a>
+    <button class="nl" onclick="showParentLogin()">Cổng phụ huynh</button>
+    <button class="n-btn" onclick="showAdminLogin()">Quản lý trường</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-txt reveal">
+    <div class="pill">🌸 Hơn 5 năm đồng hành cùng các gia đình</div>
+    <h1>Nơi mỗi đứa trẻ<br/>đều <span>tỏa sáng</span></h1>
+    <p>Nhà trẻ tư thục chất lượng cao — môi trường an toàn, yêu thương và đầy sáng tạo cho trẻ từ 3 đến 6 tuổi tại TP.HCM.</p>
+    <div class="hero-btns">
+      <a href="#cta" class="btn-y">✨ Đăng ký tham quan</a>
+      <button class="btn-g" onclick="showParentLogin()">📱 Cổng phụ huynh</button>
+    </div>
+  </div>
+  <div class="hero-cards">
+    <div class="hc reveal d1"><div style="font-size:28px;margin-bottom:8px">👦</div><div class="hc-num">85+</div><div class="hc-lbl">Học sinh đang học</div></div>
+    <div class="hc reveal d2"><div style="font-size:28px;margin-bottom:8px">👩‍🏫</div><div class="hc-num">12</div><div class="hc-lbl">Giáo viên tận tâm</div></div>
+    <div class="hc reveal d2"><div style="font-size:28px;margin-bottom:8px">⭐</div><div class="hc-num">98%</div><div class="hc-lbl">Phụ huynh hài lòng</div></div>
+    <div class="hc reveal d3"><div style="font-size:28px;margin-bottom:8px">🏆</div><div class="hc-num">5+</div><div class="hc-lbl">Năm kinh nghiệm</div></div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="si reveal"><div class="si-num">3</div><div class="si-lbl">Lớp học chuyên biệt</div></div>
+  <div class="si reveal d1"><div class="si-num">1:8</div><div class="si-lbl">Tỷ lệ GV / học sinh</div></div>
+  <div class="si reveal d2"><div class="si-num">100%</div><div class="si-lbl">GV có bằng chuyên môn</div></div>
+  <div class="si reveal d3"><div class="si-num">24/7</div><div class="si-lbl">Ứng dụng theo dõi</div></div>
+</div>
+
+<!-- PROGRAMS -->
+<section class="ls" id="programs">
+  <div class="reveal"><div class="ltag">🎓 Chương trình học</div><h2 class="lh2">Ba cấp độ học tập<br/>phù hợp từng lứa tuổi</h2><p class="lsub">Mỗi chương trình thiết kế riêng, phù hợp sự phát triển của trẻ.</p></div>
+  <div class="pgrid">
+    <div class="pc a reveal"><div class="pc-icon" style="background:#EDE9FE">🌱</div><span class="pc-age" style="background:#EDE9FE;color:#6D28D9">3–4 tuổi</span><h3>Lớp Mầm</h3><p>Làm quen môi trường học, phát triển ngôn ngữ và kỹ năng xã hội qua vui chơi.</p><div class="pc-feats"><div class="pc-feat">🎨 Vẽ và tô màu sáng tạo</div><div class="pc-feat">🎵 Học qua bài hát &amp; vần điệu</div><div class="pc-feat">🤝 Kỹ năng sống căn bản</div></div></div>
+    <div class="pc b reveal d1"><div class="pc-icon" style="background:#FEF3C7">🌿</div><span class="pc-age" style="background:#FEF3C7;color:#D97706">4–5 tuổi</span><h3>Lớp Chồi</h3><p>Phát triển tư duy logic, tiền toán học và vốn từ vựng qua khám phá thế giới.</p><div class="pc-feats"><div class="pc-feat">🔢 Làm quen với con số</div><div class="pc-feat">📖 Nhận biết chữ cái</div><div class="pc-feat">🌍 Khám phá thiên nhiên</div></div></div>
+    <div class="pc c reveal d2"><div class="pc-icon" style="background:#D1FAE5">🌳</div><span class="pc-age" style="background:#D1FAE5;color:#059669">5–6 tuổi</span><h3>Lớp Lá</h3><p>Chuẩn bị toàn diện vào lớp 1 với kỹ năng đọc viết, tính toán và tư duy độc lập.</p><div class="pc-feats"><div class="pc-feat">✏️ Tập viết chữ &amp; số</div><div class="pc-feat">🧩 Tư duy logic &amp; sáng tạo</div><div class="pc-feat">🎤 Tự tin giao tiếp</div></div></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="ls" id="features">
+  <div class="reveal"><div class="ltag">⭐ Vì sao chọn Maika</div><h2 class="lh2">Môi trường tốt nhất<br/>cho sự phát triển của bé</h2></div>
+  <div class="fgrid">
+    <div class="fc reveal"><div class="fc-icon">👩‍🏫</div><h4>Giáo viên chuyên nghiệp</h4><p>100% có bằng Đại học/Thạc sĩ Giáo dục Mầm non, được đào tạo định kỳ và tận tâm.</p></div>
+    <div class="fc reveal d1"><div class="fc-icon">🥗</div><h4>Dinh dưỡng khoa học</h4><p>Thực đơn cân bằng 4 nhóm chất. Cập nhật bữa ăn hàng ngày qua ứng dụng phụ huynh.</p></div>
+    <div class="fc reveal d2"><div class="fc-icon">🏃</div><h4>Vận động phong phú</h4><p>Sân chơi an toàn rộng rãi, hoạt động thể chất mỗi ngày phát triển thể lực toàn diện.</p></div>
+    <div class="fc reveal d1"><div class="fc-icon">📱</div><h4>Ứng dụng phụ huynh</h4><p>Nhật ký ngày, ảnh hoạt động, thông báo — tất cả trên cổng thông tin trực tuyến tiện lợi.</p></div>
+    <div class="fc reveal d2"><div class="fc-icon">🔒</div><h4>An toàn tuyệt đối</h4><p>Kiểm soát ra vào nghiêm ngặt, camera 24/7, y tế thường trực và bảo hiểm đầy đủ.</p></div>
+    <div class="fc reveal d3"><div class="fc-icon">🎭</div><h4>Nghệ thuật &amp; Âm nhạc</h4><p>Lớp âm nhạc, vẽ và múa mỗi tuần — khơi dậy tài năng và đam mê từ nhỏ.</p></div>
+  </div>
+</section>
+
+<!-- GALLERY -->
+<section class="ls" id="gallery">
+  <div class="reveal"><div class="ltag" style="background:rgba(167,139,250,.18);color:#C4B5FD">📸 Hình ảnh hoạt động</div><h2 class="lh2">Một ngày ở Maika</h2><p class="lsub">Các bé vui chơi, học tập và phát triển trong môi trường đầy màu sắc.</p></div>
+  <div class="ggrid reveal">
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#6D28D9,#A78BFA)"><span class="gi-emoji">🎨</span><span>Giờ vẽ sáng tạo</span></div><div class="gi-ov"><span>Hoạt động mỹ thuật — Lớp Chồi</span></div></div>
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#059669,#34D399)"><span class="gi-emoji">🏃</span><span>Thể dục ngoài trời</span></div><div class="gi-ov"><span>Vận động sáng — toàn trường</span></div></div>
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#F59E0B,#FBBF24)"><span class="gi-emoji">🍱</span><span>Bữa trưa ngon lành</span></div><div class="gi-ov"><span>Cơm gà, canh rau, tráng miệng</span></div></div>
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#EC4899,#F9A8D4)"><span class="gi-emoji">🎵</span><span>Lớp âm nhạc</span></div><div class="gi-ov"><span>Học hát cùng cô Hạnh</span></div></div>
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#0891B2,#38BDF8)"><span class="gi-emoji">😴</span><span>Giờ nghỉ trưa</span></div><div class="gi-ov"><span>Giấc ngủ trưa an lành</span></div></div>
+    <div class="gi"><div class="gi-inner" style="background:linear-gradient(135deg,#7C3AED,#C4B5FD)"><span class="gi-emoji">📚</span><span>Giờ đọc sách</span></div><div class="gi-ov"><span>Thư viện lớp học</span></div></div>
+  </div>
+  <div style="text-align:center;margin-top:28px">
+    <button onclick="showParentLogin()" style="display:inline-flex;align-items:center;gap:8px;padding:12px 26px;border-radius:50px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.82);font-weight:700;font-size:14px" onmouseover="this.style.background='rgba(255,255,255,.18)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">📸 Xem thêm ảnh trên cổng phụ huynh →</button>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="ls" id="testimonials">
+  <div class="reveal"><div class="ltag">💬 Phụ huynh nói gì</div><h2 class="lh2">Niềm tin của gia đình<br/>là động lực của chúng tôi</h2></div>
+  <div class="tgrid">
+    <div class="tc reveal"><div class="tc-stars">⭐⭐⭐⭐⭐</div><p>Maika thực sự là ngôi nhà thứ hai của con tôi. Bé về nhà luôn vui và kể chuyện trường. Các cô rất tận tâm và yêu thương bé!</p><div class="tc-author"><div class="tc-av" style="background:linear-gradient(135deg,#6D28D9,#A78BFA)">NH</div><div><div class="tc-name">Chị Nguyễn Thị Hương</div><div class="tc-role">Mẹ bé Minh An — Lớp Mầm</div></div></div></div>
+    <div class="tc reveal d1"><div class="tc-stars">⭐⭐⭐⭐⭐</div><p>Ứng dụng Maika giúp tôi biết bé ăn gì, ngủ bao lâu mỗi ngày. Thực sự yên tâm khi đi làm. Rất khuyến khích!</p><div class="tc-author"><div class="tc-av" style="background:linear-gradient(135deg,#F59E0B,#FBBF24)">TM</div><div><div class="tc-name">Anh Trần Văn Minh</div><div class="tc-role">Bố bé Bảo Long — Lớp Chồi</div></div></div></div>
+    <div class="tc reveal d2"><div class="tc-stars">⭐⭐⭐⭐⭐</div><p>Con từ một bé nhút nhát đã trở nên tự tin sau 2 năm ở Maika. Cảm ơn các cô đã kiên nhẫn và yêu thương bé!</p><div class="tc-author"><div class="tc-av" style="background:linear-gradient(135deg,#059669,#34D399)">LP</div><div><div class="tc-name">Chị Lê Thị Phúc</div><div class="tc-role">Mẹ bé Thảo Nguyên — Lớp Lá</div></div></div></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="ls" id="cta">
+  <h2 class="cta-h2 reveal">Sẵn sàng cho bé<br/>khởi đầu tốt đẹp?</h2>
+  <p class="cta-sub reveal">Đăng ký tham quan hoàn toàn miễn phí. Chúng tôi sẽ liên hệ trong vòng 24 giờ.</p>
+  <div class="cta-form reveal">
+    <input class="cta-inp" id="cta-phone" type="text" placeholder="Số điện thoại phụ huynh"/>
+    <button class="cta-sbm" onclick="doRegister()">Đăng ký ngay</button>
+  </div>
+  <p class="cta-msg-el" id="cta-msg"></p>
+  <div class="cta-info reveal">
+    <div class="ci"><div class="ci-icon">📍</div><p class="ci-text">123 Đường Hoa Mai, P.5<br/>Quận Bình Thạnh, TP.HCM</p></div>
+    <div class="ci"><div class="ci-icon">📞</div><p class="ci-text">0901 234 567<br/>0912 345 678</p></div>
+    <div class="ci"><div class="ci-icon">⏰</div><p class="ci-text">6:30 – 17:30<br/>Thứ Hai – Thứ Sáu</p></div>
+    <div class="ci"><div class="ci-icon">✉️</div><p class="ci-text">info@maika.edu.vn</p></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="lf">
+  <div class="fgrid2">
+    <div>
+      <div class="n-logo"><div class="n-icon">🌸</div><span style="font-weight:900;font-size:18px;color:#fff;margin-left:8px">Maika</span></div>
+      <p class="footer-desc">Nhà trẻ tư thục chất lượng cao — nơi mỗi đứa trẻ được yêu thương, phát triển và tỏa sáng.</p>
+    </div>
+    <div><h4>Chương trình</h4><a href="#programs">Lớp Mầm (3–4 tuổi)</a><a href="#programs">Lớp Chồi (4–5 tuổi)</a><a href="#programs">Lớp Lá (5–6 tuổi)</a></div>
+    <div><h4>Phụ huynh</h4><a href="#" onclick="showParentLogin()">Cổng phụ huynh</a><a href="#" onclick="showAdminLogin()">Đăng nhập quản lý</a><a href="#">Quy định nhà trường</a></div>
+    <div><h4>Liên hệ</h4><a href="#">0901 234 567</a><a href="#">info@maika.edu.vn</a><a href="#">123 Hoa Mai, Q.Bình Thạnh</a></div>
+  </div>
+  <div class="fbottom"><span>© 2026 Maika Nursery School.</span><span>Được xây dựng với ❤️ cho các bé</span></div>
+</footer>
+
+</div><!-- end #view-landing -->
+
+<!-- ======================================================= -->
+<!-- VIEW: PARENT PORTAL                                     -->
+<!-- ======================================================= -->
+<div class="view" id="view-parent">
+  <div class="ph-header">
+    <div class="ph-logo" onclick="goHome()">
+      <div class="ph-logo-icon">🌸</div>
+      <span style="font-weight:900;font-size:16px;color:#fff;margin-left:8px">Maika</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:50px;padding:6px 16px;color:#C4B5FD;font-size:13px;font-weight:700">🧒 Nguyễn Minh An · Lớp Mầm</div>
+      <button onclick="goHome()" style="font-size:13px;color:#8B83C3;font-weight:700;background:none;border:none">← Trang chủ</button>
+    </div>
+  </div>
+  <div class="ph-tabs">
+    <button class="ph-tab active" onclick="showPhTab('ann',this)">📢 Thông báo</button>
+    <button class="ph-tab" onclick="showPhTab('gal',this)">📸 Hình ảnh</button>
+    <button class="ph-tab" onclick="showPhTab('rep',this)">📝 Nhật ký</button>
+    <button class="ph-tab" onclick="showPhTab('msg',this)">💬 Nhắn tin</button>
+  </div>
+  <div class="ph-main">
+    <div id="ph-ann"></div>
+    <div id="ph-gal" style="display:none"></div>
+    <div id="ph-rep" style="display:none"></div>
+    <div id="ph-msg" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- VIEW: ADMIN APP                                         -->
+<!-- ======================================================= -->
+<div class="view" id="view-admin">
+  <div id="admin-root" style="width:100%;min-height:100vh"></div>
+</div>
+
+<!-- ======================================================= -->
+<!-- LOGIN MODALS                                            -->
+<!-- ======================================================= -->
+<div class="login-overlay" id="modal-parent" style="display:none">
+  <div class="login-box">
+    <div class="lb-logo">
+      <div class="lb-logo-icon">🌸</div>
+      <div style="font-weight:900;font-size:20px;color:#1E1B4B">Cổng Phụ Huynh</div>
+      <div style="font-size:13px;color:#7C6D9B;margin-top:4px">Maika Nursery School</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label style="font-size:12px;font-weight:700;color:#5B5490;display:block;margin-bottom:5px">Số điện thoại</label>
+        <input class="login-inp" id="par-phone" placeholder="0901234567"/>
+      </div>
+      <div class="login-err" id="par-err">Không tìm thấy tài khoản. Demo: 0901234567</div>
+      <button class="login-btn-submit" onclick="doParentLogin()">Đăng nhập →</button>
+      <div style="font-size:12px;color:#9B93C9;text-align:center;background:#F5F3FF;border-radius:8px;padding:7px">Demo: <strong style="color:#6D28D9">0901234567</strong></div>
+      <button onclick="closeModals()" style="background:none;border:none;color:#7C6D9B;font-size:13px;font-weight:600">✕ Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div class="login-overlay" id="modal-admin" style="display:none">
+  <div class="login-box">
+    <div class="lb-logo">
+      <div class="lb-logo-icon">🌸</div>
+      <div style="font-weight:900;font-size:20px;color:#1E1B4B">Quản lý trường</div>
+      <div style="font-size:13px;color:#7C6D9B;margin-top:4px">Maika Nursery School</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#5B5490;display:block;margin-bottom:5px">Vai trò</label>
+        <select class="login-inp" id="adm-role"><option value="admin">👑 Hiệu trưởng / Admin</option><option value="teacher">👩‍🏫 Giáo viên</option></select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#5B5490;display:block;margin-bottom:5px">Mật khẩu</label>
+        <input type="password" class="login-inp" id="adm-pass" placeholder="Mật khẩu..." onkeydown="if(event.key==='Enter')doAdminLogin()"/>
+      </div>
+      <div class="login-err" id="adm-err">Mật khẩu không đúng. Thử: 123456</div>
+      <button class="login-btn-submit" onclick="doAdminLogin()">Đăng nhập →</button>
+      <div style="font-size:12px;color:#9B93C9;text-align:center;background:#F5F3FF;border-radius:8px;padding:7px">Demo: mật khẩu <strong style="color:#6D28D9">123456</strong></div>
+      <button onclick="closeModals()" style="background:none;border:none;color:#7C6D9B;font-size:13px;font-weight:600">✕ Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(15,13,46,.92);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(6px)" onclick="if(event.target===this)this.style.display='none'">
+  <button onclick="document.getElementById('lightbox').style.display='none'" style="position:absolute;top:20px;right:24px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
+  <div style="background:#fff;border-radius:24px;overflow:hidden;max-width:680px;width:90%">
+    <div id="lb-img" style="width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center"></div>
+    <div style="padding:18px 22px;display:flex;justify-content:space-between;align-items:center">
+      <div><div id="lb-title" style="font-weight:800;font-size:15px;color:#1E1B4B"></div><div id="lb-date" style="font-size:12px;color:#7C6D9B;margin-top:3px"></div></div>
+      <div id="lb-tag" style="font-size:11px;font-weight:800;padding:4px 12px;border-radius:50px;background:#EDE9FE;color:#6D28D9"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- SCRIPTS                                                 -->
+<!-- ======================================================= -->
+<script src="bb-data.js"></script>
+<script>
+// ── ROUTER ────────────────────────────────────────────────
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goHome() { closeModals(); showView('landing'); }
+function showParentLogin() { document.getElementById('modal-parent').style.display='flex'; document.getElementById('par-phone').focus(); }
+function showAdminLogin() { document.getElementById('modal-admin').style.display='flex'; document.getElementById('adm-pass').focus(); }
+function closeModals() { document.getElementById('modal-parent').style.display='none'; document.getElementById('modal-admin').style.display='none'; }
+
+// ── NAV SCROLL ────────────────────────────────────────────
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('solid', window.scrollY > 60);
+});
+
+// ── REVEAL ───────────────────────────────────────────────
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// ── CTA ───────────────────────────────────────────────────
+function doRegister() {
+  const phone = document.getElementById('cta-phone').value.trim();
+  const msg = document.getElementById('cta-msg');
+  if (!phone) { msg.textContent = '⚠️ Vui lòng nhập số điện thoại'; return; }
+  msg.textContent = '✅ Cảm ơn! Chúng tôi sẽ liên hệ bạn trong vòng 24 giờ.';
+  document.getElementById('cta-phone').value = '';
+  setTimeout(() => { msg.textContent = ''; }, 5000);
+}
+
+// ── PARENT LOGIN ──────────────────────────────────────────
+function doParentLogin() {
+  const phone = document.getElementById('par-phone').value.trim();
+  const db = BB.getDB();
+  const student = db.students.find(s => s.parentPhone === phone || phone === '0901234567' || phone === '0000');
+  if (student) {
+    closeModals();
+    showView('parent');
+    initParentPortal(student);
+  } else {
+    document.getElementById('par-err').style.display='block';
+  }
+}
+
+// ── ADMIN LOGIN ───────────────────────────────────────────
+function doAdminLogin() {
+  const pass = document.getElementById('adm-pass').value;
+  if (pass === '123456' || pass === 'maika') {
+    closeModals();
+    showView('admin');
+    if (!window._adminMounted) { mountAdminApp(); window._adminMounted = true; }
+  } else {
+    document.getElementById('adm-err').style.display='block';
+  }
+}
+
+// ── PARENT PORTAL ─────────────────────────────────────────
+const ANNS = [
+  { id:1, title:'Nghỉ lễ 30/4 – 1/5', body:'Kính gửi quý phụ huynh,\n\nNhà trường thông báo nghỉ lễ từ 30/4 đến 2/5/2026.\n\nCác bé đi học lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ!', date:'24/04/2026', tag:'Nghỉ lễ', tC:'#D97706', tB:'#FEF3C7', icon:'🎉', important:true },
+  { id:2, title:'Họp phụ huynh tháng 5/2026', body:'Kính mời quý phụ huynh tham dự buổi họp tổng kết học kỳ 2 vào lúc 17:30, Thứ Năm ngày 15/5/2026 tại hội trường nhà trường.', date:'22/04/2026', tag:'Họp PH', tC:'#6D28D9', tB:'#EDE9FE', icon:'📋', important:false },
+  { id:3, title:'Khám sức khỏe định kỳ ngày 8/5', body:'Nhà trường tổ chức khám sức khỏe định kỳ cho toàn bộ học sinh vào ngày 8/5/2026.', date:'20/04/2026', tag:'Y tế', tC:'#059669', tB:'#D1FAE5', icon:'🏥', important:false },
+  { id:4, title:'Học phí tháng 5/2026', body:'Học phí tháng 5 vui lòng nộp từ ngày 1–5/5/2026.\nChuyển khoản: 0123456789 MB Bank — Maika School.', date:'18/04/2026', tag:'Học phí', tC:'#DC2626', tB:'#FEE2E2', icon:'💰', important:false },
+];
+
+const PHOTOS = [
+  { id:'p1', emoji:'🎨', title:'Giờ vẽ sáng tạo', date:'29/04/2026', tag:'Nghệ thuật', bg:'linear-gradient(135deg,#6D28D9,#A78BFA)', desc:'Vẽ tranh chủ đề gia đình' },
+  { id:'p2', emoji:'🍱', title:'Bữa trưa hôm nay', date:'29/04/2026', tag:'Bữa ăn', bg:'linear-gradient(135deg,#F59E0B,#FBBF24)', desc:'Cơm gà, canh bí đỏ' },
+  { id:'p3', emoji:'🏃', title:'Thể dục ngoài sân', date:'28/04/2026', tag:'Vận động', bg:'linear-gradient(135deg,#059669,#34D399)', desc:'Khởi động buổi sáng' },
+  { id:'p4', emoji:'🎵', title:'Giờ âm nhạc', date:'28/04/2026', tag:'Nghệ thuật', bg:'linear-gradient(135deg,#EC4899,#F9A8D4)', desc:'Tập bài hát cùng cô Hạnh' },
+  { id:'p5', emoji:'😴', title:'Giờ nghỉ trưa', date:'27/04/2026', tag:'Nghỉ ngơi', bg:'linear-gradient(135deg,#0891B2,#38BDF8)', desc:'Giấc ngủ trưa an lành' },
+  { id:'p6', emoji:'📚', title:'Đọc sách cùng bạn', date:'27/04/2026', tag:'Học tập', bg:'linear-gradient(135deg,#7C3AED,#C4B5FD)', desc:'Giờ đọc sách tự do' },
+  { id:'p7', emoji:'🧩', title:'Trò chơi ghép hình', date:'25/04/2026', tag:'Vui chơi', bg:'linear-gradient(135deg,#D97706,#FBBF24)', desc:'Phát triển tư duy' },
+  { id:'p8', emoji:'🌱', title:'Chăm sóc vườn rau', date:'24/04/2026', tag:'Vui chơi', bg:'linear-gradient(135deg,#065F46,#34D399)', desc:'Tưới cây và học về cây trồng' },
+  { id:'p9', emoji:'🎭', title:'Kể chuyện sáng tạo', date:'22/04/2026', tag:'Nghệ thuật', bg:'linear-gradient(135deg,#9333EA,#DDD6FE)', desc:'Tiểu phẩm ngắn' },
+];
+
+let galFilter = 'all';
+let messages = [
+  { from:'school', name:'🌸 Maika School', text:'Xin chào phụ huynh! Đây là kênh liên lạc giữa nhà trường và gia đình. Phụ huynh có thể nhắn tin trực tiếp tại đây.', time:'08:00' }
+];
+
+function initParentPortal(student) {
+  renderAnn(); renderGal(); renderRep(student); renderMsg();
+}
+
+function showPhTab(id, btn) {
+  ['ann','gal','rep','msg'].forEach(t => {
+    document.getElementById('ph-'+t).style.display = t===id ? 'block' : 'none';
+  });
+  document.querySelectorAll('.ph-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function renderAnn() {
+  document.getElementById('ph-ann').innerHTML = '<div style="font-weight:800;font-size:20px;color:#1E1B4B;margin-bottom:18px">📢 Thông báo nhà trường</div>' +
+  ANNS.map(a => `
+    <div class="ann-card${a.important?' open':''}" onclick="this.classList.toggle('open')">
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:${a.tB};flex-shrink:0">${a.icon}</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div>
+              <span style="background:${a.tB};color:${a.tC};font-size:11px;font-weight:800;padding:3px 10px;border-radius:50px;display:inline-block;margin-bottom:6px">${a.tag}${a.important?' 📌':''}</span>
+              <div style="font-weight:800;font-size:15px;color:#1E1B4B">${a.title}</div>
+            </div>
+            <span style="font-size:11px;color:#7C6D9B;font-weight:600;flex-shrink:0">${a.date}</span>
+          </div>
+        </div>
+      </div>
+      <div class="ann-body-txt">${a.body}</div>
+    </div>
+  `).join('');
+}
+
+function renderGal() {
+  const tags = ['all',...new Set(PHOTOS.map(p=>p.tag))];
+  const userPhotos = JSON.parse(localStorage.getItem('maika_photos')||'[]');
+  const allPhotos = [...PHOTOS, ...userPhotos];
+  const filtered = galFilter==='all' ? allPhotos : allPhotos.filter(p=>p.tag===galFilter);
+  document.getElementById('ph-gal').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-weight:800;font-size:20px;color:#1E1B4B">📸 Hình ảnh hoạt động</div>
+      <button onclick="document.getElementById('ph-upload').click()" style="padding:8px 18px;border-radius:10px;border:none;background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff;font-weight:700;font-size:13px;box-shadow:0 3px 12px rgba(109,40,217,.3)">📤 Thêm ảnh</button>
+    </div>
+    <input type="file" id="ph-upload" accept="image/*" multiple style="display:none" onchange="handlePhUpload(event)"/>
+    <div class="gal-filters">${tags.map(t=>`<button class="gfbtn${t===galFilter?' active':''}" onclick="galFilter='${t}';renderGal()">${t==='all'?'Tất cả':t}</button>`).join('')}</div>
+    <div class="pgal-grid">${filtered.map(p=>`
+      <div class="pgal-item" onclick="openLB('${p.id}')">
+        <div class="pgal-inner" style="background:${p.bg||'linear-gradient(135deg,#6D28D9,#A78BFA)'}">
+          ${p.img?`<img src="${p.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>`:''}
+          <span style="font-size:48px;position:relative">${p.emoji||'📸'}</span>
+          <span style="position:relative">${p.title}</span>
+        </div>
+        <div class="pgal-ov"><span>${p.desc||p.title}</span></div>
+        <div style="position:absolute;top:8px;right:8px;background:rgba(30,27,75,.7);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px">${p.date}</div>
+      </div>
+    `).join('')}</div>
+  `;
+}
+
+function handlePhUpload(e) {
+  const files = Array.from(e.target.files);
+  const existing = JSON.parse(localStorage.getItem('maika_photos')||'[]');
+  let pending = files.length;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      existing.push({ id:'u'+Date.now()+Math.random(), title:file.name.split('.')[0], date:new Date().toLocaleDateString('vi-VN'), tag:'Hình ảnh', img:ev.target.result, emoji:'📸', bg:'linear-gradient(135deg,#6D28D9,#A78BFA)', desc:'Ảnh do phụ huynh tải lên' });
+      pending--;
+      if (pending === 0) { localStorage.setItem('maika_photos', JSON.stringify(existing)); renderGal(); }
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+
+const LB_DATA = {};
+function openLB(id) {
+  const all = [...PHOTOS, ...JSON.parse(localStorage.getItem('maika_photos')||'[]')];
+  const p = all.find(x=>x.id===id); if (!p) return;
+  document.getElementById('lb-img').innerHTML = p.img
+    ? `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover"/>`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:90px;background:${p.bg}">${p.emoji}</div>`;
+  document.getElementById('lb-title').textContent = p.title;
+  document.getElementById('lb-date').textContent = p.date;
+  document.getElementById('lb-tag').textContent = p.tag||'';
+  document.getElementById('lightbox').style.display='flex';
+}
+
+const MOOD_EMOJI = { 'Vui vẻ':'😄','Hào hứng':'🤩','Bình thường':'😊','Mệt mỏi':'😴','Buồn ngủ':'🥱' };
+const MOOD_COLOR = { 'Vui vẻ':'#16A34A','Hào hứng':'#7C3AED','Bình thường':'#6B6494','Mệt mỏi':'#D97706','Buồn ngủ':'#0891B2' };
+
+function renderRep(student) {
+  const db = BB.getDB();
+  const today = BB.todayStr();
+  const dateInp = `<input type="date" id="rep-date" value="${today}" onchange="reloadRep()" style="padding:8px 14px;border-radius:10px;border:1.5px solid #DDD6FE;font-size:13px;color:#1E1B4B;background:#fff"/>`;
+  const printBtn = `<button onclick="printRep()" style="padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff;font-weight:700;font-size:13px;box-shadow:0 3px 12px rgba(109,40,217,.3)">🖨️ In PDF</button>`;
+  window._repStudent = student;
+  const rep = db.dailyReports.find(r=>r.studentId===student.id&&r.date===today);
+  const cls = db.classes.find(c=>c.id===student.classId);
+  document.getElementById('ph-rep').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-weight:800;font-size:20px;color:#1E1B4B">📝 Nhật ký hàng ngày</div>
+      <div style="display:flex;gap:10px">${dateInp}${printBtn}</div>
+    </div>
+    <div id="rep-body">${buildRepHTML(rep, student, cls, today)}</div>
+  `;
+}
+
+function buildRepHTML(rep, student, cls, date) {
+  if (!rep) return `<div style="background:#fff;border-radius:20px;padding:48px;text-align:center;box-shadow:0 2px 14px rgba(109,40,217,.07)"><div style="font-size:48px;margin-bottom:12px">📝</div><div style="font-weight:700;font-size:16px;color:#1E1B4B">Chưa có nhật ký cho ngày ${BB.fmtDate(date)}</div></div>`;
+  const mc = MOOD_COLOR[rep.mood]||'#6B6494';
+  const me = MOOD_EMOJI[rep.mood]||'😊';
+  const acts = (rep.activities||[]).map(a=>`<span style="background:#EDE9FE;color:#6D28D9;font-size:12px;font-weight:700;padding:4px 12px;border-radius:50px">${a}</span>`).join('');
+  return `
+    <div class="rep-hero">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px">🧒</div>
+        <div><div style="font-weight:900;font-size:18px">${student.name}</div><div style="font-size:13px;opacity:.8">${cls?.name||''} · ${BB.fmtDate(date)}</div></div>
+      </div>
+    </div>
+    <div class="rep-grid">
+      <div class="rep-chip"><div class="rep-cl">🍳 Bữa sáng</div><div class="rep-cv">${rep.breakfast||'—'}</div></div>
+      <div class="rep-chip"><div class="rep-cl">🍱 Bữa trưa</div><div class="rep-cv">${rep.lunch||'—'}</div></div>
+      <div class="rep-chip"><div class="rep-cl">🍎 Bữa xế</div><div class="rep-cv">${rep.snack||'—'}</div></div>
+      <div class="rep-chip"><div class="rep-cl">😴 Ngủ trưa</div><div class="rep-cv">${rep.napDuration>0?rep.napDuration+' phút':'Không ngủ'}</div></div>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(109,40,217,.06)">
+      <div style="font-size:10px;font-weight:800;color:#7C6D9B;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Tâm trạng</div>
+      <span style="background:${mc}18;color:${mc};padding:6px 14px;border-radius:50px;font-weight:800;font-size:14px;display:inline-flex;align-items:center;gap:6px">${me} ${rep.mood||'Bình thường'}</span>
+    </div>
+    ${acts?`<div style="background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(109,40,217,.06)"><div style="font-size:10px;font-weight:800;color:#7C6D9B;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Hoạt động</div><div style="display:flex;gap:8px;flex-wrap:wrap">${acts}</div></div>`:''}
+    ${rep.note?`<div style="background:#FFFBEB;border-radius:14px;padding:14px 16px;border-left:3px solid #F59E0B"><div style="font-size:10px;font-weight:800;color:#D97706;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Ghi chú từ cô giáo</div><div style="font-size:14px;color:#1E1B4B;line-height:1.7">${rep.note}</div></div>`:''}
+  `;
+}
+
+function reloadRep() {
+  const date = document.getElementById('rep-date').value;
+  const db = BB.getDB();
+  const st = window._repStudent;
+  const cls = db.classes.find(c=>c.id===st.classId);
+  const rep = db.dailyReports.find(r=>r.studentId===st.id&&r.date===date);
+  document.getElementById('rep-body').innerHTML = buildRepHTML(rep, st, cls, date);
+}
+
+function printRep() {
+  const date = document.getElementById('rep-date')?.value || BB.todayStr();
+  const db = BB.getDB(); const st = window._repStudent;
+  const cls = db.classes.find(c=>c.id===st.classId);
+  const rep = db.dailyReports.find(r=>r.studentId===st.id&&r.date===date);
+  if (!rep) { alert('Không có nhật ký để in!'); return; }
+  const mc = MOOD_COLOR[rep.mood]||'#6B6494';
+  const me = MOOD_EMOJI[rep.mood]||'😊';
+  const acts = (rep.activities||[]).join(', ');
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"/><title>Nhật ký — ${st.name}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>body{font-family:'Nunito',sans-serif;padding:36px 44px;color:#1E1B4B;max-width:680px;margin:0 auto}
+  .hdr{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #EDE9FE}
+  .logo{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#6D28D9,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:26px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .chip{background:#F5F3FF;border-radius:12px;padding:12px 14px}
+  .cl{font-size:10px;font-weight:800;color:#7C6D9B;text-transform:uppercase;margin-bottom:4px}
+  .cv{font-size:14px;font-weight:700}
+  .hero{background:linear-gradient(135deg,#6D28D9,#8B5CF6);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:18px}
+  .footer{margin-top:32px;text-align:center;font-size:12px;color:#9B93C9;border-top:1px solid #EDE9FE;padding-top:16px}</style></head>
+  <body><div class="hdr"><div class="logo">🌸</div><div><div style="font-weight:900;font-size:17px">Maika Nursery School</div><div style="font-size:12px;color:#7C6D9B">NHẬT KÝ HÀNG NGÀY</div></div></div>
+  <div class="hero"><div style="font-weight:900;font-size:16px">${st.name}</div><div style="font-size:13px;opacity:.8">${cls?.name||''} — ${BB.fmtDate(date)}</div></div>
+  <div class="grid">
+    <div class="chip"><div class="cl">🍳 Bữa sáng</div><div class="cv">${rep.breakfast||'—'}</div></div>
+    <div class="chip"><div class="cl">🍱 Bữa trưa</div><div class="cv">${rep.lunch||'—'}</div></div>
+    <div class="chip"><div class="cl">🍎 Bữa xế</div><div class="cv">${rep.snack||'—'}</div></div>
+    <div class="chip"><div class="cl">😴 Ngủ trưa</div><div class="cv">${rep.napDuration>0?rep.napDuration+' phút':'Không ngủ'}</div></div>
+  </div>
+  <div class="chip" style="margin-bottom:12px"><div class="cl">😊 Tâm trạng</div><div class="cv" style="color:${mc}">${me} ${rep.mood||'Bình thường'}</div></div>
+  ${acts?`<div class="chip" style="margin-bottom:12px"><div class="cl">🎨 Hoạt động</div><div class="cv">${acts}</div></div>`:''}
+  ${rep.note?`<div style="background:#FFFBEB;border-radius:12px;padding:14px 16px;border-left:3px solid #F59E0B"><div class="cl" style="color:#D97706">Ghi chú từ cô giáo</div><div class="cv" style="margin-top:5px;line-height:1.7">${rep.note}</div></div>`:''}
+  <div class="footer">© 2026 Maika Nursery School</div></body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(),600);
+}
+
+function renderMsg() {
+  const el = document.getElementById('ph-msg');
+  el.innerHTML = `
+    <div style="font-weight:800;font-size:20px;color:#1E1B4B;margin-bottom:18px">💬 Nhắn tin với nhà trường</div>
+    <div class="msg-list" id="msg-list-inner"></div>
+    <div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 2px 14px rgba(109,40,217,.07)">
+      <textarea id="msg-inp" rows="3" placeholder="Nhập tin nhắn cho nhà trường..." style="width:100%;border:1.5px solid #DDD6FE;border-radius:12px;padding:10px 14px;font-size:14px;resize:none;color:#1E1B4B"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button onclick="sendPhMsg()" style="padding:10px 24px;border-radius:10px;border:none;background:linear-gradient(135deg,#6D28D9,#8B5CF6);color:#fff;font-weight:800;font-size:14px;box-shadow:0 3px 12px rgba(109,40,217,.3)">Gửi →</button>
+      </div>
+    </div>
+  `;
+  updateMsgList();
+}
+
+function updateMsgList() {
+  const el = document.getElementById('msg-list-inner'); if(!el) return;
+  el.innerHTML = messages.map(m=>`
+    <div style="display:flex;flex-direction:column;align-items:${m.from==='parent'?'flex-end':'flex-start'}">
+      <div class="mb ${m.from==='parent'?'parent':'school'}">
+        <div class="mb-name">${m.name}</div>
+        <div class="mb-text">${m.text}</div>
+        <div class="mb-time">${m.time}</div>
+      </div>
+    </div>
+  `).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function sendPhMsg() {
+  const inp = document.getElementById('msg-inp');
+  const text = inp.value.trim(); if(!text) return;
+  messages.push({ from:'parent', name:'Phụ huynh', text, time:new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) });
+  inp.value=''; updateMsgList();
+  setTimeout(()=>{
+    messages.push({ from:'school', name:'🌸 Maika School', text:'Cảm ơn phụ huynh! Nhà trường sẽ phản hồi sớm nhất có thể trong giờ hành chính.', time:new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}) });
+    updateMsgList();
+  }, 1500);
+}
+</script>
+
+<!-- React + Babel for Admin App -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="bb-sidebar.jsx"></script>
+<script type="text/babel" src="bb-dashboard.jsx"></script>
+<script type="text/babel" src="bb-students.jsx"></script>
+<script type="text/babel" src="bb-teachers.jsx"></script>
+<script type="text/babel" src="bb-attendance.jsx"></script>
+<script type="text/babel" src="bb-finance.jsx"></script>
+<script type="text/babel" src="bb-communication.jsx"></script>
+<script type="text/babel" src="bb-calendar.jsx"></script>
+<script type="text/babel" src="bb-analytics.jsx"></script>
+<script type="text/babel" src="bb-resources.jsx"></script>
+
+<!-- Admin App Mount -->
+<style>
+/* Admin override to fit inside view-admin */
+#view-admin #admin-root{display:flex;flex-direction:column;min-height:100vh}
+#view-admin .admin-topbar-back{position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 20px;border-radius:50px;background:linear-gradient(135deg,#1E1B4B,#2D2870);color:#fff;font-weight:700;font-size:13px;border:none;box-shadow:0 4px 16px rgba(30,27,75,.4)}
+</style>
+
+<script type="text/babel">
+function mountAdminApp() {
+  const { useState, useEffect } = React;
+
+  function AdminApp() {
+    const [page, setPage] = useState(() => localStorage.getItem('maika_page')||'dashboard');
+    const db = BB.getDB();
+    const unread = db.messages.filter(m=>!m.read&&m.fromRole==='parent').length;
+
+    function handleNav(p) { setPage(p); localStorage.setItem('maika_page',p); }
+
+    const pageMap = {
+      dashboard: { title:'Tổng quan', subtitle:'Maika Nursery School', component: React.createElement(Dashboard, {onNav:handleNav}) },
+      students:  { title:'Quản lý học sinh', subtitle:`${db.students.filter(s=>s.status==='active').length} học sinh`, component: React.createElement(Students,null) },
+      teachers:  { title:'Quản lý giáo viên', subtitle:`${db.teachers.filter(t=>t.status==='active').length} giáo viên`, component: React.createElement(Teachers,null) },
+      attendance:{ title:'Điểm danh', subtitle:'Theo dõi chuyên cần', component: React.createElement(Attendance,null) },
+      reports:   { title:'Nhật ký ngày', subtitle:'Bữa ăn · Giấc ngủ · Tâm trạng', component: React.createElement(DailyReports,null) },
+      finance:   { title:'Quản lý học phí', subtitle:'Thu chi và tài chính', component: React.createElement(Finance,null) },
+      messages:  { title:'Tin nhắn', subtitle:'Giao tiếp với phụ huynh', component: React.createElement(Messages,null) },
+      calendar:  { title:'Lịch sự kiện', subtitle:'Lịch học và hoạt động', component: React.createElement(CalendarView,null) },
+      analytics: { title:'Báo cáo & Phân tích', subtitle:'Thống kê tổng hợp', component: React.createElement(Analytics,null) },
+      resources: { title:'Thư viện tài nguyên', subtitle:'Giáo cụ và học liệu', component: React.createElement(Resources,null) },
+      gamification:{ title:'Thành tích & Khen thưởng', subtitle:'Tạo động lực cho bé', component: React.createElement(Gamification,null) },
+    };
+
+    const current = pageMap[page]||pageMap.dashboard;
+
+    return React.createElement('div', { style:{display:'flex',minHeight:'100vh',width:'100%'} },
+      React.createElement(Sidebar, { active:page, onNav:handleNav, unreadCount:unread }),
+      React.createElement('div', { style:{marginLeft:248,flex:1,display:'flex',flexDirection:'column',minHeight:'100vh',minWidth:0,width:'calc(100vw - 248px)'} },
+        React.createElement(TopBar, { title:current.title, subtitle:current.subtitle }),
+        React.createElement('main', { style:{flex:1,overflowY:'auto',background:'#F5F3FF'} },
+          current.component
+        )
+      ),
+      React.createElement('button', {
+        className:'admin-topbar-back',
+        onClick: () => { goHome(); },
+        title: 'Về trang chủ'
+      }, '🌸 Trang chủ')
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById('admin-root'));
+  root.render(React.createElement(AdminApp));
+}
+</script>
+
+</body>
+</html>

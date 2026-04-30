@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.gif
+uploads/*.webp
+!uploads/.gitkeep
+.DS_Store
+Thumbs.db
+*.log
+.vercel
+.netlify
