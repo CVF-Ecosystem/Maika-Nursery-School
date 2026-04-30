@@ -1,7 +1,8 @@
-import { useState, lazy, Suspense } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar, { TopBar } from './Sidebar'
-import { getDB } from '../../data/store'
+import { getDB, hydrateFromAPI } from '../../data/store'
+import { hasBackendAPI } from '../../data/api'
 
 // Lazy-load each admin module for code splitting
 const Dashboard = lazy(() => import('./Dashboard'))
@@ -41,6 +42,7 @@ function LoadingSpinner() {
 export default function AdminApp() {
     const navigate = useNavigate()
     const [page, setPage] = useState(() => localStorage.getItem('maika_page') || 'dashboard')
+    const [loadingData, setLoadingData] = useState(hasBackendAPI())
     const db = getDB()
     const unread = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
 
@@ -49,11 +51,22 @@ export default function AdminApp() {
         localStorage.setItem('maika_page', p)
     }
 
+    useEffect(() => {
+        if (!hasBackendAPI() || !sessionStorage.getItem('maika_role')) return
+        let mounted = true
+        hydrateFromAPI()
+            .catch(() => { })
+            .finally(() => { if (mounted) setLoadingData(false) })
+        return () => { mounted = false }
+    }, [])
+
     // Guard: must be logged in
     if (!sessionStorage.getItem('maika_role')) {
         navigate('/admin')
         return null
     }
+
+    if (loadingData) return <LoadingSpinner />
 
     const current = PAGE_MAP[page] || PAGE_MAP.dashboard
     const db2 = getDB()

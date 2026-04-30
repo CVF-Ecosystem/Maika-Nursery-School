@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getDB } from '../../data/store'
+import { getDB, hydrateFromAPI } from '../../data/store'
+import { hasBackendAPI } from '../../data/api'
 import { fmtDate } from '../../utils/format'
 import { sanitizeFilename, sanitizeText, validateImageFile } from '../../utils/security'
 
@@ -41,9 +42,22 @@ export default function ParentPortal() {
     const [messages, setMessages] = useState([{ from: 'school', name: '🌸 Maika School', text: 'Xin chào phụ huynh! Đây là kênh liên lạc giữa nhà trường và gia đình.', time: '08:00' }])
     const [msgText, setMsgText] = useState('')
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
+    const [loadingData, setLoadingData] = useState(hasBackendAPI())
 
     const phone = sessionStorage.getItem('maika_parent_phone')
+
+    useEffect(() => {
+        if (!hasBackendAPI() || !phone) return
+        let mounted = true
+        hydrateFromAPI()
+            .catch(() => { })
+            .finally(() => { if (mounted) setLoadingData(false) })
+        return () => { mounted = false }
+    }, [])
+
     if (!phone) { navigate('/parent'); return null }
+
+    if (loadingData) return <div style={{ minHeight: '100vh', background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7C6D9B', fontWeight: 800 }}>Đang tải dữ liệu...</div>
 
     const db = getDB()
     const student = db.students.find(s => s.parentPhone === phone) || db.students[0]

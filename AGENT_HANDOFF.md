@@ -2,16 +2,16 @@
 
 > **Ngày tạo**: 30/04/2026  
 > **Tác giả**: EA Assessment Agent  
-> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 4, bắt đầu Phase 5 PWA/SEO
+> **Trạng thái**: 🟢 PHASE 7 BACKEND ĐÃ TRIỂN KHAI — Frontend vẫn fallback static/localStorage khi chưa bật API
 
 ## ⚡ Quyết định kiến trúc (đã xác nhận bởi EA)
 
 | Quyết định | Giá trị | Ghi chú |
 |-----------|---------|--------|
 | **Deploy** | Vercel hoặc Netlify (static hosting) | Custom domain gắn sau khi ổn định |
-| **Data** | localStorage — giữ nguyên | Backend/DB sẽ làm phase sau khi cần |
-| **Backend** | ⏸️ DEFERRED — chưa cần ngay | Chỉ cần khi chuyển production thật |
-| **Stack** | Vite + React → static build → deploy | Không cần server runtime |
+| **Data** | localStorage fallback + SQLite API khi bật `VITE_API_URL` | Static demo vẫn chạy độc lập |
+| **Backend** | Express + SQLite (`node:sqlite`) | JWT/bcrypt/RBAC/upload/migration đã có |
+| **Stack** | Vite + React + optional Express API | Netlify static cần deploy API riêng nếu dùng backend |
 
 ---
 
@@ -36,14 +36,14 @@
 
 | # | Vấn đề | Mức độ |
 |---|--------|--------|
-| 1 | **Không backend** — toàn bộ dữ liệu localStorage, mất khi xóa cache | 🔴 |
-| 2 | **Hardcoded credentials** — `123456` plaintext trong source | 🔴 |
+| 1 | ~~**Không backend** — toàn bộ dữ liệu localStorage, mất khi xóa cache~~ (ĐÃ FIX: optional Express + SQLite API) | 🔴 |
+| 2 | **Hardcoded credentials** — frontend demo vẫn có fallback; backend dùng bcrypt + env password | 🔴 |
 | 3 | ~~**Monolith** — `index.html` 822 dòng chứa 3 views + CSS + JS~~ (ĐÃ FIX: tách ra 55 ES modules) | 🔴 |
 | 4 | ~~**Duplicate code** — Landing + Parent Portal tồn tại 2 bản (standalone + nhúng)~~ (ĐÃ FIX) | 🟠 |
 | 5 | **XSS** — user-generated content cần sanitize (ĐÃ FIX phần tin nhắn, tên file, CSV import bằng DOMPurify) | 🟠 |
 | 6 | ~~**Global namespace** — tất cả components dùng `window.*`~~ (ĐÃ FIX: dùng JS import/export) | 🟠 |
 | 7 | **Không tests, không CI/CD** (Đã tạo .gitignore) | 🟠 |
-| 8 | **Ảnh lưu Base64 trong localStorage** — giới hạn ~5MB | 🟡 |
+| 8 | **Ảnh lưu Base64 trong localStorage** — fallback demo vẫn vậy; backend upload server-side đã có | 🟡 |
 
 ### Điểm mạnh giữ nguyên
 
@@ -155,15 +155,15 @@ src/
 - [ ] Setup SSL (auto bởi Vercel/Netlify)
 - [ ] Redirect `www` → non-www (hoặc ngược lại)
 
-### Phase 7 — Backend (DEFERRED — khi cần scale)
-> Chỉ triển khai khi cần: multi-device sync, data lớn, hoặc chuyển production thật
+### Phase 7 — Backend (✅ Đã xong)
+> ĐÃ TRIỂN KHAI theo yêu cầu ngày 30/04/2026. Backend là optional để không phá Netlify static demo hiện tại.
 
-- [ ] Express + SQLite/PostgreSQL backend
-- [ ] REST API thay localStorage
-- [ ] JWT auth + bcrypt
-- [ ] RBAC: Admin / Teacher / Parent
-- [ ] File upload server-side (Multer)
-- [ ] Migrate data từ localStorage → database
+- [x] Express + SQLite backend (`node:sqlite`, DB mặc định `server/data/maika.sqlite`)
+- [x] REST API thay localStorage khi bật `VITE_API_URL`; frontend vẫn fallback localStorage nếu không cấu hình API
+- [x] JWT auth + bcrypt (`MAIKA_JWT_SECRET`, `MAIKA_ADMIN_PASSWORD`, `MAIKA_TEACHER_PASSWORD`)
+- [x] RBAC: Admin / Teacher / Parent (parent snapshot được filter theo student)
+- [x] File upload server-side (Multer, image/*, max 5MB, `server/uploads`)
+- [x] Migrate data từ localStorage → database qua snapshot import/export scripts
 
 ---
 
@@ -172,8 +172,8 @@ src/
 1. **Bắt đầu từ Phase 0** — CVF onboard trước khi code
 2. **Commit sau mỗi phase** — mỗi phase là 1 tranche có thể review
 3. **Giữ nguyên UI/UX** — design hiện tại đã premium, KHÔNG redesign
-4. **Data = localStorage** — KHÔNG tạo backend. Giữ `bb-data.js` pattern, chỉ refactor thành ES module
-5. **Deploy = Vercel hoặc Netlify** — static hosting, KHÔNG cần server
+4. **Data = localStorage fallback + optional API** — bật backend bằng `VITE_API_URL`; không bật thì demo static vẫn chạy
+5. **Deploy = Netlify static cho frontend; API cần deploy riêng** nếu chuyển production thật
 6. **Test mỗi module** sau khi migrate — đảm bảo chức năng giống hệt
 7. **Chạy `/pre-commit-check`** trước khi commit mỗi tranche
 8. **Cập nhật AGENT_HANDOFF** này — tick `[x]` mỗi task hoàn thành
@@ -203,3 +203,10 @@ src/
 **Sau Phase 4**: Thêm Vitest + Testing Library + jsdom, script `npm run test:run`. Thêm Playwright, script `npm run test:e2e`, test parent login → report và admin CRUD student. Đã nâng Vite lên 8.x để `npm audit` = 0 vulnerability; `manualChunks` đã đổi sang function tương thích Vite 8/Rolldown.
 
 **Sau Phase 5 partial**: Thêm `manifest.webmanifest`, `sw.js`, SVG favicon/icon/OG image, SEO/Open Graph/Twitter meta. Lighthouse trên Vite preview: Performance 94, Accessibility 100, Best Practices 100, SEO 91.
+
+**Sau Phase 7**: Thêm Express API trong `server/`:
+- `npm run api:dev` chạy API tại `http://127.0.0.1:8787`
+- `POST /api/auth/login`, `GET/PUT /api/snapshot`, REST collections `/api/students`, `/api/daily-reports`, v.v.
+- `server/README.md` ghi cách chạy, auth, migration snapshot
+- API tests trong `server/app.test.js`; hiện `npm run test:run` = 4 files / 13 tests passed
+- Lưu ý: `node:sqlite` trên Node 22 đang có ExperimentalWarning, nhưng tests/build pass.

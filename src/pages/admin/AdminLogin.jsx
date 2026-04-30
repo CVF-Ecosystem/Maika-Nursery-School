@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { hasBackendAPI, loginWithBackend } from '../../data/api'
+import { clearApiSnapshot } from '../../data/store'
 
 const DEMO_PASS = ['123456', 'maika']
 const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
@@ -11,9 +13,24 @@ export default function AdminLogin() {
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
         e.preventDefault()
         setLoading(true)
+        setErr('')
+        if (hasBackendAPI()) {
+            try {
+                const session = await loginWithBackend({ role, password: pass })
+                sessionStorage.setItem('maika_role', session.user.role)
+                sessionStorage.setItem('maika_api_token', session.token)
+                clearApiSnapshot()
+                navigate('/admin/app')
+            } catch (error) {
+                setErr(error.message)
+                setLoading(false)
+            }
+            return
+        }
+
         setTimeout(() => {
             if (DEMO_PASS.includes(pass)) {
                 sessionStorage.setItem('maika_role', role)

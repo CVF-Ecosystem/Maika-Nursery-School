@@ -3,7 +3,7 @@
 
 const BB_KEY = 'maika_v1';
 
-const defaultData = {
+export const defaultData = {
     students: [
         { id: 's1', name: 'Nguyễn Minh An', dob: '2020-03-15', classId: 'c1', parentName: 'Nguyễn Văn Hùng', parentPhone: '0901234567', parentEmail: 'hung.nv@email.com', enrollDate: '2023-09-01', status: 'active', initials: 'MA', gender: 'male' },
         { id: 's2', name: 'Trần Bảo Châu', dob: '2020-07-22', classId: 'c1', parentName: 'Trần Thị Mai', parentPhone: '0912345678', parentEmail: 'mai.tt@email.com', enrollDate: '2023-09-01', status: 'active', initials: 'BC', gender: 'female' },
@@ -125,6 +125,10 @@ const defaultData = {
 
 function loadData() {
     try {
+        if (hasApi()) {
+            const cached = sessionStorage.getItem('maika_api_snapshot');
+            if (cached) return JSON.parse(cached);
+        }
         const raw = localStorage.getItem(BB_KEY);
         if (raw) return JSON.parse(raw);
     } catch (e) { }
@@ -137,13 +141,48 @@ function saveData(data) {
 
 let _db = null;
 
+function hasApi() {
+    return typeof import.meta !== 'undefined' && Boolean(import.meta.env?.VITE_API_URL);
+}
+
+function getApiToken() {
+    try {
+        return sessionStorage.getItem('maika_api_token') || '';
+    } catch {
+        return '';
+    }
+}
+
+function apiUrl(path) {
+    return `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}${path}`;
+}
+
+async function syncSnapshot(data) {
+    const token = getApiToken();
+    if (!hasApi() || !token) return;
+
+    await fetch(apiUrl('/api/snapshot'), {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ data }),
+    });
+}
+
 export function getDB() {
     if (!_db) _db = loadData();
     return _db;
 }
 
 export function commit() {
-    saveData(_db);
+    if (hasApi()) {
+        try { sessionStorage.setItem('maika_api_snapshot', JSON.stringify(_db)); } catch { }
+        syncSnapshot(_db).catch(() => { });
+    } else {
+        saveData(_db);
+    }
 }
 
 export function resetDB() {
@@ -152,3 +191,23 @@ export function resetDB() {
 }
 
 export const todayStr = () => new Date().toISOString().split('T')[0];
+
+export async function hydrateFromAPI() {
+    const token = getApiToken();
+    if (!hasApi() || !token) return getDB();
+
+    const response = await fetch(apiUrl('/api/snapshot'), {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Cannot load backend snapshot');
+
+    const payload = await response.json();
+    _db = payload.data;
+    sessionStorage.setItem('maika_api_snapshot', JSON.stringify(_db));
+    return _db;
+}
+
+export function clearApiSnapshot() {
+    try { sessionStorage.removeItem('maika_api_snapshot'); } catch { }
+    _db = null;
+}

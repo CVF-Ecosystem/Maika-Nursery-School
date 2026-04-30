@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { hasBackendAPI, loginWithBackend } from '../../data/api'
+import { clearApiSnapshot } from '../../data/store'
 
 const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -8,12 +10,28 @@ export default function ParentLogin() {
     const [err, setErr] = useState('')
     const navigate = useNavigate()
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
         e.preventDefault()
+        setErr('')
+        const normalizedPhone = phone.replace(/\s/g, '')
+        if (hasBackendAPI()) {
+            try {
+                const session = await loginWithBackend({ role: 'parent', phone: normalizedPhone })
+                sessionStorage.setItem('maika_parent_phone', normalizedPhone)
+                sessionStorage.setItem('maika_role', session.user.role)
+                sessionStorage.setItem('maika_api_token', session.token)
+                clearApiSnapshot()
+                navigate('/parent/portal')
+            } catch (error) {
+                setErr(error.message)
+            }
+            return
+        }
+
         // Demo: accept any registered parent phone or 0901234567
         const validPhones = ['0901234567', '0912345678', '0923456789', '0934567890', '0945678901', '0956789012', '0967890123', '0978901234', '0989012345', '0990123456', '0901234560', '0912345670', '0923456780', '0934567800', '0000']
-        if (validPhones.includes(phone.replace(/\s/g, ''))) {
-            sessionStorage.setItem('maika_parent_phone', phone.replace(/\s/g, ''))
+        if (validPhones.includes(normalizedPhone)) {
+            sessionStorage.setItem('maika_parent_phone', normalizedPhone)
             navigate('/parent/portal')
         } else {
             setErr(DEMO_MODE ? 'Không tìm thấy tài khoản. Demo: 0901234567' : 'Không tìm thấy tài khoản.')

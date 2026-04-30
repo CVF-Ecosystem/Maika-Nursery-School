@@ -9,6 +9,8 @@ uploads/*.png
 uploads/*.gif
 uploads/*.webp
 !uploads/.gitkeep
+server/data/
+server/uploads/
 .DS_Store
 Thumbs.db
 *.log
