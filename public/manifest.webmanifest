@@ -1,0 +1,33 @@
+{
+  "name": "Maika Nursery School",
+  "short_name": "Maika",
+  "description": "Cổng thông tin Nhà trẻ Maika cho phụ huynh và quản trị trường.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F3FF",
+  "theme_color": "#4C1D95",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cổng phụ huynh",
+      "short_name": "Phụ huynh",
+      "url": "/parent",
+      "description": "Xem thông báo, hình ảnh và nhật ký ngày của bé."
+    },
+    {
+      "name": "Quản lý trường",
+      "short_name": "Admin",
+      "url": "/admin",
+      "description": "Đăng nhập khu vực quản trị Maika."
+    }
+  ]
+}

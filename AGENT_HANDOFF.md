@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 30/04/2026  
 > **Tác giả**: EA Assessment Agent  
-> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 3, bắt đầu Phase 4 testing baseline
+> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 4, bắt đầu Phase 5 PWA/SEO
 
 ## ⚡ Quyết định kiến trúc (đã xác nhận bởi EA)
 
@@ -138,16 +138,16 @@ src/
 - [x] Bỏ hiển thị credential gợi ý trong production build (dùng env var `VITE_DEMO_MODE`)
 - [x] Thêm CSP meta tag trong `index.html`
 
-### Phase 4 — Testing (🟡 Đang làm)
+### Phase 4 — Testing (✅ Đã xong)
 - [x] Unit tests (Vitest): `utils/format.js`, security utils, component route renders (`10 passed`)
-- [ ] E2E tests (Playwright): Parent login → view report, Admin CRUD student
-- [ ] Lighthouse audit: Performance ≥ 90, Accessibility ≥ 90
+- [x] E2E tests (Playwright): Parent login → view report, Admin CRUD student (`2 passed`)
+- [x] Lighthouse audit: Performance 94, Accessibility 100, Best Practices 100, SEO 91
 
-### Phase 5 — Polish & PWA (~2 ngày)
-- [ ] PWA: Service Worker, Web Manifest → installable trên phone
-- [ ] Performance: Code splitting (React.lazy), image WebP, font subsetting
-- [ ] SEO: meta tags, Open Graph cho Landing page
-- [ ] `aria-*` attributes, keyboard nav
+### Phase 5 — Polish & PWA (🟡 Đang làm)
+- [x] PWA: Service Worker, Web Manifest → installable trên phone
+- [ ] Performance: Code splitting (React.lazy đã có), image WebP, font subsetting
+- [x] SEO: meta tags, Open Graph cho Landing page
+- [ ] `aria-*` attributes, keyboard nav (đã cải thiện label login + student modal, còn cần audit sâu toàn app)
 
 ### Phase 6 — Custom Domain (khi sẵn sàng)
 - [ ] Mua domain (ví dụ: `maika.edu.vn`)
@@ -200,4 +200,6 @@ src/
 
 **Sau Phase 1 (Đã làm)**: Cập nhật sang dùng Vite bundler `npm install react react-dom react-router-dom dompurify`. Loại bỏ hoàn toàn Babel Standalone (đã xóa script trên index.html).
 
-**Sau Phase 4 baseline**: Thêm Vitest + Testing Library + jsdom, script `npm run test:run`. Đã nâng Vite lên 8.x để `npm audit` = 0 vulnerability; `manualChunks` đã đổi sang function tương thích Vite 8/Rolldown.
+**Sau Phase 4**: Thêm Vitest + Testing Library + jsdom, script `npm run test:run`. Thêm Playwright, script `npm run test:e2e`, test parent login → report và admin CRUD student. Đã nâng Vite lên 8.x để `npm audit` = 0 vulnerability; `manualChunks` đã đổi sang function tương thích Vite 8/Rolldown.
+
+**Sau Phase 5 partial**: Thêm `manifest.webmanifest`, `sw.js`, SVG favicon/icon/OG image, SEO/Open Graph/Twitter meta. Lighthouse trên Vite preview: Performance 94, Accessibility 100, Best Practices 100, SEO 91.

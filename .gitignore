@@ -12,5 +12,8 @@ uploads/*.webp
 .DS_Store
 Thumbs.db
 *.log
+test-results/
+playwright-report/
+.lighthouse-report.json
 .vercel
 .netlify

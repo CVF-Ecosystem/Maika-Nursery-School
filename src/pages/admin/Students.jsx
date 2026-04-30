@@ -38,17 +38,17 @@ function StudentModal({ student, db, onClose, onSave }) {
             <div style={{ background: '#fff', borderRadius: 20, width: 540, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>{student ? 'Chỉnh sửa học sinh' : 'Thêm học sinh mới'}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <div style={{ gridColumn: '1/-1' }}><label style={ls}>Họ và tên *</label><input style={is} value={form.name} onChange={e => hc('name', e.target.value)} placeholder="VD: Nguyễn Minh An" /></div>
-                    <div><label style={ls}>Ngày sinh *</label><input type="date" style={is} value={form.dob} onChange={e => hc('dob', e.target.value)} /></div>
+                    <div style={{ gridColumn: '1/-1' }}><label style={ls} htmlFor="student-name">Họ và tên *</label><input id="student-name" style={is} value={form.name} onChange={e => hc('name', e.target.value)} placeholder="VD: Nguyễn Minh An" /></div>
+                    <div><label style={ls} htmlFor="student-dob">Ngày sinh *</label><input id="student-dob" type="date" style={is} value={form.dob} onChange={e => hc('dob', e.target.value)} /></div>
                     <div><label style={ls}>Giới tính</label><select style={is} value={form.gender} onChange={e => hc('gender', e.target.value)}><option value="male">Nam</option><option value="female">Nữ</option></select></div>
                     <div><label style={ls}>Lớp *</label><select style={is} value={form.classId} onChange={e => hc('classId', e.target.value)}>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.ageGroup})</option>)}</select></div>
                     <div><label style={ls}>Ngày nhập học</label><input type="date" style={is} value={form.enrollDate} onChange={e => hc('enrollDate', e.target.value)} /></div>
                     <div style={{ gridColumn: '1/-1', background: '#FFF7ED', borderRadius: 10, padding: '12px 14px' }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: '#7C3AED', marginBottom: 10 }}>Thông tin phụ huynh</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                            <div style={{ gridColumn: '1/-1' }}><label style={ls}>Tên phụ huynh *</label><input style={is} value={form.parentName} onChange={e => hc('parentName', e.target.value)} /></div>
-                            <div><label style={ls}>Số điện thoại</label><input style={is} value={form.parentPhone} onChange={e => hc('parentPhone', e.target.value)} /></div>
-                            <div><label style={ls}>Email</label><input style={is} value={form.parentEmail} onChange={e => hc('parentEmail', e.target.value)} /></div>
+                            <div style={{ gridColumn: '1/-1' }}><label style={ls} htmlFor="student-parent-name">Tên phụ huynh *</label><input id="student-parent-name" style={is} value={form.parentName} onChange={e => hc('parentName', e.target.value)} /></div>
+                            <div><label style={ls} htmlFor="student-parent-phone">Số điện thoại</label><input id="student-parent-phone" style={is} value={form.parentPhone} onChange={e => hc('parentPhone', e.target.value)} /></div>
+                            <div><label style={ls} htmlFor="student-parent-email">Email</label><input id="student-parent-email" style={is} value={form.parentEmail} onChange={e => hc('parentEmail', e.target.value)} /></div>
                         </div>
                     </div>
                     <div><label style={ls}>Trạng thái</label><select style={is} value={form.status} onChange={e => hc('status', e.target.value)}><option value="active">Đang học</option><option value="inactive">Nghỉ học</option></select></div>

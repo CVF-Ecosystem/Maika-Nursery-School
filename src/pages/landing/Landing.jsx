@@ -132,7 +132,7 @@ export default function Landing() {
                             onMouseEnter={e => { e.currentTarget.style.background = '#EDE9FE'; e.currentTarget.style.borderColor = '#A78BFA'; e.currentTarget.style.transform = 'translateY(-4px)' }}
                             onMouseLeave={e => { e.currentTarget.style.background = '#F8F7FF'; e.currentTarget.style.borderColor = '#EDE9FE'; e.currentTarget.style.transform = 'none' }}>
                             <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, marginBottom: 14, boxShadow: '0 4px 14px rgba(109,40,217,0.3)' }}>{icon}</div>
-                            <h4 style={{ fontSize: 16, fontWeight: 800, color: '#1E1B4B', marginBottom: 8 }}>{title}</h4>
+                            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1E1B4B', marginBottom: 8 }}>{title}</h3>
                             <p style={{ fontSize: 14, color: '#7C6D9B', lineHeight: 1.7 }}>{desc}</p>
                         </div>
                     ))}
@@ -224,22 +224,22 @@ export default function Landing() {
 
             {/* FOOTER */}
             <footer style={{ background: '#0F0D2E', padding: '56px 6% 26px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 40, marginBottom: 44 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 40, marginBottom: 44 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                             <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🌸</div>
                             <span style={{ fontWeight: 900, fontSize: 18, color: '#fff' }}>Maika</span>
                         </div>
-                        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.42)', lineHeight: 1.8, maxWidth: 260 }}>Nhà trẻ tư thục chất lượng cao — nơi mỗi đứa trẻ được yêu thương, phát triển và tỏa sáng.</p>
+                        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 260 }}>Nhà trẻ tư thục chất lượng cao — nơi mỗi đứa trẻ được yêu thương, phát triển và tỏa sáng.</p>
                     </div>
                     {[['Chương trình', ['Lớp Mầm (3–4 tuổi)', 'Lớp Chồi (4–5 tuổi)', 'Lớp Lá (5–6 tuổi)']], ['Phụ huynh', ['Cổng phụ huynh', 'Đăng nhập quản lý', 'Quy định nhà trường']], ['Liên hệ', ['0901 234 567', 'info@maika.edu.vn', '123 Hoa Mai, Q.Bình Thạnh']]].map(([title, links], i) => (
                         <div key={i}>
-                            <h4 style={{ fontSize: 12, fontWeight: 800, color: '#8B83C3', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14 }}>{title}</h4>
-                            {links.map((l, j) => <a key={j} href="#" style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.48)', marginBottom: 10, fontWeight: 600 }}>{l}</a>)}
+                            <h3 style={{ fontSize: 12, fontWeight: 800, color: '#C4B5FD', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14 }}>{title}</h3>
+                            {links.map((l, j) => <a key={j} href="#" style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.74)', marginBottom: 10, fontWeight: 600 }}>{l}</a>)}
                         </div>
                     ))}
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 22, display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,0.3)', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 22, display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,0.68)', flexWrap: 'wrap', gap: 8 }}>
                     <span>© 2026 Maika Nursery School.</span>
                     <span>Được xây dựng với ❤️ cho các bé</span>
                 </div>
