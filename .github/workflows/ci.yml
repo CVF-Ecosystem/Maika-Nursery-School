@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests (Vitest)
+        run: npm run test:run
+        env:
+          MAIKA_JWT_SECRET: ci-test-secret-not-production
+          MAIKA_ADMIN_PASSWORD: test-admin-ci
+          MAIKA_TEACHER_PASSWORD: test-teacher-ci
+          MAIKA_DB_PATH: /tmp/maika-ci-test.sqlite
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+        continue-on-error: false
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_DEMO_MODE: 'true'
+
+      - name: Verify build output
+        run: |
+          test -d dist && echo "dist/ exists" || (echo "dist/ NOT found" && exit 1)
+          test -f dist/index.html && echo "index.html exists" || (echo "index.html NOT found" && exit 1)
+
+  lint-check:
+    name: Audit Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Dependency audit
+        run: npm audit --audit-level=moderate

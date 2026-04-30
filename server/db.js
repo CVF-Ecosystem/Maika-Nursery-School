@@ -15,6 +15,12 @@ db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     role TEXT NOT NULL CHECK (role IN ('admin', 'teacher', 'parent')),
@@ -24,6 +30,7 @@ db.exec(`
     password_hash TEXT,
     student_id TEXT,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked')),
+    must_change_password INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -37,6 +44,8 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (collection, id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_collection_records_collection ON collection_records(collection);
 
   CREATE TABLE IF NOT EXISTS uploads (
     id TEXT PRIMARY KEY,
@@ -69,10 +78,99 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
 `)
 
-for (const statement of [
-    "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked'))",
-]) {
-    try { db.exec(statement) } catch { }
+const SCHEMA_MIGRATIONS = [
+    {
+        version: 1,
+        name: 'add_status_must_change_password_to_users',
+        statements: [
+            "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked'))",
+            "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+        ],
+    },
+    {
+        version: 2,
+        name: 'add_health_records_incidents_invoices',
+        statements: [`
+          CREATE TABLE IF NOT EXISTS health_records (
+            id TEXT PRIMARY KEY,
+            student_id TEXT NOT NULL,
+            allergies TEXT,
+            medications TEXT,
+            medical_notes TEXT,
+            emergency_contact_name TEXT,
+            emergency_contact_phone TEXT,
+            emergency_contact_relation TEXT,
+            blood_type TEXT,
+            doctor_name TEXT,
+            doctor_phone TEXT,
+            updated_by TEXT,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE TABLE IF NOT EXISTS incidents (
+            id TEXT PRIMARY KEY,
+            student_id TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            reported_by TEXT,
+            reporter_name TEXT,
+            severity TEXT NOT NULL DEFAULT 'minor' CHECK (severity IN ('minor', 'moderate', 'severe')),
+            description TEXT NOT NULL,
+            initial_action TEXT,
+            status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('draft', 'open', 'resolved', 'parent_acknowledged')),
+            confirmed_by TEXT,
+            confirmed_at TEXT,
+            parent_acknowledged_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_incidents_student ON incidents(student_id)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_incidents_occurred ON incidents(occurred_at DESC)
+        `, `
+          CREATE TABLE IF NOT EXISTS invoices (
+            id TEXT PRIMARY KEY,
+            student_id TEXT NOT NULL,
+            invoice_number TEXT NOT NULL UNIQUE,
+            type TEXT NOT NULL DEFAULT 'tuition' CHECK (type IN ('tuition', 'meal', 'material', 'activity', 'other')),
+            description TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            due_date TEXT NOT NULL,
+            paid_date TEXT,
+            payment_method TEXT CHECK (payment_method IN ('cash', 'transfer', 'other', NULL)),
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue', 'cancelled')),
+            notes TEXT,
+            created_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_invoices_student ON invoices(student_id)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_invoices_due ON invoices(due_date)
+        `],
+    },
+]
+
+for (const migration of SCHEMA_MIGRATIONS) {
+    const applied = db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(migration.version)
+    if (!applied) {
+        db.exec('BEGIN')
+        try {
+            for (const sql of migration.statements) {
+                try { db.exec(sql) } catch { }
+            }
+            db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)').run(migration.version, migration.name)
+            db.exec('COMMIT')
+        } catch (err) {
+            db.exec('ROLLBACK')
+            console.error(`Migration ${migration.version} failed:`, err.message)
+        }
+    }
 }
 
 function rowToData(row) {
@@ -267,6 +365,186 @@ function ensureUser(user) {
       VALUES (@id, @role, @display_name, @phone, @email, @password_hash, @student_id, @status)
       ON CONFLICT(id) DO NOTHING
     `).run(user)
+}
+
+// ─── Health Records ────────────────────────────────────────────────────────────
+
+export function getHealthRecord(studentId) {
+    return db.prepare('SELECT * FROM health_records WHERE student_id = ?').get(studentId) || null
+}
+
+export function upsertHealthRecord(studentId, input, actorId) {
+    const existing = getHealthRecord(studentId)
+    if (existing) {
+        db.prepare(`
+          UPDATE health_records
+          SET allergies = @allergies, medications = @medications, medical_notes = @medical_notes,
+              emergency_contact_name = @emergency_contact_name,
+              emergency_contact_phone = @emergency_contact_phone,
+              emergency_contact_relation = @emergency_contact_relation,
+              blood_type = @blood_type, doctor_name = @doctor_name, doctor_phone = @doctor_phone,
+              updated_by = @updated_by, updated_at = CURRENT_TIMESTAMP
+          WHERE student_id = @student_id
+        `).run({ student_id: studentId, updated_by: actorId || null, ...normalizeHealthInput(input) })
+    } else {
+        db.prepare(`
+          INSERT INTO health_records (id, student_id, allergies, medications, medical_notes,
+            emergency_contact_name, emergency_contact_phone, emergency_contact_relation,
+            blood_type, doctor_name, doctor_phone, updated_by)
+          VALUES (@id, @student_id, @allergies, @medications, @medical_notes,
+            @emergency_contact_name, @emergency_contact_phone, @emergency_contact_relation,
+            @blood_type, @doctor_name, @doctor_phone, @updated_by)
+        `).run({ id: `hr-${studentId}`, student_id: studentId, updated_by: actorId || null, ...normalizeHealthInput(input) })
+    }
+    return getHealthRecord(studentId)
+}
+
+function normalizeHealthInput(input) {
+    return {
+        allergies: input.allergies || null,
+        medications: input.medications || null,
+        medical_notes: input.medicalNotes || null,
+        emergency_contact_name: input.emergencyContactName || null,
+        emergency_contact_phone: input.emergencyContactPhone || null,
+        emergency_contact_relation: input.emergencyContactRelation || null,
+        blood_type: input.bloodType || null,
+        doctor_name: input.doctorName || null,
+        doctor_phone: input.doctorPhone || null,
+    }
+}
+
+// ─── Incidents ─────────────────────────────────────────────────────────────────
+
+export function listIncidents({ studentId, status, limit = 100 } = {}) {
+    const clauses = []
+    const params = {}
+    if (studentId) { clauses.push('student_id = @studentId'); params.studentId = studentId }
+    if (status) { clauses.push('status = @status'); params.status = status }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500)
+    return db.prepare(`SELECT * FROM incidents ${where} ORDER BY occurred_at DESC LIMIT ${safeLimit}`).all(params)
+}
+
+export function getIncident(id) {
+    return db.prepare('SELECT * FROM incidents WHERE id = ?').get(id) || null
+}
+
+export function createIncident(input, actorId, actorName) {
+    const id = `inc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    db.prepare(`
+      INSERT INTO incidents (id, student_id, occurred_at, reported_by, reporter_name,
+        severity, description, initial_action, status)
+      VALUES (@id, @student_id, @occurred_at, @reported_by, @reporter_name,
+        @severity, @description, @initial_action, @status)
+    `).run({
+        id,
+        student_id: input.studentId,
+        occurred_at: input.occurredAt || new Date().toISOString(),
+        reported_by: actorId || null,
+        reporter_name: actorName || null,
+        severity: input.severity || 'minor',
+        description: input.description,
+        initial_action: input.initialAction || null,
+        status: input.status || 'open',
+    })
+    return getIncident(id)
+}
+
+export function updateIncident(id, input, actorId) {
+    const existing = getIncident(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE incidents
+      SET severity = @severity, description = @description, initial_action = @initial_action,
+          status = @status, confirmed_by = @confirmed_by, confirmed_at = @confirmed_at,
+          parent_acknowledged_at = @parent_acknowledged_at, updated_at = CURRENT_TIMESTAMP
+      WHERE id = @id
+    `).run({
+        id,
+        severity: input.severity || existing.severity,
+        description: input.description || existing.description,
+        initial_action: input.initialAction !== undefined ? input.initialAction : existing.initial_action,
+        status: input.status || existing.status,
+        confirmed_by: input.confirmedBy !== undefined ? input.confirmedBy : existing.confirmed_by,
+        confirmed_at: input.confirmedAt !== undefined ? input.confirmedAt : existing.confirmed_at,
+        parent_acknowledged_at: input.parentAcknowledgedAt !== undefined ? input.parentAcknowledgedAt : existing.parent_acknowledged_at,
+    })
+    return getIncident(id)
+}
+
+// ─── Invoices ─────────────────────────────────────────────────────────────────
+
+let _invoiceSeq = 0
+
+function nextInvoiceNumber() {
+    const prefix = `INV${new Date().toISOString().slice(0, 7).replace('-', '')}`
+    _invoiceSeq++
+    return `${prefix}-${String(_invoiceSeq).padStart(4, '0')}`
+}
+
+export function listInvoices({ studentId, status, limit = 200 } = {}) {
+    const clauses = []
+    const params = {}
+    if (studentId) { clauses.push('student_id = @studentId'); params.studentId = studentId }
+    if (status) { clauses.push('status = @status'); params.status = status }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const safeLimit = Math.min(Math.max(Number(limit) || 200, 1), 1000)
+    return db.prepare(`SELECT * FROM invoices ${where} ORDER BY due_date DESC LIMIT ${safeLimit}`).all(params)
+}
+
+export function getInvoice(id) {
+    return db.prepare('SELECT * FROM invoices WHERE id = ?').get(id) || null
+}
+
+export function createInvoice(input, actorId) {
+    const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const invoiceNumber = input.invoiceNumber || nextInvoiceNumber()
+    db.prepare(`
+      INSERT INTO invoices (id, student_id, invoice_number, type, description, amount,
+        due_date, status, notes, created_by)
+      VALUES (@id, @student_id, @invoice_number, @type, @description, @amount,
+        @due_date, @status, @notes, @created_by)
+    `).run({
+        id,
+        student_id: input.studentId,
+        invoice_number: invoiceNumber,
+        type: input.type || 'tuition',
+        description: input.description,
+        amount: Math.round(Number(input.amount) || 0),
+        due_date: input.dueDate,
+        status: input.status || 'pending',
+        notes: input.notes || null,
+        created_by: actorId || null,
+    })
+    return getInvoice(id)
+}
+
+export function updateInvoice(id, input) {
+    const existing = getInvoice(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE invoices
+      SET status = @status, paid_date = @paid_date, payment_method = @payment_method,
+          notes = @notes, description = @description, amount = @amount, due_date = @due_date,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = @id
+    `).run({
+        id,
+        status: input.status || existing.status,
+        paid_date: input.paidDate !== undefined ? input.paidDate : existing.paid_date,
+        payment_method: input.paymentMethod !== undefined ? input.paymentMethod : existing.payment_method,
+        notes: input.notes !== undefined ? input.notes : existing.notes,
+        description: input.description || existing.description,
+        amount: input.amount !== undefined ? Math.round(Number(input.amount)) : existing.amount,
+        due_date: input.dueDate || existing.due_date,
+    })
+    return getInvoice(id)
+}
+
+// ─── Schema info ───────────────────────────────────────────────────────────────
+
+export function listMigrations() {
+    return db.prepare('SELECT * FROM schema_migrations ORDER BY version').all()
 }
 
 export async function seedDatabase() {

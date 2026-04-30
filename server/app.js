@@ -4,28 +4,41 @@ import cors from 'cors'
 import helmet from 'helmet'
 import bcrypt from 'bcryptjs'
 import multer from 'multer'
+import rateLimit from 'express-rate-limit'
 import { mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import { createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
 import {
     addAuditLog,
-    deleteRecord,
+    createIncident,
+    createInvoice,
     createUser,
+    db,
+    deleteRecord,
     findUserForLogin,
+    getHealthRecord,
+    getIncident,
+    getInvoice,
     getUser,
     listAuditLogs,
     listCollections,
+    listIncidents,
+    listInvoices,
+    listMigrations,
     listUsers,
     readCollection,
     readRecord,
     readSnapshot,
     replaceSnapshot,
     seedDatabase,
+    updateIncident,
+    updateInvoice,
     updateUser,
+    upsertHealthRecord,
     upsertRecord,
-    db,
 } from './db.js'
 import { publicUser, requireAuth, requireRoles, signToken } from './auth.js'
+import { schedulerState } from './scheduler.js'
 
 const COLLECTION_ROUTE_MAP = {
     students: 'students',
@@ -111,16 +124,44 @@ export async function createApp() {
     await seedDatabase()
 
     const app = express()
-    app.use(helmet({ contentSecurityPolicy: false }))
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }))
     app.use(cors({ origin: process.env.MAIKA_CORS_ORIGIN?.split(',') || true }))
     app.use(express.json({ limit: '10mb' }))
     app.use('/uploads', express.static(UPLOAD_DIR))
+
+    // Rate limiting
+    const loginLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 20,
+        message: { error: 'Quá nhiều lần đăng nhập, thử lại sau 15 phút.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    })
+    const apiLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 300,
+        message: { error: 'Quá nhiều yêu cầu, thử lại sau.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    })
+    const uploadLimiter = rateLimit({
+        windowMs: 60 * 1000,
+        max: 20,
+        message: { error: 'Quá nhiều lần upload, thử lại sau.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    })
+
+    app.use('/api/', apiLimiter)
 
     app.get('/api/health', (_req, res) => {
         res.json({ ok: true, collections: listCollections() })
     })
 
-    app.post('/api/auth/login', async (req, res) => {
+    app.post('/api/auth/login', loginLimiter, async (req, res) => {
         const role = req.body?.role
         if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
 
@@ -163,16 +204,74 @@ export async function createApp() {
             summary: `Đăng nhập thành công: ${user.display_name}`,
             ...requestMeta(req),
         })
-        res.json({ token: signToken(user), user: publicUser(user) })
+        res.json({ token: signToken(user), user: publicUser(user), mustChangePassword: !!user.must_change_password })
     })
 
     app.get('/api/me', requireAuth, (req, res) => {
-        res.json({ user: publicUser(req.user) })
+        res.json({ user: publicUser(req.user), mustChangePassword: !!req.user.must_change_password })
     })
+
+    // ─── Users ────────────────────────────────────────────────────────────────────
 
     app.get('/api/users', requireAuth, requireRoles('admin'), (_req, res) => {
         res.json({ data: listUsers() })
     })
+
+    app.post('/api/users', requireAuth, requireRoles('admin'), async (req, res) => {
+        const role = req.body?.role
+        const displayName = String(req.body?.displayName || '').trim()
+        if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
+        if (!displayName) return res.status(400).json({ error: 'Thiếu tên hiển thị.' })
+        if (role !== 'parent' && !req.body?.password) return res.status(400).json({ error: 'Admin/Teacher cần mật khẩu.' })
+
+        try {
+            const user = await createUser({
+                role,
+                displayName,
+                phone: String(req.body?.phone || '').trim(),
+                email: String(req.body?.email || '').trim(),
+                password: req.body?.password,
+                studentId: req.body?.studentId || null,
+                status: req.body?.status || 'active',
+                mustChangePassword: req.body?.mustChangePassword ? 1 : 0,
+            })
+            auditFromRequest(req, {
+                action: 'user_created',
+                entityType: 'user',
+                entityId: user.id,
+                summary: `Tạo tài khoản ${user.display_name}`,
+                metadata: { role: user.role, status: user.status },
+            })
+            res.status(201).json({ data: user })
+        } catch {
+            res.status(409).json({ error: 'Tài khoản đã tồn tại hoặc dữ liệu không hợp lệ.' })
+        }
+    })
+
+    app.put('/api/users/:id', requireAuth, requireRoles('admin'), async (req, res) => {
+        const existing = getUser(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy tài khoản.' })
+        const user = await updateUser(req.params.id, {
+            role: req.body?.role,
+            displayName: String(req.body?.displayName || existing.display_name).trim(),
+            phone: req.body?.phone === undefined ? existing.phone : String(req.body.phone || '').trim(),
+            email: req.body?.email === undefined ? existing.email : String(req.body.email || '').trim(),
+            password: req.body?.password,
+            studentId: req.body?.studentId === undefined ? existing.student_id : req.body.studentId || null,
+            status: req.body?.status,
+            mustChangePassword: req.body?.mustChangePassword !== undefined ? (req.body.mustChangePassword ? 1 : 0) : undefined,
+        })
+        auditFromRequest(req, {
+            action: 'user_updated',
+            entityType: 'user',
+            entityId: user.id,
+            summary: `Cập nhật tài khoản ${user.display_name}`,
+            metadata: { role: user.role, status: user.status },
+        })
+        res.json({ data: user })
+    })
+
+    // ─── Audit logs ───────────────────────────────────────────────────────────────
 
     app.get('/api/audit-logs', requireAuth, requireRoles('admin'), (req, res) => {
         res.json({
@@ -185,8 +284,10 @@ export async function createApp() {
         })
     })
 
+    // ─── Backups ──────────────────────────────────────────────────────────────────
+
     app.get('/api/backups', requireAuth, requireRoles('admin'), (_req, res) => {
-        res.json({ data: listBackups() })
+        res.json({ data: listBackups(), scheduler: schedulerState })
     })
 
     app.post('/api/backups', requireAuth, requireRoles('admin'), (req, res) => {
@@ -229,57 +330,149 @@ export async function createApp() {
         }
     })
 
-    app.post('/api/users', requireAuth, requireRoles('admin'), async (req, res) => {
-        const role = req.body?.role
-        const displayName = String(req.body?.displayName || '').trim()
-        if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
-        if (!displayName) return res.status(400).json({ error: 'Thiếu tên hiển thị.' })
-        if (role !== 'parent' && !req.body?.password) return res.status(400).json({ error: 'Admin/Teacher cần mật khẩu.' })
+    // ─── Health Records ────────────────────────────────────────────────────────────
 
-        try {
-            const user = await createUser({
-                role,
-                displayName,
-                phone: String(req.body?.phone || '').trim(),
-                email: String(req.body?.email || '').trim(),
-                password: req.body?.password,
-                studentId: req.body?.studentId || null,
-                status: req.body?.status || 'active',
-            })
-            auditFromRequest(req, {
-                action: 'user_created',
-                entityType: 'user',
-                entityId: user.id,
-                summary: `Tạo tài khoản ${user.display_name}`,
-                metadata: { role: user.role, status: user.status },
-            })
-            res.status(201).json({ data: user })
-        } catch {
-            res.status(409).json({ error: 'Tài khoản đã tồn tại hoặc dữ liệu không hợp lệ.' })
+    app.get('/api/health-records/:studentId', requireAuth, (req, res) => {
+        const { studentId } = req.params
+        if (req.user.role === 'parent' && req.user.student_id !== studentId) {
+            return res.status(403).json({ error: 'Forbidden' })
         }
+        const record = getHealthRecord(studentId)
+        res.json({ data: record || {} })
     })
 
-    app.put('/api/users/:id', requireAuth, requireRoles('admin'), async (req, res) => {
-        const existing = getUser(req.params.id)
-        if (!existing) return res.status(404).json({ error: 'Không tìm thấy tài khoản.' })
-        const user = await updateUser(req.params.id, {
-            role: req.body?.role,
-            displayName: String(req.body?.displayName || existing.display_name).trim(),
-            phone: req.body?.phone === undefined ? existing.phone : String(req.body.phone || '').trim(),
-            email: req.body?.email === undefined ? existing.email : String(req.body.email || '').trim(),
-            password: req.body?.password,
-            studentId: req.body?.studentId === undefined ? existing.student_id : req.body.studentId || null,
-            status: req.body?.status,
-        })
+    app.put('/api/health-records/:studentId', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        const { studentId } = req.params
+        const record = upsertHealthRecord(studentId, req.body, req.user.id)
         auditFromRequest(req, {
-            action: 'user_updated',
-            entityType: 'user',
-            entityId: user.id,
-            summary: `Cập nhật tài khoản ${user.display_name}`,
-            metadata: { role: user.role, status: user.status },
+            action: 'health_record_updated',
+            entityType: 'health_record',
+            entityId: studentId,
+            summary: `Cập nhật hồ sơ sức khỏe cho học sinh ${studentId}`,
         })
-        res.json({ data: user })
+        res.json({ data: record })
     })
+
+    // ─── Incidents ─────────────────────────────────────────────────────────────────
+
+    app.get('/api/incidents', requireAuth, (req, res) => {
+        const studentId = req.user.role === 'parent' ? req.user.student_id : req.query.studentId
+        const items = listIncidents({ studentId, status: req.query.status, limit: req.query.limit })
+        // Parents see only open/resolved/parent_acknowledged, not drafts
+        const filtered = req.user.role === 'parent' ? items.filter(i => i.status !== 'draft') : items
+        res.json({ data: filtered })
+    })
+
+    app.get('/api/incidents/:id', requireAuth, (req, res) => {
+        const incident = getIncident(req.params.id)
+        if (!incident) return res.status(404).json({ error: 'Không tìm thấy sự cố.' })
+        if (req.user.role === 'parent' && req.user.student_id !== incident.student_id) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        res.json({ data: incident })
+    })
+
+    app.post('/api/incidents', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        if (!req.body?.studentId || !req.body?.description) {
+            return res.status(400).json({ error: 'Thiếu studentId hoặc mô tả sự cố.' })
+        }
+        const incident = createIncident(req.body, req.user.id, req.user.display_name)
+        auditFromRequest(req, {
+            action: 'incident_created',
+            entityType: 'incident',
+            entityId: incident.id,
+            summary: `Ghi nhận sự cố: ${incident.description.slice(0, 60)}`,
+            metadata: { studentId: incident.student_id, severity: incident.severity },
+        })
+        res.status(201).json({ data: incident })
+    })
+
+    app.put('/api/incidents/:id', requireAuth, (req, res) => {
+        const existing = getIncident(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy sự cố.' })
+
+        // Parents can only set parent_acknowledged_at
+        if (req.user.role === 'parent') {
+            if (req.user.student_id !== existing.student_id) return res.status(403).json({ error: 'Forbidden' })
+            const updated = updateIncident(req.params.id, {
+                status: 'parent_acknowledged',
+                parentAcknowledgedAt: new Date().toISOString(),
+            }, req.user.id)
+            auditFromRequest(req, {
+                action: 'incident_acknowledged',
+                entityType: 'incident',
+                entityId: existing.id,
+                summary: `Phụ huynh xác nhận đã đọc sự cố ${existing.id}`,
+            })
+            return res.json({ data: updated })
+        }
+
+        const updated = updateIncident(req.params.id, req.body, req.user.id)
+        auditFromRequest(req, {
+            action: 'incident_updated',
+            entityType: 'incident',
+            entityId: existing.id,
+            summary: `Cập nhật sự cố ${existing.id} → ${req.body.status || existing.status}`,
+            metadata: { status: req.body.status },
+        })
+        res.json({ data: updated })
+    })
+
+    // ─── Invoices ──────────────────────────────────────────────────────────────────
+
+    app.get('/api/invoices', requireAuth, (req, res) => {
+        const studentId = req.user.role === 'parent' ? req.user.student_id : req.query.studentId
+        const items = listInvoices({ studentId, status: req.query.status, limit: req.query.limit })
+        // Parents don't see cancelled invoices
+        const filtered = req.user.role === 'parent' ? items.filter(i => i.status !== 'cancelled') : items
+        res.json({ data: filtered })
+    })
+
+    app.get('/api/invoices/:id', requireAuth, (req, res) => {
+        const invoice = getInvoice(req.params.id)
+        if (!invoice) return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' })
+        if (req.user.role === 'parent' && req.user.student_id !== invoice.student_id) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        res.json({ data: invoice })
+    })
+
+    app.post('/api/invoices', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        if (!req.body?.studentId || !req.body?.description || !req.body?.amount || !req.body?.dueDate) {
+            return res.status(400).json({ error: 'Thiếu thông tin hóa đơn.' })
+        }
+        const invoice = createInvoice(req.body, req.user.id)
+        auditFromRequest(req, {
+            action: 'invoice_created',
+            entityType: 'invoice',
+            entityId: invoice.id,
+            summary: `Tạo hóa đơn ${invoice.invoice_number}: ${invoice.description}`,
+            metadata: { amount: invoice.amount, studentId: invoice.student_id },
+        })
+        res.status(201).json({ data: invoice })
+    })
+
+    app.put('/api/invoices/:id', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        const existing = getInvoice(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' })
+        const updated = updateInvoice(req.params.id, req.body)
+        auditFromRequest(req, {
+            action: 'invoice_updated',
+            entityType: 'invoice',
+            entityId: existing.id,
+            summary: `Cập nhật hóa đơn ${existing.invoice_number} → ${req.body.status || existing.status}`,
+            metadata: { status: req.body.status, paidDate: req.body.paidDate },
+        })
+        res.json({ data: updated })
+    })
+
+    // ─── Schema info ───────────────────────────────────────────────────────────────
+
+    app.get('/api/schema/migrations', requireAuth, requireRoles('admin'), (_req, res) => {
+        res.json({ data: listMigrations() })
+    })
+
+    // ─── Snapshot ─────────────────────────────────────────────────────────────────
 
     app.get('/api/snapshot', requireAuth, (req, res) => {
         res.json({ data: filterSnapshotForUser(readSnapshot(), req.user) })
@@ -296,6 +489,8 @@ export async function createApp() {
         })
         res.json({ data })
     })
+
+    // ─── Collections (generic) ────────────────────────────────────────────────────
 
     app.get('/api/:collection', requireAuth, (req, res) => {
         const collection = routeToCollection(req.params.collection)
@@ -353,7 +548,9 @@ export async function createApp() {
         res.json({ deleted })
     })
 
-    app.post('/api/uploads', requireAuth, upload.single('file'), (req, res) => {
+    // ─── Uploads ──────────────────────────────────────────────────────────────────
+
+    app.post('/api/uploads', requireAuth, uploadLimiter, upload.single('file'), (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'Chỉ hỗ trợ file ảnh tối đa 5MB.' })
 
         const id = `up-${Date.now()}`

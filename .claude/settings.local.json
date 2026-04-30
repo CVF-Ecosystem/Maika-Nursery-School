@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"^[^/]*/\\(src|server|public\\)$|^[^/]*/\\\\.\")",
+      "Bash(awk '{print $9, \"\\(\"$5\"\\)\"}')",
+      "Bash(git add *)"
+    ]
+  }
+}

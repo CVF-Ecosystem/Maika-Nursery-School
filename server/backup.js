@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { readSnapshot, replaceSnapshot } from './db.js'
 
@@ -70,4 +70,24 @@ export function restoreBackup(name) {
 
 export function getBackupPath(name) {
     return safeBackupPath(name)
+}
+
+export function deleteBackup(name) {
+    unlinkSync(safeBackupPath(name))
+}
+
+export function applyRetentionPolicy({ count = 30, days = 30 } = {}) {
+    const backups = listBackups()
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+    const sorted = [...backups].sort((a, b) =>
+        new Date(b.createdAt || b.modifiedAt) - new Date(a.createdAt || a.modifiedAt))
+
+    let deleted = 0
+    sorted.forEach((backup, index) => {
+        if (index >= count || new Date(backup.createdAt || backup.modifiedAt) < cutoff) {
+            try { deleteBackup(backup.name); deleted++ } catch { }
+        }
+    })
+    return deleted
 }

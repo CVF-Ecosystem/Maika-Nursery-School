@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
 import { fmtDate } from '../../utils/format'
 import { sanitizeFilename, sanitizeText, validateImageFile } from '../../utils/security'
+
+const HealthRecords = lazy(() => import('../admin/HealthRecords'))
+const Incidents = lazy(() => import('../admin/Incidents'))
+const Invoices = lazy(() => import('../admin/Invoices'))
 
 const ANNS = [
     { id: 1, title: 'Nghỉ lễ 30/4 – 1/5', body: 'Kính gửi quý phụ huynh,\n\nNhà trường thông báo các bé được nghỉ lễ từ Thứ Tư 30/4 đến hết Thứ Sáu 2/5/2026.\n\nCác bé đi học trở lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ, an toàn!\n\nBan Giám hiệu Maika', date: '24/04/2026', tag: 'Nghỉ lễ', tagColor: '#D97706', tagBg: '#FEF3C7', icon: '🎉', important: true },
@@ -104,7 +108,15 @@ export default function ParentPortal() {
         setTimeout(() => setMessages(m => [...m, { from: 'school', name: '🌸 Maika School', text: 'Cảm ơn phụ huynh đã nhắn tin! Nhà trường sẽ phản hồi sớm nhất trong giờ hành chính (7:00–17:00). Trân trọng!', time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }]), 1500)
     }
 
-    const TABS = [['announcements', '📢 Thông báo'], ['gallery', '📸 Hình ảnh'], ['reports', '📝 Nhật ký'], ['messages', '💬 Nhắn tin']]
+    const TABS = [
+        ['announcements', '📢 Thông báo'],
+        ['gallery', '📸 Hình ảnh'],
+        ['reports', '📝 Nhật ký'],
+        ['messages', '💬 Nhắn tin'],
+        ['health', '🏥 Sức khỏe'],
+        ['incidents', '⚠ Sự cố'],
+        ['invoices', '🧾 Học phí'],
+    ]
 
     return (
         <div style={{ background: '#F5F3FF', minHeight: '100vh' }}>
@@ -238,11 +250,36 @@ export default function ParentPortal() {
                             ))}
                         </div>
                         <div style={{ background: '#fff', borderRadius: 16, padding: '14px 16px' }}>
-                            <textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={3} placeholder="Nhập tin nhắn cho nhà trường..." style={{ width: '100%', border: '1.5px solid #DDD6FE', borderRadius: 12, padding: '10px 14px', fontSize: 14, resize: 'none', color: '#1E1B4B' }} />
+                            <textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={3} placeholder="Nhập tin nhắn cho nhà trường..." style={{ width: '100%', border: '1.5px solid #DDD6FE', borderRadius: 12, padding: '10px 14px', fontSize: 14, resize: 'none', color: '#1E1B4B' }} aria-label="Nhập tin nhắn" />
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button onClick={sendMsg} style={{ padding: '10px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14 }}>Gửi →</button>
                             </div>
                         </div>
+                    </div>
+                )}
+                {/* HEALTH */}
+                {tab === 'health' && (
+                    <div>
+                        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1E1B4B', marginBottom: 18 }}>Hồ sơ sức khỏe của {student.name}</h2>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <HealthRecords readOnly filterStudentId={student.id} />
+                        </Suspense>
+                    </div>
+                )}
+                {/* INCIDENTS */}
+                {tab === 'incidents' && (
+                    <div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <Incidents readOnly filterStudentId={student.id} />
+                        </Suspense>
+                    </div>
+                )}
+                {/* INVOICES */}
+                {tab === 'invoices' && (
+                    <div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <Invoices readOnly filterStudentId={student.id} />
+                        </Suspense>
                     </div>
                 )}
             </div>

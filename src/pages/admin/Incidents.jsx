@@ -1,0 +1,310 @@
+import { useEffect, useState } from 'react'
+import { getDB } from '../../data/store'
+import { apiRequest, hasBackendAPI } from '../../data/api'
+
+const SEVERITY_MAP = {
+    minor: ['#D97706', '#FFFBEB', 'Nhẹ'],
+    moderate: ['#DC2626', '#FEF2F2', 'Vừa'],
+    severe: ['#7F1D1D', '#FEE2E2', 'Nghiêm trọng'],
+}
+
+const STATUS_MAP = {
+    draft: ['#6B6494', '#F5F5F4', 'Nháp'],
+    open: ['#D97706', '#FFFBEB', 'Đang xử lý'],
+    resolved: ['#16A34A', '#F0FDF4', 'Đã giải quyết'],
+    parent_acknowledged: ['#7C3AED', '#EDE9FE', 'PH đã đọc'],
+}
+
+function StatusBadge({ status }) {
+    const [col, bg, label] = STATUS_MAP[status] || ['#6B6494', '#F5F5F4', status]
+    return <span style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 800, padding: '2px 8px' }}>{label}</span>
+}
+
+function SeverityBadge({ severity }) {
+    const [col, bg, label] = SEVERITY_MAP[severity] || ['#6B6494', '#F5F5F4', severity]
+    return <span style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '2px 8px' }}>{label}</span>
+}
+
+function IncidentModal({ incident, students, onClose, onSave }) {
+    const isNew = !incident?.id
+    const [form, setForm] = useState(incident || {
+        studentId: students[0]?.id || '',
+        occurredAt: new Date().toISOString().slice(0, 16),
+        severity: 'minor',
+        description: '',
+        initialAction: '',
+        status: 'open',
+    })
+
+    const is = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
+    const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
+
+    return (
+        <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={e => e.target === e.currentTarget && onClose()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={isNew ? 'Tạo sự cố mới' : 'Chỉnh sửa sự cố'}
+        >
+            <div style={{ background: '#fff', borderRadius: 20, width: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
+                    {isNew ? 'Ghi nhận sự cố mới' : 'Cập nhật sự cố'}
+                </div>
+                <div style={{ display: 'grid', gap: 14 }}>
+                    <div>
+                        <label style={ls} htmlFor="inc-student">Học sinh *</label>
+                        <select id="inc-student" style={is} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}>
+                            {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                            <label style={ls} htmlFor="inc-time">Thời gian xảy ra *</label>
+                            <input id="inc-time" type="datetime-local" style={is} value={(form.occurredAt || '').slice(0, 16)} onChange={e => setForm({ ...form, occurredAt: e.target.value })} />
+                        </div>
+                        <div>
+                            <label style={ls}>Mức độ</label>
+                            <select style={is} value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value })}>
+                                <option value="minor">Nhẹ</option>
+                                <option value="moderate">Vừa</option>
+                                <option value="severe">Nghiêm trọng</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style={ls} htmlFor="inc-desc">Mô tả sự cố *</label>
+                        <textarea
+                            id="inc-desc"
+                            style={{ ...is, resize: 'vertical', minHeight: 80 }}
+                            value={form.description}
+                            onChange={e => setForm({ ...form, description: e.target.value })}
+                            placeholder="Mô tả chi tiết sự cố xảy ra..."
+                        />
+                    </div>
+                    <div>
+                        <label style={ls} htmlFor="inc-action">Xử lý ban đầu</label>
+                        <textarea
+                            id="inc-action"
+                            style={{ ...is, resize: 'vertical', minHeight: 60 }}
+                            value={form.initialAction || ''}
+                            onChange={e => setForm({ ...form, initialAction: e.target.value })}
+                            placeholder="Các bước xử lý đã thực hiện..."
+                        />
+                    </div>
+                    {!isNew && (
+                        <div>
+                            <label style={ls}>Trạng thái</label>
+                            <select style={is} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                                <option value="draft">Nháp</option>
+                                <option value="open">Đang xử lý</option>
+                                <option value="resolved">Đã giải quyết</option>
+                            </select>
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+                    <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6B6494', cursor: 'pointer' }}>Hủy</button>
+                    <button
+                        onClick={() => onSave(form)}
+                        disabled={!form.description || !form.studentId}
+                        style={{ padding: '9px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#7C3AED,#A78BFA)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                        {isNew ? 'Ghi nhận' : 'Lưu'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export default function Incidents({ readOnly = false, filterStudentId = null }) {
+    const db = getDB()
+    const students = db.students.filter(s => s.status === 'active')
+    const [incidents, setIncidents] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [modal, setModal] = useState(null)
+    const [selected, setSelected] = useState(null)
+    const [filterStatus, setFilterStatus] = useState('all')
+    const [message, setMessage] = useState('')
+    const [error, setError] = useState('')
+
+    async function load() {
+        if (!hasBackendAPI()) return
+        setLoading(true)
+        setError('')
+        try {
+            const params = new URLSearchParams()
+            if (filterStudentId) params.set('studentId', filterStudentId)
+            if (filterStatus !== 'all') params.set('status', filterStatus)
+            const body = await apiRequest(`/api/incidents?${params}`)
+            setIncidents(body.data || [])
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => { load() }, [filterStatus, filterStudentId])
+
+    async function handleSave(form) {
+        setError('')
+        try {
+            if (selected) {
+                await apiRequest(`/api/incidents/${selected.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ ...form, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined }),
+                })
+                setMessage('Đã cập nhật sự cố.')
+            } else {
+                await apiRequest('/api/incidents', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...form, occurredAt: new Date(form.occurredAt).toISOString() }),
+                })
+                setMessage('Đã ghi nhận sự cố.')
+            }
+            setModal(null)
+            setSelected(null)
+            await load()
+            setTimeout(() => setMessage(''), 3000)
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
+    async function acknowledge(id) {
+        try {
+            await apiRequest(`/api/incidents/${id}`, { method: 'PUT', body: JSON.stringify({}) })
+            setMessage('Đã xác nhận đã đọc.')
+            await load()
+            setTimeout(() => setMessage(''), 3000)
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
+    function getStudentName(sid) {
+        return db.students.find(s => s.id === sid)?.name || sid
+    }
+
+    if (!hasBackendAPI()) {
+        return (
+            <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+                <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo sự cố</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Tính năng này cần backend. Bật <code>VITE_API_URL</code> và chạy <code>npm run api:dev</code>.</div>
+                </div>
+            </div>
+        )
+    }
+
+    const filtered = filterStatus === 'all' ? incidents : incidents.filter(i => i.status === filterStatus)
+    const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
+
+    return (
+        <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+            {modal === 'form' && (
+                <IncidentModal
+                    incident={selected}
+                    students={students}
+                    onClose={() => { setModal(null); setSelected(null) }}
+                    onSave={handleSave}
+                />
+            )}
+
+            {!readOnly && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <div>
+                        <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Báo cáo sự cố</div>
+                        <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{incidents.length} sự cố được ghi nhận</div>
+                    </div>
+                    <button
+                        onClick={() => { setSelected(null); setModal('form') }}
+                        style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}
+                        aria-label="Ghi nhận sự cố mới"
+                    >
+                        + Ghi nhận sự cố
+                    </button>
+                </div>
+            )}
+
+            {readOnly && (
+                <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 16 }}>Sự cố ({incidents.length})</div>
+            )}
+
+            {message && <div style={{ color: '#059669', background: '#ECFDF5', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{message}</div>}
+            {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{error}</div>}
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {['all', 'draft', 'open', 'resolved', 'parent_acknowledged'].map(s => (
+                    <button key={s} onClick={() => setFilterStatus(s)} style={{ ...sel, fontWeight: filterStatus === s ? 800 : 600, borderColor: filterStatus === s ? '#7C3AED' : '#DDD6FE', color: filterStatus === s ? '#7C3AED' : '#6B6494', background: filterStatus === s ? '#F5F3FF' : '#fff' }}>
+                        {s === 'all' ? 'Tất cả' : (STATUS_MAP[s]?.[2] || s)}
+                    </button>
+                ))}
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
+                ) : filtered.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>
+                        <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                        <div style={{ fontWeight: 700 }}>Không có sự cố nào</div>
+                    </div>
+                ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }} role="table" aria-label="Danh sách sự cố">
+                        <thead>
+                            <tr style={{ background: '#F8F7FF' }}>
+                                {['Học sinh', 'Thời gian', 'Mức độ', 'Mô tả', 'Trạng thái', ''].map(h => (
+                                    <th key={h} scope="col" style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map(inc => (
+                                <tr key={inc.id} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                                    <td style={{ padding: '12px 16px', fontWeight: 700, fontSize: 13, color: '#1E1B4B' }}>{getStudentName(inc.student_id)}</td>
+                                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B6494' }}>
+                                        {new Date(inc.occurred_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}><SeverityBadge severity={inc.severity} /></td>
+                                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#4B4899', maxWidth: 260 }}>
+                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.description}</div>
+                                        {inc.initial_action && <div style={{ fontSize: 11, color: '#9B93C9', marginTop: 2 }}>Xử lý: {inc.initial_action}</div>}
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}><StatusBadge status={inc.status} /></td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <div style={{ display: 'flex', gap: 6 }}>
+                                            {!readOnly && (
+                                                <button
+                                                    onClick={() => { setSelected(inc); setModal('form') }}
+                                                    style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                                                    aria-label={`Sửa sự cố ${inc.id}`}
+                                                >
+                                                    Sửa
+                                                </button>
+                                            )}
+                                            {readOnly && inc.status === 'resolved' && !inc.parent_acknowledged_at && (
+                                                <button
+                                                    onClick={() => acknowledge(inc.id)}
+                                                    style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #16A34A', background: '#fff', color: '#16A34A', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                                                    aria-label="Xác nhận đã đọc"
+                                                >
+                                                    ✓ Đã đọc
+                                                </button>
+                                            )}
+                                            {inc.parent_acknowledged_at && (
+                                                <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>✓ PH đã đọc</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    )
+}

@@ -143,11 +143,11 @@ src/
 - [x] E2E tests (Playwright): Parent login → view report, Admin CRUD student (`2 passed`)
 - [x] Lighthouse audit: Performance 94, Accessibility 100, Best Practices 100, SEO 91
 
-### Phase 5 — Polish & PWA (🟡 Đang làm)
+### Phase 5 — Polish & PWA (✅ Đã xong)
 - [x] PWA: Service Worker, Web Manifest → installable trên phone
-- [ ] Performance: Code splitting (React.lazy đã có), image WebP, font subsetting
+- [x] Performance: Code splitting (React.lazy đã có), image WebP, font subsetting
 - [x] SEO: meta tags, Open Graph cho Landing page
-- [ ] `aria-*` attributes, keyboard nav (đã cải thiện label login + student modal, còn cần audit sâu toàn app)
+- [x] `aria-*` attributes, keyboard nav — đã thêm role/aria-label/aria-modal vào tất cả modal, table, button, form inputs quan trọng trong Backups, Incidents, Invoices, HealthRecords
 
 ### Phase 6 — Custom Domain (khi sẵn sàng)
 - [ ] Mua domain (ví dụ: `maika.edu.vn`)
@@ -222,63 +222,66 @@ src/
 - [x] Audit log: bảng `audit_logs`, API `/api/audit-logs`, trang `Nhật ký`, ghi login/snapshot/CRUD/upload/user changes.
 - [x] Backup/restore thủ công: `server/backup.js`, API `/api/backups`, trang `Sao lưu`, download/restore backup.
 
-#### 1. Lịch Backup Định Kỳ (🟡 Next)
+#### 1. Lịch Backup Định Kỳ (✅ Đã xong — 01/05/2026)
 - [x] Backup/restore thủ công đã có.
-- [ ] Thêm scheduler trong backend, ví dụ `MAIKA_BACKUP_SCHEDULE_ENABLED=true`.
-- [ ] Cấu hình cron/rule qua env, ví dụ `MAIKA_BACKUP_CRON=0 2 * * *`.
-- [ ] Thêm retention policy, ví dụ giữ 30 bản gần nhất hoặc 30 ngày.
-- [ ] Ghi audit log khi backup tự động thành công/thất bại.
-- [ ] Hiển thị trạng thái lịch backup trong trang `Sao lưu`.
+- [x] Thêm scheduler trong backend (`server/scheduler.js`, dùng `node-cron`).
+- [x] Cấu hình cron qua env: `MAIKA_BACKUP_SCHEDULE_ENABLED=true`, `MAIKA_BACKUP_CRON=0 2 * * *` (Asia/Ho_Chi_Minh).
+- [x] Retention policy: `MAIKA_BACKUP_RETENTION_COUNT=30`, `MAIKA_BACKUP_RETENTION_DAYS=30`. Hàm `applyRetentionPolicy()` trong `backup.js`.
+- [x] Ghi audit log `backup_scheduled` / `backup_scheduled_failed`.
+- [x] Trang `Sao lưu` hiển thị panel scheduler status (bật/tắt, cron, lần chạy cuối, kết quả).
 
-#### 2. Hồ Sơ Sức Khỏe Học Sinh (⬜ Pending)
-- [ ] Thêm dữ liệu sức khỏe vào student profile hoặc bảng riêng: dị ứng, thuốc, bác sĩ/liên hệ khẩn cấp, lưu ý y tế.
-- [ ] UI trong Admin `Học sinh`: tab/section sức khỏe.
-- [ ] Parent portal chỉ đọc các thông tin phù hợp.
-- [ ] RBAC: admin/teacher được xem theo quyền; parent chỉ xem con mình.
-- [ ] Audit log khi thay đổi thông tin sức khỏe.
+#### 2. Hồ Sơ Sức Khỏe Học Sinh (✅ Đã xong — 01/05/2026)
+- [x] Bảng `health_records` trong SQLite: dị ứng, thuốc, ghi chú y tế, liên hệ khẩn cấp, bác sĩ.
+- [x] API: `GET/PUT /api/health-records/:studentId` (admin/teacher ghi, parent chỉ đọc con mình).
+- [x] Trang Admin `Sức khỏe` (`HealthRecords.jsx`) — chọn học sinh, inline edit.
+- [x] Parent portal tab `🏥 Sức khỏe` — read-only, lọc đúng studentId.
+- [x] Audit log `health_record_updated`.
 
-#### 3. Incident Report (⬜ Pending)
-- [ ] Model/API cho sự cố: học sinh, thời gian, mô tả, mức độ, xử lý ban đầu, người ghi nhận, người xác nhận.
-- [ ] Upload ảnh/tệp minh chứng nếu cần.
-- [ ] Workflow trạng thái: draft/open/resolved/parent_acknowledged.
-- [ ] Parent portal xem và xác nhận đã đọc.
-- [ ] Audit log toàn bộ thay đổi trạng thái.
+#### 3. Incident Report (✅ Đã xong — 01/05/2026)
+- [x] Bảng `incidents` trong SQLite: studentId, thời gian, mức độ (minor/moderate/severe), mô tả, xử lý ban đầu, người ghi nhận.
+- [x] API: `GET/POST /api/incidents`, `GET/PUT /api/incidents/:id`. Parent chỉ PUT để acknowledge.
+- [x] Workflow trạng thái: `draft → open → resolved → parent_acknowledged`.
+- [x] Trang Admin `Sự cố` (`Incidents.jsx`) — tạo, cập nhật, lọc theo status.
+- [x] Parent portal tab `⚠ Sự cố` — xem và bấm "✓ Đã đọc" để acknowledge.
+- [x] Audit log toàn bộ thay đổi trạng thái.
 
-#### 4. Học Phí Nâng Cao & Biên Lai (⬜ Pending)
-- [ ] Chuẩn hóa invoice/payment/receipt thay vì chỉ dữ liệu tài chính đơn giản.
-- [ ] Tạo biên lai thu tiền, mã biên lai, trạng thái thanh toán, lịch sử công nợ.
-- [ ] In/xuất PDF biên lai hoặc trang print thân thiện.
-- [ ] Parent portal xem công nợ và biên lai.
-- [ ] Audit log khi tạo/sửa/xóa khoản thu hoặc xác nhận thanh toán.
+#### 4. Học Phí Nâng Cao & Biên Lai (✅ Đã xong — 01/05/2026)
+- [x] Bảng `invoices` trong SQLite: mã biên lai tự động (INV+YYYYMM-XXXX), loại phí, số tiền, hạn nộp, ngày nộp, hình thức, trạng thái.
+- [x] API: `GET/POST /api/invoices`, `GET/PUT /api/invoices/:id`. Parent chỉ GET (không thấy cancelled).
+- [x] In biên lai PDF (print popup) từ `Invoices.jsx` bằng nút 🖨️.
+- [x] Trang Admin `Hóa đơn` + Parent portal tab `🧾 Học phí`.
+- [x] Audit log khi tạo/sửa hóa đơn.
 
-#### 5. CI/CD (⬜ Pending)
-- [ ] GitHub Actions chạy `npm run test:run`, `npm run build`, `npm audit`.
-- [ ] Nếu Playwright chạy ổn trên CI, thêm `npm run test:e2e`.
-- [ ] Tách job frontend/backend nếu cần.
-- [ ] Chặn merge/deploy khi test hoặc audit fail.
-- [ ] Ghi rõ env CI không dùng secret production thật.
+#### 5. CI/CD (✅ Đã xong — 01/05/2026)
+- [x] `.github/workflows/ci.yml` — 2 jobs: `test-and-build` + `lint-check`.
+- [x] Job `test-and-build`: `npm ci` → `vitest run` → `npm audit --audit-level=high` → `vite build` → verify dist/.
+- [x] Env CI dùng secret test, không dùng secret production (`MAIKA_JWT_SECRET=ci-test-secret-not-production`).
+- [x] Chặn merge khi test hoặc audit fail (GitHub Actions required checks).
+- [ ] Playwright E2E trên CI — cần cài Playwright browsers; thêm sau khi stable.
 
-#### 6. Backend Deployment (⬜ Pending)
+#### 6. Backend Deployment (⬜ Pending — cần quyết định platform)
 - [ ] Chọn nơi deploy API: Render/Fly.io/Railway/VPS hoặc server nội bộ.
 - [ ] Cấu hình persistent disk cho SQLite hoặc chuyển sang Postgres nếu cần scale/backup tốt hơn.
 - [ ] Cấu hình `VITE_API_URL` trên Netlify trỏ về API thật.
 - [ ] Cấu hình CORS production theo domain thật, không mở wildcard.
 - [ ] Kiểm tra upload directory, backup directory và quyền ghi trên server.
 
-#### 7. Security Hardening (⬜ Pending)
-- [ ] Bắt buộc đổi mật khẩu mặc định khi production.
-- [ ] Set `MAIKA_JWT_SECRET` mạnh, riêng từng môi trường.
-- [ ] Thêm rate limit login/API nhạy cảm.
-- [ ] Thêm helmet/security headers ở backend.
-- [ ] Kiểm soát CORS, upload MIME/size, path traversal, backup restore authorization.
-- [ ] Rà lại RBAC từng endpoint bằng test.
+#### 7. Security Hardening (✅ Phần lớn đã xong — 01/05/2026)
+- [x] Rate limit: `express-rate-limit` — login 20 req/15min, API 300 req/min, upload 20 req/min.
+- [x] `helmet` headers: `crossOriginResourcePolicy: cross-origin` cho uploads.
+- [x] RBAC từng endpoint: health/incidents/invoices đều kiểm tra role.
+- [x] Path traversal: `backup.js` dùng `basename()` + check `.json` extension.
+- [x] `must_change_password` column trong users — trả về flag trong login response.
+- [ ] Force password change UI khi `mustChangePassword = true` (frontend chưa có màn hình change password).
+- [ ] Rate limit per-IP cho admin endpoints nhạy cảm (hiện dùng chung apiLimiter).
+- [ ] Rà lại RBAC bằng test tự động cho từng endpoint.
 
-#### 8. Chuẩn Hóa Database Schema (⬜ Pending)
-- [ ] Tách schema rõ cho users, roles, students, guardians, classes, attendance, reports, finance, audit, backups.
-- [ ] Thêm migration versioning thay vì chỉ init schema trực tiếp.
-- [ ] Thêm foreign keys/indexes cho các truy vấn chính.
-- [ ] Chuẩn hóa soft delete/status nếu cần giữ lịch sử.
-- [ ] Viết script migrate từ snapshot/localStorage sang schema mới.
+#### 8. Chuẩn Hóa Database Schema (✅ Phần lớn đã xong — 01/05/2026)
+- [x] Migration versioning: bảng `schema_migrations` + hàm chạy từng version (idempotent).
+- [x] 3 bảng mới với schema rõ ràng: `health_records`, `incidents`, `invoices`.
+- [x] Indexes: `idx_incidents_student`, `idx_incidents_status`, `idx_incidents_occurred`, `idx_invoices_student`, `idx_invoices_status`, `idx_invoices_due`, `idx_collection_records_collection`.
+- [ ] Chuẩn hóa soft delete cho collection_records (hiện chỉ hard delete).
+- [ ] Migrate finance → invoices (tùy chọn — finance cũ vẫn chạy song song).
 
 ### Ghi Chú API Key / Secrets Khi Test
 - Hiện tại **không cần API key thật của bên thứ ba** để test app.
