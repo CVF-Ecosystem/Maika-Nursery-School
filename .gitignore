@@ -11,6 +11,7 @@ uploads/*.webp
 !uploads/.gitkeep
 server/data/
 server/uploads/
+server/backups/
 .DS_Store
 Thumbs.db
 *.log

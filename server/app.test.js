@@ -26,6 +26,7 @@ describe('Maika API', () => {
         tempDir = mkdtempSync(join(tmpdir(), 'maika-api-'))
         process.env.MAIKA_DB_PATH = join(tempDir, 'test.sqlite')
         process.env.MAIKA_UPLOAD_DIR = join(tempDir, 'uploads')
+        process.env.MAIKA_BACKUP_DIR = join(tempDir, 'backups')
         process.env.MAIKA_ADMIN_PASSWORD = '123456'
         process.env.MAIKA_TEACHER_PASSWORD = 'maika'
         process.env.MAIKA_JWT_SECRET = 'test-secret'
@@ -136,6 +137,32 @@ describe('Maika API', () => {
         expect(logs.response.status).toBe(200)
         expect(logs.body.data.some(log => log.action === 'record_created' && log.entity_id === 's-audit-test')).toBe(true)
         expect(logs.body.data.some(log => log.action === 'login_success')).toBe(true)
+    })
+
+    it('creates, lists, downloads, and restores backups', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const created = await api('/api/backups', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ reason: 'test' }),
+        })
+        expect(created.response.status).toBe(201)
+        expect(created.body.data.name).toMatch(/maika-backup/)
+
+        const listed = await api('/api/backups', { headers })
+        expect(listed.body.data.some(backup => backup.name === created.body.data.name)).toBe(true)
+
+        const downloaded = await fetch(`${baseUrl}/api/backups/${created.body.data.name}/download`, { headers })
+        expect(downloaded.status).toBe(200)
+
+        const restored = await api(`/api/backups/${created.body.data.name}/restore`, { method: 'POST', headers })
+        expect(restored.response.status).toBe(200)
+        expect(restored.body.data.name).toBe(created.body.data.name)
     })
 
     it('filters parent data to their student', async () => {

@@ -47,12 +47,21 @@ Audit log:
 - Optional filters: `action`, `entityType`, `actorId`.
 - The API records login success/failure, user management changes, snapshot sync, REST create/update/delete, and uploads.
 
+Backup/restore:
+
+- `GET /api/backups` lists backup files. Admin only.
+- `POST /api/backups` creates a JSON snapshot backup in `MAIKA_BACKUP_DIR`.
+- `GET /api/backups/:name/download` downloads a backup.
+- `POST /api/backups/:name/restore` replaces current data with the backup snapshot.
+- Backup and restore actions are recorded in audit logs.
+
 Examples:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/students
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/users
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/audit-logs
+curl -X POST -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/backups
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"id":"s-new","name":"Bé mới"}' http://127.0.0.1:8787/api/students
 ```

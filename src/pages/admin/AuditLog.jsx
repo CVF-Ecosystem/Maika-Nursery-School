@@ -11,6 +11,8 @@ const ACTION_LABEL = {
     record_updated: 'Sửa dữ liệu',
     record_deleted: 'Xóa dữ liệu',
     file_uploaded: 'Tải file',
+    backup_created: 'Tạo backup',
+    backup_restored: 'Khôi phục backup',
 }
 
 const ACTION_COLOR = {
@@ -23,6 +25,8 @@ const ACTION_COLOR = {
     record_updated: ['#D97706', '#FFFBEB'],
     record_deleted: ['#DC2626', '#FEF2F2'],
     file_uploaded: ['#2563EB', '#EFF6FF'],
+    backup_created: ['#7C3AED', '#F5F3FF'],
+    backup_restored: ['#DC2626', '#FEF2F2'],
 }
 
 function fmtDateTime(value) {

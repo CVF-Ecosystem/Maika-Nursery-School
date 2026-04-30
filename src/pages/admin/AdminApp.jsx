@@ -18,6 +18,7 @@ const Resources = lazy(() => import('./Resources'))
 const Gamification = lazy(() => import('./Gamification'))
 const Users = lazy(() => import('./Users'))
 const AuditLog = lazy(() => import('./AuditLog'))
+const Backups = lazy(() => import('./Backups'))
 
 const PAGE_MAP = {
     dashboard: { title: 'Tổng quan', subtitle: 'Maika Nursery School', component: (nav) => <Dashboard onNav={nav} /> },
@@ -33,6 +34,7 @@ const PAGE_MAP = {
     gamification: { title: 'Thành tích & Khen thưởng', subtitle: 'Tạo động lực cho bé', component: () => <Gamification /> },
     users: { title: 'Quản lý tài khoản', subtitle: 'Phân quyền và trạng thái truy cập', component: () => <Users /> },
     audit: { title: 'Nhật ký kiểm toán', subtitle: 'Theo dõi thay đổi và truy cập hệ thống', component: () => <AuditLog /> },
+    backups: { title: 'Sao lưu & khôi phục', subtitle: 'Backup dữ liệu vận hành', component: () => <Backups /> },
 }
 
 function LoadingSpinner() {

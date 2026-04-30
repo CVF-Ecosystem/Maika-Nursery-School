@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import multer from 'multer'
 import { mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
+import { createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
 import {
     addAuditLog,
     deleteRecord,
@@ -182,6 +183,50 @@ export async function createApp() {
                 actorId: req.query.actorId,
             }),
         })
+    })
+
+    app.get('/api/backups', requireAuth, requireRoles('admin'), (_req, res) => {
+        res.json({ data: listBackups() })
+    })
+
+    app.post('/api/backups', requireAuth, requireRoles('admin'), (req, res) => {
+        const backup = createBackup({
+            reason: req.body?.reason || 'manual',
+            actor: { id: req.user.id, name: req.user.display_name, role: req.user.role },
+        })
+        auditFromRequest(req, {
+            action: 'backup_created',
+            entityType: 'backup',
+            entityId: backup.name,
+            summary: `Tạo backup ${backup.name}`,
+            metadata: { size: backup.size, reason: backup.reason },
+        })
+        res.status(201).json({ data: backup })
+    })
+
+    app.post('/api/backups/:name/restore', requireAuth, requireRoles('admin'), (req, res) => {
+        try {
+            const restored = restoreBackup(req.params.name)
+            auditFromRequest(req, {
+                action: 'backup_restored',
+                entityType: 'backup',
+                entityId: restored.name,
+                summary: `Khôi phục backup ${restored.name}`,
+                metadata: { createdAt: restored.createdAt },
+            })
+            res.json({ data: restored })
+        } catch {
+            res.status(400).json({ error: 'Backup không hợp lệ hoặc không tồn tại.' })
+        }
+    })
+
+    app.get('/api/backups/:name/download', requireAuth, requireRoles('admin'), (req, res) => {
+        try {
+            const path = getBackupPath(req.params.name)
+            res.download(path, req.params.name)
+        } catch {
+            res.status(404).json({ error: 'Không tìm thấy backup.' })
+        }
     })
 
     app.post('/api/users', requireAuth, requireRoles('admin'), async (req, res) => {
