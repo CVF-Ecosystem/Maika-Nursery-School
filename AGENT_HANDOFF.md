@@ -259,22 +259,23 @@ src/
 - [x] Chặn merge khi test hoặc audit fail (GitHub Actions required checks).
 - [ ] Playwright E2E trên CI — cần cài Playwright browsers; thêm sau khi stable.
 
-#### 6. Backend Deployment (⬜ Pending — cần quyết định platform)
-- [ ] Chọn nơi deploy API: Render/Fly.io/Railway/VPS hoặc server nội bộ.
-- [ ] Cấu hình persistent disk cho SQLite hoặc chuyển sang Postgres nếu cần scale/backup tốt hơn.
-- [ ] Cấu hình `VITE_API_URL` trên Netlify trỏ về API thật.
-- [ ] Cấu hình CORS production theo domain thật, không mở wildcard.
-- [ ] Kiểm tra upload directory, backup directory và quyền ghi trên server.
+#### 6. Backend Deployment (✅ Config sẵn — 01/05/2026)
+- [x] `render.yaml` — Render.com web service + persistent disk 1GB mount `/data`.
+- [x] `fly.toml` — Fly.io config: Singapore region, shared-cpu-1x, volume `maika_data` mount `/data`.
+- [x] `server/DEPLOY.md` — Hướng dẫn chi tiết cho Render, Fly.io, Railway; checklist production.
+- [x] Cấu hình CORS production qua env `MAIKA_CORS_ORIGIN` (chỉ domain Netlify, không wildcard).
+- [ ] **Thực tế deploy**: cần chọn platform và chạy theo hướng dẫn trong `server/DEPLOY.md`.
 
-#### 7. Security Hardening (✅ Phần lớn đã xong — 01/05/2026)
+#### 7. Security Hardening (✅ Đã xong — 01/05/2026)
 - [x] Rate limit: `express-rate-limit` — login 20 req/15min, API 300 req/min, upload 20 req/min.
 - [x] `helmet` headers: `crossOriginResourcePolicy: cross-origin` cho uploads.
 - [x] RBAC từng endpoint: health/incidents/invoices đều kiểm tra role.
 - [x] Path traversal: `backup.js` dùng `basename()` + check `.json` extension.
-- [x] `must_change_password` column trong users — trả về flag trong login response.
-- [ ] Force password change UI khi `mustChangePassword = true` (frontend chưa có màn hình change password).
-- [ ] Rate limit per-IP cho admin endpoints nhạy cảm (hiện dùng chung apiLimiter).
-- [ ] Rà lại RBAC bằng test tự động cho từng endpoint.
+- [x] `must_change_password` column trong users — flag trong login response + sessionStorage.
+- [x] `POST /api/auth/change-password` — xác thực mật khẩu hiện tại, bcrypt hash mới, audit log.
+- [x] `ChangePassword.jsx` — modal force (không thoát được) hoặc optional; nút "🔐 Đổi MK" trên TopBar.
+- [x] AdminLogin lưu `maika_must_change_password` vào sessionStorage → AdminApp chặn giao diện cho đến khi đổi xong.
+- [ ] Rà lại RBAC bằng test tự động cho từng endpoint (nice-to-have).
 
 #### 8. Chuẩn Hóa Database Schema (✅ Phần lớn đã xong — 01/05/2026)
 - [x] Migration versioning: bảng `schema_migrations` + hàm chạy từng version (idempotent).

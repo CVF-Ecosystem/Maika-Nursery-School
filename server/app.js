@@ -211,6 +211,26 @@ export async function createApp() {
         res.json({ user: publicUser(req.user), mustChangePassword: !!req.user.must_change_password })
     })
 
+    app.post('/api/auth/change-password', requireAuth, loginLimiter, async (req, res) => {
+        if (req.user.role === 'parent') return res.status(403).json({ error: 'Phụ huynh không thể đổi mật khẩu qua đây.' })
+        const { currentPassword, newPassword } = req.body || {}
+        if (!newPassword || String(newPassword).length < 6) {
+            return res.status(400).json({ error: 'Mật khẩu mới phải từ 6 ký tự trở lên.' })
+        }
+        const ok = await bcrypt.compare(String(currentPassword || ''), req.user.password_hash || '')
+        if (!ok) {
+            addAuditLog({ actorId: req.user.id, actorRole: req.user.role, actorName: req.user.display_name, action: 'password_change_failed', entityType: 'auth', entityId: req.user.id, summary: `Sai mật khẩu hiện tại khi đổi mật khẩu: ${req.user.display_name}`, ...requestMeta(req) })
+            return res.status(401).json({ error: 'Mật khẩu hiện tại không đúng.' })
+        }
+        await updateUser(req.user.id, {
+            password: String(newPassword),
+            mustChangePassword: 0,
+            displayName: req.user.display_name,
+        })
+        addAuditLog({ actorId: req.user.id, actorRole: req.user.role, actorName: req.user.display_name, action: 'password_changed', entityType: 'auth', entityId: req.user.id, summary: `Đổi mật khẩu thành công: ${req.user.display_name}`, ...requestMeta(req) })
+        res.json({ ok: true, message: 'Đổi mật khẩu thành công.' })
+    })
+
     // ─── Users ────────────────────────────────────────────────────────────────────
 
     app.get('/api/users', requireAuth, requireRoles('admin'), (_req, res) => {

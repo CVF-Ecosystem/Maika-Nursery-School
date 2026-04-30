@@ -336,6 +336,7 @@ export async function updateUser(id, input) {
     const current = findUserById(id)
     if (!current) return null
     const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : current.password_hash
+    const mustChangePassword = input.mustChangePassword !== undefined ? input.mustChangePassword : current.must_change_password
     db.prepare(`
       UPDATE users
       SET role = @role,
@@ -344,7 +345,8 @@ export async function updateUser(id, input) {
           email = @email,
           password_hash = @password_hash,
           student_id = @student_id,
-          status = @status
+          status = @status,
+          must_change_password = @must_change_password
       WHERE id = @id
     `).run({
         id,
@@ -355,6 +357,7 @@ export async function updateUser(id, input) {
         password_hash: passwordHash,
         student_id: input.studentId ?? current.student_id,
         status: input.status || current.status || 'active',
+        must_change_password: mustChangePassword ?? 0,
     })
     return getUser(id)
 }

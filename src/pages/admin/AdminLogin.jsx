@@ -22,6 +22,11 @@ export default function AdminLogin() {
                 const session = await loginWithBackend({ role, password: pass })
                 sessionStorage.setItem('maika_role', session.user.role)
                 sessionStorage.setItem('maika_api_token', session.token)
+                if (session.mustChangePassword) {
+                    sessionStorage.setItem('maika_must_change_password', 'true')
+                } else {
+                    sessionStorage.removeItem('maika_must_change_password')
+                }
                 clearApiSnapshot()
                 navigate('/admin/app')
             } catch (error) {

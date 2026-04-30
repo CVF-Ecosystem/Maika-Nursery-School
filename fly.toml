@@ -1,0 +1,52 @@
+# Fly.io config — deploy với: fly launch (lần đầu) hoặc fly deploy
+app = "maika-api"
+primary_region = "sin"  # Singapore
+
+[build]
+  # Dùng Node 22 image
+  [build.args]
+    NODE_VERSION = "22"
+
+[env]
+  NODE_ENV = "production"
+  MAIKA_API_HOST = "0.0.0.0"
+  MAIKA_API_PORT = "8080"
+  MAIKA_DB_PATH = "/data/maika.sqlite"
+  MAIKA_UPLOAD_DIR = "/data/uploads"
+  MAIKA_BACKUP_DIR = "/data/backups"
+  MAIKA_CORS_ORIGIN = "https://maikaschool.netlify.app"
+  MAIKA_BACKUP_SCHEDULE_ENABLED = "true"
+  MAIKA_BACKUP_CRON = "0 2 * * *"
+  MAIKA_BACKUP_RETENTION_COUNT = "30"
+  MAIKA_BACKUP_RETENTION_DAYS = "30"
+
+# Secrets — set bằng: fly secrets set MAIKA_JWT_SECRET=xxx MAIKA_ADMIN_PASSWORD=yyy
+# KHÔNG lưu secrets vào file này
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[mounts]
+  source = "maika_data"
+  destination = "/data"
+
+[[services.http_checks]]
+  interval = "10s"
+  grace_period = "5s"
+  method = "GET"
+  path = "/api/health"
+  protocol = "https"

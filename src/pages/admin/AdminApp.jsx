@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar, { TopBar } from './Sidebar'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
+import ChangePassword from './ChangePassword'
 
 // Lazy-load each admin module for code splitting
 const Dashboard = lazy(() => import('./Dashboard'))
@@ -55,6 +56,10 @@ export default function AdminApp() {
     const navigate = useNavigate()
     const [page, setPage] = useState(() => localStorage.getItem('maika_page') || 'dashboard')
     const [loadingData, setLoadingData] = useState(hasBackendAPI())
+    const [mustChangePassword, setMustChangePassword] = useState(
+        () => sessionStorage.getItem('maika_must_change_password') === 'true'
+    )
+    const [showChangePassword, setShowChangePassword] = useState(false)
     const db = getDB()
     const unread = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
 
@@ -88,11 +93,30 @@ export default function AdminApp() {
         (page === 'students' ? `${activeStudents} học sinh đang học` :
             page === 'teachers' ? `${activeTeachers} giáo viên` : '')
 
+    function handlePasswordChanged() {
+        sessionStorage.removeItem('maika_must_change_password')
+        setMustChangePassword(false)
+        setShowChangePassword(false)
+    }
+
     return (
         <div style={{ display: 'flex', minHeight: '100vh', width: '100vw' }}>
+            {/* Force change password overlay — blocks app until changed */}
+            {mustChangePassword && (
+                <ChangePassword forced onSuccess={handlePasswordChanged} />
+            )}
+            {/* Optional change password modal */}
+            {!mustChangePassword && showChangePassword && (
+                <ChangePassword onSuccess={handlePasswordChanged} />
+            )}
+
             <Sidebar active={page} onNav={handleNav} unreadCount={unread} />
             <div style={{ marginLeft: 248, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
-                <TopBar title={current.title} subtitle={subtitle} />
+                <TopBar
+                    title={current.title}
+                    subtitle={subtitle}
+                    onChangePassword={() => setShowChangePassword(true)}
+                />
                 <main style={{ flex: 1, overflowY: 'auto', background: '#F5F3FF' }}>
                     <Suspense fallback={<LoadingSpinner />}>
                         {current.component(handleNav)}

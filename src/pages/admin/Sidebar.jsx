@@ -78,8 +78,9 @@ export default function Sidebar({ active, onNav, unreadCount }) {
     )
 }
 
-export function TopBar({ title, subtitle }) {
+export function TopBar({ title, subtitle, onChangePassword }) {
     const dateStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const role = sessionStorage.getItem('maika_role')
     return (
         <div style={{ height: 64, background: '#fff', borderBottom: '1px solid #EDE9FE', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 16, position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 1px 12px rgba(109,40,217,0.06)' }}>
             <div style={{ flex: 1 }}>
@@ -87,6 +88,16 @@ export function TopBar({ title, subtitle }) {
                 {subtitle && <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 1, fontWeight: 600 }}>{subtitle}</div>}
             </div>
             <div style={{ fontSize: 12, color: '#7C6D9B', fontWeight: 700, background: '#F5F3FF', padding: '6px 14px', borderRadius: 20 }}>{dateStr}</div>
+            {onChangePassword && role && role !== 'parent' && (
+                <button
+                    onClick={onChangePassword}
+                    style={{ padding: '6px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C6D9B', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    title="Đổi mật khẩu"
+                    aria-label="Đổi mật khẩu"
+                >
+                    🔐 Đổi MK
+                </button>
+            )}
         </div>
     )
 }
