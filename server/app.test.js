@@ -88,6 +88,37 @@ describe('Maika API', () => {
         expect(deleted.body.deleted).toBe(true)
     })
 
+    it('lets admins create and lock user accounts', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const created = await api('/api/users', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                role: 'teacher',
+                displayName: 'Teacher API Test',
+                email: 'teacher-api@example.com',
+                password: 'secret123',
+            }),
+        })
+        expect(created.response.status).toBe(201)
+        expect(created.body.data.role).toBe('teacher')
+
+        const locked = await api(`/api/users/${created.body.data.id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ status: 'locked' }),
+        })
+        expect(locked.body.data.status).toBe('locked')
+
+        const users = await api('/api/users', { headers })
+        expect(users.body.data.some(user => user.id === created.body.data.id)).toBe(true)
+    })
+
     it('filters parent data to their student', async () => {
         const login = await api('/api/auth/login', {
             method: 'POST',

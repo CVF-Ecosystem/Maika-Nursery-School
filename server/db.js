@@ -23,6 +23,7 @@ db.exec(`
     email TEXT,
     password_hash TEXT,
     student_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked')),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -48,6 +49,12 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `)
+
+for (const statement of [
+    "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked'))",
+]) {
+    try { db.exec(statement) } catch { }
+}
 
 function rowToData(row) {
     return row ? JSON.parse(row.data) : null
@@ -106,15 +113,77 @@ export function findUserById(id) {
 
 export function findUserForLogin({ role, phone }) {
     if (role === 'parent') {
-        return db.prepare('SELECT * FROM users WHERE role = ? AND phone = ?').get(role, phone)
+        return db.prepare('SELECT * FROM users WHERE role = ? AND phone = ? AND status = ?').get(role, phone, 'active')
     }
-    return db.prepare('SELECT * FROM users WHERE role = ? ORDER BY created_at LIMIT 1').get(role)
+    return db.prepare('SELECT * FROM users WHERE role = ? AND status = ? ORDER BY created_at LIMIT 1').get(role, 'active')
+}
+
+export function listUsers() {
+    return db.prepare(`
+      SELECT id, role, display_name, phone, email, student_id, status, created_at
+      FROM users
+      ORDER BY role, display_name
+    `).all()
+}
+
+export function getUser(id) {
+    return db.prepare(`
+      SELECT id, role, display_name, phone, email, student_id, status, created_at
+      FROM users
+      WHERE id = ?
+    `).get(id)
+}
+
+export async function createUser(input) {
+    const id = input.id || `${input.role}-${Date.now()}`
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : null
+    db.prepare(`
+      INSERT INTO users (id, role, display_name, phone, email, password_hash, student_id, status)
+      VALUES (@id, @role, @display_name, @phone, @email, @password_hash, @student_id, @status)
+    `).run({
+        id,
+        role: input.role,
+        display_name: input.displayName,
+        phone: input.phone || null,
+        email: input.email || null,
+        password_hash: passwordHash,
+        student_id: input.studentId || null,
+        status: input.status || 'active',
+    })
+    return getUser(id)
+}
+
+export async function updateUser(id, input) {
+    const current = findUserById(id)
+    if (!current) return null
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : current.password_hash
+    db.prepare(`
+      UPDATE users
+      SET role = @role,
+          display_name = @display_name,
+          phone = @phone,
+          email = @email,
+          password_hash = @password_hash,
+          student_id = @student_id,
+          status = @status
+      WHERE id = @id
+    `).run({
+        id,
+        role: input.role || current.role,
+        display_name: input.displayName || current.display_name,
+        phone: input.phone ?? current.phone,
+        email: input.email ?? current.email,
+        password_hash: passwordHash,
+        student_id: input.studentId ?? current.student_id,
+        status: input.status || current.status || 'active',
+    })
+    return getUser(id)
 }
 
 function ensureUser(user) {
     db.prepare(`
-      INSERT INTO users (id, role, display_name, phone, email, password_hash, student_id)
-      VALUES (@id, @role, @display_name, @phone, @email, @password_hash, @student_id)
+      INSERT INTO users (id, role, display_name, phone, email, password_hash, student_id, status)
+      VALUES (@id, @role, @display_name, @phone, @email, @password_hash, @student_id, @status)
       ON CONFLICT(id) DO NOTHING
     `).run(user)
 }
@@ -134,6 +203,7 @@ export async function seedDatabase() {
         email: 'admin@maika.edu.vn',
         password_hash: await bcrypt.hash(adminPassword, 12),
         student_id: null,
+        status: 'active',
     })
 
     ensureUser({
@@ -144,6 +214,7 @@ export async function seedDatabase() {
         email: 'teacher@maika.edu.vn',
         password_hash: await bcrypt.hash(teacherPassword, 12),
         student_id: null,
+        status: 'active',
     })
 
     for (const student of defaultData.students) {
@@ -156,6 +227,7 @@ export async function seedDatabase() {
             email: student.parentEmail || null,
             password_hash: null,
             student_id: student.id,
+            status: 'active',
         })
     }
 }

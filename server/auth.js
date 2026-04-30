@@ -21,6 +21,7 @@ export function publicUser(user) {
         phone: user.phone,
         email: user.email,
         studentId: user.student_id,
+        status: user.status,
     }
 }
 

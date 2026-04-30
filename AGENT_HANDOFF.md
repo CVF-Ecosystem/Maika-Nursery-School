@@ -207,6 +207,14 @@ src/
 **Sau Phase 7**: Thêm Express API trong `server/`:
 - `npm run api:dev` chạy API tại `http://127.0.0.1:8787`
 - `POST /api/auth/login`, `GET/PUT /api/snapshot`, REST collections `/api/students`, `/api/daily-reports`, v.v.
+- User management/RBAC UI: thêm trang Admin `Tài khoản`; backend có `GET/POST/PUT /api/users`, khóa/mở tài khoản, đổi role/password/status.
 - `server/README.md` ghi cách chạy, auth, migration snapshot
-- API tests trong `server/app.test.js`; hiện `npm run test:run` = 4 files / 13 tests passed
+- API tests trong `server/app.test.js`; hiện `npm run test:run` = 4 files / 14 tests passed
 - Lưu ý: `node:sqlite` trên Node 22 đang có ExperimentalWarning, nhưng tests/build pass.
+
+### EA Backlog Tiếp Theo
+- [ ] Audit log cho thay đổi dữ liệu và đăng nhập
+- [ ] Backup/restore UI + lịch backup định kỳ
+- [ ] Hồ sơ sức khỏe, dị ứng, thuốc và incident report
+- [ ] Payment receipts/công nợ nâng cao
+- [ ] CI/CD GitHub Actions cho test/build/audit/deploy

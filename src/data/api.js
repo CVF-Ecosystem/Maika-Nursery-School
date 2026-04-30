@@ -20,3 +20,19 @@ export async function loginWithBackend(credentials) {
 
     return response.json()
 }
+
+export async function apiRequest(path, options = {}) {
+    if (!API_URL) throw new Error('Backend API chưa được cấu hình.')
+
+    const token = sessionStorage.getItem('maika_api_token') || ''
+    const headers = {
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+    }
+
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || 'API request failed.')
+    return body
+}

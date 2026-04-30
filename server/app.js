@@ -8,13 +8,17 @@ import { mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import {
     deleteRecord,
+    createUser,
     findUserForLogin,
+    getUser,
     listCollections,
+    listUsers,
     readCollection,
     readRecord,
     readSnapshot,
     replaceSnapshot,
     seedDatabase,
+    updateUser,
     upsertRecord,
     db,
 } from './db.js'
@@ -113,6 +117,48 @@ export async function createApp() {
 
     app.get('/api/me', requireAuth, (req, res) => {
         res.json({ user: publicUser(req.user) })
+    })
+
+    app.get('/api/users', requireAuth, requireRoles('admin'), (_req, res) => {
+        res.json({ data: listUsers() })
+    })
+
+    app.post('/api/users', requireAuth, requireRoles('admin'), async (req, res) => {
+        const role = req.body?.role
+        const displayName = String(req.body?.displayName || '').trim()
+        if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
+        if (!displayName) return res.status(400).json({ error: 'Thiếu tên hiển thị.' })
+        if (role !== 'parent' && !req.body?.password) return res.status(400).json({ error: 'Admin/Teacher cần mật khẩu.' })
+
+        try {
+            const user = await createUser({
+                role,
+                displayName,
+                phone: String(req.body?.phone || '').trim(),
+                email: String(req.body?.email || '').trim(),
+                password: req.body?.password,
+                studentId: req.body?.studentId || null,
+                status: req.body?.status || 'active',
+            })
+            res.status(201).json({ data: user })
+        } catch {
+            res.status(409).json({ error: 'Tài khoản đã tồn tại hoặc dữ liệu không hợp lệ.' })
+        }
+    })
+
+    app.put('/api/users/:id', requireAuth, requireRoles('admin'), async (req, res) => {
+        const existing = getUser(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy tài khoản.' })
+        const user = await updateUser(req.params.id, {
+            role: req.body?.role,
+            displayName: String(req.body?.displayName || existing.display_name).trim(),
+            phone: req.body?.phone === undefined ? existing.phone : String(req.body.phone || '').trim(),
+            email: req.body?.email === undefined ? existing.email : String(req.body.email || '').trim(),
+            password: req.body?.password,
+            studentId: req.body?.studentId === undefined ? existing.student_id : req.body.studentId || null,
+            status: req.body?.status,
+        })
+        res.json({ data: user })
     })
 
     app.get('/api/snapshot', requireAuth, (req, res) => {
