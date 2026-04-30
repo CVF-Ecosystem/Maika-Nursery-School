@@ -2,13 +2,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+    base: '/',
     plugins: [react()],
+    test: {
+        environment: 'jsdom',
+        setupFiles: './src/test/setup.js',
+        globals: true,
+    },
     build: {
         outDir: 'dist',
         rollupOptions: {
             output: {
-                manualChunks: {
-                    vendor: ['react', 'react-dom', 'react-router-dom'],
+                manualChunks(id) {
+                    if (id.includes('node_modules')) return 'vendor'
                 },
             },
         },

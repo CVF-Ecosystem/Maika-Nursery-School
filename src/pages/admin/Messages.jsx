@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getDB, commit } from '../../data/store'
-import DOMPurify from 'dompurify'
+import { sanitizeText } from '../../utils/security'
 
 export default function Messages() {
     const [db, setDB] = useState(getDB())
@@ -19,14 +19,14 @@ export default function Messages() {
         const ndb = getDB(); const idx = ndb.messages.findIndex(m => m.id === selected.id)
         if (idx >= 0) {
             if (!ndb.messages[idx].replies) ndb.messages[idx].replies = []
-            ndb.messages[idx].replies.push({ fromRole: 'admin', fromName: 'Maika School', content: DOMPurify.sanitize(reply), date: new Date().toISOString() })
+            ndb.messages[idx].replies.push({ fromRole: 'admin', fromName: 'Maika School', content: sanitizeText(reply), date: new Date().toISOString() })
         }
         commit(); setDB({ ...ndb }); setSelected(ndb.messages[idx]); setReply('')
     }
 
     function sendBroadcast() {
         const ndb = getDB()
-        ndb.messages.unshift({ id: 'm' + Date.now(), fromRole: 'admin', fromName: 'Maika School', subject: compose.subject, content: DOMPurify.sanitize(compose.content), date: new Date().toISOString(), read: true, broadcast: true, replies: [] })
+        ndb.messages.unshift({ id: 'm' + Date.now(), fromRole: 'admin', fromName: 'Maika School', subject: sanitizeText(compose.subject), content: sanitizeText(compose.content), date: new Date().toISOString(), read: true, broadcast: true, replies: [] })
         commit(); setDB({ ...ndb }); setShowCompose(false); setCompose({ subject: '', content: '', broadcast: false })
     }
 

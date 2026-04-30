@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
+
 export default function ParentLogin() {
     const [phone, setPhone] = useState('')
     const [err, setErr] = useState('')
@@ -14,7 +16,7 @@ export default function ParentLogin() {
             sessionStorage.setItem('maika_parent_phone', phone.replace(/\s/g, ''))
             navigate('/parent/portal')
         } else {
-            setErr('Không tìm thấy tài khoản. Demo: 0901234567')
+            setErr(DEMO_MODE ? 'Không tìm thấy tài khoản. Demo: 0901234567' : 'Không tìm thấy tài khoản.')
         }
     }
 
@@ -28,12 +30,12 @@ export default function ParentLogin() {
                 </div>
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 5 }}>Số điện thoại</label>
-                        <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="0901234567" autoFocus style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
+                        <label htmlFor="parent-phone" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 5 }}>Số điện thoại</label>
+                        <input id="parent-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder={DEMO_MODE ? '0901234567' : 'Nhập số điện thoại'} autoFocus style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
                     </div>
                     {err && <div style={{ fontSize: 12, color: '#DC2626', background: '#FEF2F2', borderRadius: 8, padding: '8px 12px', fontWeight: 600 }}>{err}</div>}
                     <button type="submit" style={{ padding: '13px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 15, boxShadow: '0 6px 20px rgba(109,40,217,0.4)' }}>Đăng nhập →</button>
-                    <div style={{ fontSize: 12, color: '#9B93C9', textAlign: 'center', background: '#F5F3FF', borderRadius: 8, padding: '7px' }}>Demo: <strong style={{ color: '#6D28D9' }}>0901234567</strong></div>
+                    {DEMO_MODE && <div style={{ fontSize: 12, color: '#9B93C9', textAlign: 'center', background: '#F5F3FF', borderRadius: 8, padding: '7px' }}>Demo: <strong style={{ color: '#6D28D9' }}>0901234567</strong></div>}
                     <button type="button" onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#7C6D9B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>← Về trang chủ</button>
                 </form>
             </div>

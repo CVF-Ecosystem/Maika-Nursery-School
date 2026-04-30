@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
+import { sanitizeText } from '../../utils/security'
 
 function Avatar({ initials, size = 38 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -105,8 +106,9 @@ export default function Students() {
                         const imported = lines.map(line => {
                             const cols = line.split(',').map(v => v.replace(/^"|"$/g, '').trim())
                             const [name, dob, , gender, parentName, parentPhone, parentEmail, enrollDate] = cols
-                            const initials = name.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join('')
-                            return { id: 's' + Date.now() + Math.random(), name, dob, classId: 'c1', gender: gender === 'Nam' ? 'male' : 'female', parentName, parentPhone, parentEmail, enrollDate: enrollDate || todayStr(), status: 'active', initials }
+                            const safeName = sanitizeText(name)
+                            const initials = safeName.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join('')
+                            return { id: 's' + Date.now() + Math.random(), name: safeName, dob: sanitizeText(dob), classId: 'c1', gender: gender === 'Nam' ? 'male' : 'female', parentName: sanitizeText(parentName), parentPhone: sanitizeText(parentPhone), parentEmail: sanitizeText(parentEmail), enrollDate: sanitizeText(enrollDate) || todayStr(), status: 'active', initials }
                         }).filter(s => s.name)
                         const ndb = getDB(); ndb.students = [...ndb.students, ...imported]; commit(); setDB({ ...ndb })
                         setImportMsg(`✅ Đã import ${imported.length} học sinh!`); setTimeout(() => setImportMsg(''), 3000)

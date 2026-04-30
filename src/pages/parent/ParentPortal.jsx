@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDB } from '../../data/store'
 import { fmtDate } from '../../utils/format'
+import { sanitizeFilename, sanitizeText, validateImageFile } from '../../utils/security'
 
 const ANNS = [
     { id: 1, title: 'Nghỉ lễ 30/4 – 1/5', body: 'Kính gửi quý phụ huynh,\n\nNhà trường thông báo các bé được nghỉ lễ từ Thứ Tư 30/4 đến hết Thứ Sáu 2/5/2026.\n\nCác bé đi học trở lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ, an toàn!\n\nBan Giám hiệu Maika', date: '24/04/2026', tag: 'Nghỉ lễ', tagColor: '#D97706', tagBg: '#FEF3C7', icon: '🎉', important: true },
@@ -29,7 +30,14 @@ export default function ParentPortal() {
     const [tab, setTab] = useState('announcements')
     const [openAnn, setOpenAnn] = useState(new Set([1]))
     const [galFilter, setGalFilter] = useState('all')
-    const [userPhotos, setUserPhotos] = useState(() => JSON.parse(localStorage.getItem('bb_parent_photos') || '[]'))
+    const [userPhotos, setUserPhotos] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('bb_parent_photos') || '[]')
+        } catch {
+            return []
+        }
+    })
+    const [uploadMsg, setUploadMsg] = useState('')
     const [messages, setMessages] = useState([{ from: 'school', name: '🌸 Maika School', text: 'Xin chào phụ huynh! Đây là kênh liên lạc giữa nhà trường và gia đình.', time: '08:00' }])
     const [msgText, setMsgText] = useState('')
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
@@ -47,17 +55,24 @@ export default function ParentPortal() {
     const tags = ['all', ...new Set(PHOTOS.map(p => p.tag))]
 
     function handleUpload(e) {
-        const files = Array.from(e.target.files)
+        const files = Array.from(e.target.files || [])
         const existing = [...userPhotos]
+        const errors = []
         files.forEach(file => {
+            const validationError = validateImageFile(file)
+            if (validationError) {
+                errors.push(`${file.name}: ${validationError}`)
+                return
+            }
             const reader = new FileReader()
             reader.onload = ev => {
-                existing.push({ id: 'u' + Date.now() + Math.random(), title: file.name.split('.')[0], date: new Date().toLocaleDateString('vi-VN'), tag: 'Hình ảnh', img: ev.target.result, emoji: '📸', bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', desc: 'Ảnh do phụ huynh tải lên' })
+                existing.push({ id: 'u' + Date.now() + Math.random(), title: sanitizeFilename(file.name), date: new Date().toLocaleDateString('vi-VN'), tag: 'Hình ảnh', img: ev.target.result, emoji: '📸', bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', desc: 'Ảnh do phụ huynh tải lên' })
                 localStorage.setItem('bb_parent_photos', JSON.stringify(existing))
                 setUserPhotos([...existing])
             }
             reader.readAsDataURL(file)
         })
+        setUploadMsg(errors.length ? errors.join(' ') : '')
         e.target.value = ''
     }
 
@@ -70,7 +85,7 @@ export default function ParentPortal() {
         e.preventDefault()
         if (!msgText.trim()) return
         const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-        setMessages(m => [...m, { from: 'parent', name: 'Phụ huynh', text: msgText, time: now }])
+        setMessages(m => [...m, { from: 'parent', name: 'Phụ huynh', text: sanitizeText(msgText), time: now }])
         setMsgText('')
         setTimeout(() => setMessages(m => [...m, { from: 'school', name: '🌸 Maika School', text: 'Cảm ơn phụ huynh đã nhắn tin! Nhà trường sẽ phản hồi sớm nhất trong giờ hành chính (7:00–17:00). Trân trọng!', time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }]), 1500)
     }
@@ -130,6 +145,7 @@ export default function ParentPortal() {
                             <button onClick={() => document.getElementById('ph-upload').click()} style={{ padding: '9px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 700, fontSize: 13 }}>📤 Thêm ảnh</button>
                         </div>
                         <input type="file" id="ph-upload" accept="image/*" multiple style={{ display: 'none' }} onChange={handleUpload} />
+                        {uploadMsg && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{uploadMsg}</div>}
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
                             {tags.map(t => <button key={t} onClick={() => setGalFilter(t)} style={{ padding: '6px 16px', borderRadius: 50, border: `1.5px solid ${galFilter === t ? '#6D28D9' : '#DDD6FE'}`, background: galFilter === t ? '#6D28D9' : '#fff', color: galFilter === t ? '#fff' : '#7C6D9B', fontWeight: 700, fontSize: 13 }}>{t === 'all' ? 'Tất cả' : t}</button>)}
                         </div>
@@ -199,7 +215,7 @@ export default function ParentPortal() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 420, overflowY: 'auto', padding: 4, marginBottom: 16 }}>
                             {messages.map((m, i) => (
                                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.from === 'parent' ? 'flex-end' : 'flex-start' }}>
-                                    <div style={{ borderRadius: 16, padding: '14px 16px', maxWidth: '78%', background: m.from === 'parent' ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#EDE9FE', color: m.from === 'parent' ? '#fff' : '#1E1B4B', borderRadius: m.from === 'parent' ? '16px 4px 16px 16px' : '4px 16px 16px 16px' }}>
+                                    <div style={{ padding: '14px 16px', maxWidth: '78%', background: m.from === 'parent' ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#EDE9FE', color: m.from === 'parent' ? '#fff' : '#1E1B4B', borderRadius: m.from === 'parent' ? '16px 4px 16px 16px' : '4px 16px 16px 16px' }}>
                                         <div style={{ fontSize: 11, fontWeight: 800, opacity: .7, marginBottom: 4 }}>{m.name}</div>
                                         <div style={{ fontSize: 14, lineHeight: 1.6 }}>{m.text}</div>
                                         <div style={{ fontSize: 11, opacity: .6, marginTop: 6, textAlign: 'right' }}>{m.time}</div>

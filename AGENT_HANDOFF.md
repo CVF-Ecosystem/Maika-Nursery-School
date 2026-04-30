@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 30/04/2026  
 > **Tác giả**: EA Assessment Agent  
-> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 1 (Vite + React migration)
+> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 3, bắt đầu Phase 4 testing baseline
 
 ## ⚡ Quyết định kiến trúc (đã xác nhận bởi EA)
 
@@ -40,7 +40,7 @@
 | 2 | **Hardcoded credentials** — `123456` plaintext trong source | 🔴 |
 | 3 | ~~**Monolith** — `index.html` 822 dòng chứa 3 views + CSS + JS~~ (ĐÃ FIX: tách ra 55 ES modules) | 🔴 |
 | 4 | ~~**Duplicate code** — Landing + Parent Portal tồn tại 2 bản (standalone + nhúng)~~ (ĐÃ FIX) | 🟠 |
-| 5 | **XSS** — `innerHTML` với user input không sanitize (ĐÃ FIX 1 PHẦN trong Messages) | 🟠 |
+| 5 | **XSS** — user-generated content cần sanitize (ĐÃ FIX phần tin nhắn, tên file, CSV import bằng DOMPurify) | 🟠 |
 | 6 | ~~**Global namespace** — tất cả components dùng `window.*`~~ (ĐÃ FIX: dùng JS import/export) | 🟠 |
 | 7 | **Không tests, không CI/CD** (Đã tạo .gitignore) | 🟠 |
 | 8 | **Ảnh lưu Base64 trong localStorage** — giới hạn ~5MB | 🟡 |
@@ -111,12 +111,12 @@ src/
 └── main.jsx (entry)
 ```
 
-### Phase 2 — Deploy Vercel/Netlify (~1 ngày)
-- [ ] Tạo `vite.config.js` với `base: '/'` và output `dist/`
-- [ ] Chạy `npm run build` → verify `dist/` folder
-- [ ] Deploy lên Vercel: `npx vercel --prod` HOẶC Netlify: `npx netlify deploy --prod --dir=dist`
-- [ ] Verify tất cả routes hoạt động trên URL public
-- [ ] Cấu hình `_redirects` (Netlify) hoặc `vercel.json` cho SPA routing:
+### Phase 2 — Deploy Vercel/Netlify (✅ Đã xong)
+- [x] Tạo `vite.config.js` với `base: '/'` và output `dist/`
+- [x] Chạy `npm run build` → verify `dist/` folder
+- [x] Deploy lên Netlify: https://maikaschool.netlify.app
+- [x] Verify tất cả routes hoạt động trên URL public (`/`, `/parent`, `/parent/portal`, `/admin`, `/admin/app` đều HTTP 200)
+- [x] Cấu hình `_redirects` (Netlify) hoặc `vercel.json` cho SPA routing:
 
 **Netlify** — tạo `public/_redirects`:
 ```
@@ -132,14 +132,14 @@ src/
 
 > ⚠️ Data vẫn localStorage — mỗi browser/device có data riêng. Đây là thiết kế có chủ đích cho giai đoạn demo.
 
-### Phase 3 — Security Cơ Bản (~1 ngày)
-- [ ] Input sanitization: DOMPurify cho user-generated content (tin nhắn, tên file)
-- [ ] File upload: validate MIME type (image/* only), max size 5MB client-side
-- [ ] Bỏ hiển thị credential gợi ý trong production build (dùng env var `VITE_DEMO_MODE`)
-- [ ] Thêm CSP meta tag trong `index.html`
+### Phase 3 — Security Cơ Bản (✅ Đã xong)
+- [x] Input sanitization: DOMPurify cho user-generated content (tin nhắn, tên file, CSV import)
+- [x] File upload: validate MIME type (image/* only), max size 5MB client-side
+- [x] Bỏ hiển thị credential gợi ý trong production build (dùng env var `VITE_DEMO_MODE`)
+- [x] Thêm CSP meta tag trong `index.html`
 
-### Phase 4 — Testing (~2 ngày)
-- [ ] Unit tests (Vitest): `utils/format.js`, component renders
+### Phase 4 — Testing (🟡 Đang làm)
+- [x] Unit tests (Vitest): `utils/format.js`, security utils, component route renders (`10 passed`)
 - [ ] E2E tests (Playwright): Parent login → view report, Admin CRUD student
 - [ ] Lighthouse audit: Performance ≥ 90, Accessibility ≥ 90
 
@@ -199,3 +199,5 @@ src/
 | Nunito Font | — | Google Fonts |
 
 **Sau Phase 1 (Đã làm)**: Cập nhật sang dùng Vite bundler `npm install react react-dom react-router-dom dompurify`. Loại bỏ hoàn toàn Babel Standalone (đã xóa script trên index.html).
+
+**Sau Phase 4 baseline**: Thêm Vitest + Testing Library + jsdom, script `npm run test:run`. Đã nâng Vite lên 8.x để `npm audit` = 0 vulnerability; `manualChunks` đã đổi sang function tương thích Vite 8/Rolldown.
