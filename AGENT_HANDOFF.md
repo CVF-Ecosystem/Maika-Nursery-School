@@ -214,10 +214,75 @@ src/
 - API tests trong `server/app.test.js`; hiện `npm run test:run` = 4 files / 16 tests passed
 - Lưu ý: `node:sqlite` trên Node 22 đang có ExperimentalWarning, nhưng tests/build pass.
 
-### EA Backlog Tiếp Theo
-- [x] Audit log cho thay đổi dữ liệu và đăng nhập
-- [x] Backup/restore UI
-- [ ] Lịch backup định kỳ
-- [ ] Hồ sơ sức khỏe, dị ứng, thuốc và incident report
-- [ ] Payment receipts/công nợ nâng cao
-- [ ] CI/CD GitHub Actions cho test/build/audit/deploy
+### EA Production Roadmap Còn Lại (8 Phần)
+> Đây là phần bàn giao chính cho agent tiếp theo. Các mục dưới đây là roadmap để đưa app từ demo mạnh lên production thật cho nhà trẻ.
+
+#### Đã xong trước roadmap này
+- [x] User Management + RBAC: trang `Tài khoản`, API `/api/users`, khóa/mở tài khoản, đổi role/password/status.
+- [x] Audit log: bảng `audit_logs`, API `/api/audit-logs`, trang `Nhật ký`, ghi login/snapshot/CRUD/upload/user changes.
+- [x] Backup/restore thủ công: `server/backup.js`, API `/api/backups`, trang `Sao lưu`, download/restore backup.
+
+#### 1. Lịch Backup Định Kỳ (🟡 Next)
+- [x] Backup/restore thủ công đã có.
+- [ ] Thêm scheduler trong backend, ví dụ `MAIKA_BACKUP_SCHEDULE_ENABLED=true`.
+- [ ] Cấu hình cron/rule qua env, ví dụ `MAIKA_BACKUP_CRON=0 2 * * *`.
+- [ ] Thêm retention policy, ví dụ giữ 30 bản gần nhất hoặc 30 ngày.
+- [ ] Ghi audit log khi backup tự động thành công/thất bại.
+- [ ] Hiển thị trạng thái lịch backup trong trang `Sao lưu`.
+
+#### 2. Hồ Sơ Sức Khỏe Học Sinh (⬜ Pending)
+- [ ] Thêm dữ liệu sức khỏe vào student profile hoặc bảng riêng: dị ứng, thuốc, bác sĩ/liên hệ khẩn cấp, lưu ý y tế.
+- [ ] UI trong Admin `Học sinh`: tab/section sức khỏe.
+- [ ] Parent portal chỉ đọc các thông tin phù hợp.
+- [ ] RBAC: admin/teacher được xem theo quyền; parent chỉ xem con mình.
+- [ ] Audit log khi thay đổi thông tin sức khỏe.
+
+#### 3. Incident Report (⬜ Pending)
+- [ ] Model/API cho sự cố: học sinh, thời gian, mô tả, mức độ, xử lý ban đầu, người ghi nhận, người xác nhận.
+- [ ] Upload ảnh/tệp minh chứng nếu cần.
+- [ ] Workflow trạng thái: draft/open/resolved/parent_acknowledged.
+- [ ] Parent portal xem và xác nhận đã đọc.
+- [ ] Audit log toàn bộ thay đổi trạng thái.
+
+#### 4. Học Phí Nâng Cao & Biên Lai (⬜ Pending)
+- [ ] Chuẩn hóa invoice/payment/receipt thay vì chỉ dữ liệu tài chính đơn giản.
+- [ ] Tạo biên lai thu tiền, mã biên lai, trạng thái thanh toán, lịch sử công nợ.
+- [ ] In/xuất PDF biên lai hoặc trang print thân thiện.
+- [ ] Parent portal xem công nợ và biên lai.
+- [ ] Audit log khi tạo/sửa/xóa khoản thu hoặc xác nhận thanh toán.
+
+#### 5. CI/CD (⬜ Pending)
+- [ ] GitHub Actions chạy `npm run test:run`, `npm run build`, `npm audit`.
+- [ ] Nếu Playwright chạy ổn trên CI, thêm `npm run test:e2e`.
+- [ ] Tách job frontend/backend nếu cần.
+- [ ] Chặn merge/deploy khi test hoặc audit fail.
+- [ ] Ghi rõ env CI không dùng secret production thật.
+
+#### 6. Backend Deployment (⬜ Pending)
+- [ ] Chọn nơi deploy API: Render/Fly.io/Railway/VPS hoặc server nội bộ.
+- [ ] Cấu hình persistent disk cho SQLite hoặc chuyển sang Postgres nếu cần scale/backup tốt hơn.
+- [ ] Cấu hình `VITE_API_URL` trên Netlify trỏ về API thật.
+- [ ] Cấu hình CORS production theo domain thật, không mở wildcard.
+- [ ] Kiểm tra upload directory, backup directory và quyền ghi trên server.
+
+#### 7. Security Hardening (⬜ Pending)
+- [ ] Bắt buộc đổi mật khẩu mặc định khi production.
+- [ ] Set `MAIKA_JWT_SECRET` mạnh, riêng từng môi trường.
+- [ ] Thêm rate limit login/API nhạy cảm.
+- [ ] Thêm helmet/security headers ở backend.
+- [ ] Kiểm soát CORS, upload MIME/size, path traversal, backup restore authorization.
+- [ ] Rà lại RBAC từng endpoint bằng test.
+
+#### 8. Chuẩn Hóa Database Schema (⬜ Pending)
+- [ ] Tách schema rõ cho users, roles, students, guardians, classes, attendance, reports, finance, audit, backups.
+- [ ] Thêm migration versioning thay vì chỉ init schema trực tiếp.
+- [ ] Thêm foreign keys/indexes cho các truy vấn chính.
+- [ ] Chuẩn hóa soft delete/status nếu cần giữ lịch sử.
+- [ ] Viết script migrate từ snapshot/localStorage sang schema mới.
+
+### Ghi Chú API Key / Secrets Khi Test
+- Hiện tại **không cần API key thật của bên thứ ba** để test app.
+- Backend dùng JWT tự ký bằng `MAIKA_JWT_SECRET`; đây là secret nội bộ, không phải API key external. Local/dev có thể dùng giá trị test trong `.env`, tuyệt đối không dùng secret production trong test/CI.
+- Frontend chỉ cần `VITE_API_URL=http://127.0.0.1:8787` nếu muốn bật API local. Nếu không có `VITE_API_URL`, app vẫn chạy static/localStorage trên Netlify.
+- Chạy test hiện tại không cần SMS/Zalo/email/payment/cloud key: `npm run test:run`, `npm run build`, và khi cần thì `npm run test:e2e`.
+- Chỉ cần API key thật khi sau này tích hợp dịch vụ ngoài như Zalo/SMS, email provider, payment gateway, cloud object storage, hoặc monitoring production.
