@@ -41,11 +41,18 @@ User management:
 - `PUT /api/users/:id` edits role/contact/password/status. Admin only.
 - User status can be `active` or `locked`; locked users cannot log in.
 
+Audit log:
+
+- `GET /api/audit-logs?limit=200` lists audit events. Admin only.
+- Optional filters: `action`, `entityType`, `actorId`.
+- The API records login success/failure, user management changes, snapshot sync, REST create/update/delete, and uploads.
+
 Examples:
 
 ```bash
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/students
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/users
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/audit-logs
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"id":"s-new","name":"Bé mới"}' http://127.0.0.1:8787/api/students
 ```

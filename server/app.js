@@ -7,10 +7,12 @@ import multer from 'multer'
 import { mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
 import {
+    addAuditLog,
     deleteRecord,
     createUser,
     findUserForLogin,
     getUser,
+    listAuditLogs,
     listCollections,
     listUsers,
     readCollection,
@@ -87,6 +89,23 @@ function assertCanWrite(req, res, next) {
     return res.status(403).json({ error: 'Forbidden' })
 }
 
+function requestMeta(req) {
+    return {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent') || null,
+    }
+}
+
+function auditFromRequest(req, entry) {
+    return addAuditLog({
+        actorId: req.user?.id,
+        actorRole: req.user?.role,
+        actorName: req.user?.display_name,
+        ...requestMeta(req),
+        ...entry,
+    })
+}
+
 export async function createApp() {
     await seedDatabase()
 
@@ -105,13 +124,44 @@ export async function createApp() {
         if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
 
         const user = findUserForLogin({ role, phone: String(req.body?.phone || '').trim() })
-        if (!user) return res.status(401).json({ error: 'Không tìm thấy tài khoản.' })
+        if (!user) {
+            addAuditLog({
+                action: 'login_failed',
+                entityType: 'auth',
+                summary: `Đăng nhập thất bại cho vai trò ${role}`,
+                metadata: { role, phone: req.body?.phone ? String(req.body.phone) : null },
+                ...requestMeta(req),
+            })
+            return res.status(401).json({ error: 'Không tìm thấy tài khoản.' })
+        }
 
         if (role !== 'parent') {
             const ok = await bcrypt.compare(String(req.body?.password || ''), user.password_hash || '')
-            if (!ok) return res.status(401).json({ error: 'Mật khẩu không đúng.' })
+            if (!ok) {
+                addAuditLog({
+                    actorId: user.id,
+                    actorRole: user.role,
+                    actorName: user.display_name,
+                    action: 'login_failed',
+                    entityType: 'auth',
+                    entityId: user.id,
+                    summary: `Sai mật khẩu: ${user.display_name}`,
+                    ...requestMeta(req),
+                })
+                return res.status(401).json({ error: 'Mật khẩu không đúng.' })
+            }
         }
 
+        addAuditLog({
+            actorId: user.id,
+            actorRole: user.role,
+            actorName: user.display_name,
+            action: 'login_success',
+            entityType: 'auth',
+            entityId: user.id,
+            summary: `Đăng nhập thành công: ${user.display_name}`,
+            ...requestMeta(req),
+        })
         res.json({ token: signToken(user), user: publicUser(user) })
     })
 
@@ -121,6 +171,17 @@ export async function createApp() {
 
     app.get('/api/users', requireAuth, requireRoles('admin'), (_req, res) => {
         res.json({ data: listUsers() })
+    })
+
+    app.get('/api/audit-logs', requireAuth, requireRoles('admin'), (req, res) => {
+        res.json({
+            data: listAuditLogs({
+                limit: req.query.limit,
+                action: req.query.action,
+                entityType: req.query.entityType,
+                actorId: req.query.actorId,
+            }),
+        })
     })
 
     app.post('/api/users', requireAuth, requireRoles('admin'), async (req, res) => {
@@ -140,6 +201,13 @@ export async function createApp() {
                 studentId: req.body?.studentId || null,
                 status: req.body?.status || 'active',
             })
+            auditFromRequest(req, {
+                action: 'user_created',
+                entityType: 'user',
+                entityId: user.id,
+                summary: `Tạo tài khoản ${user.display_name}`,
+                metadata: { role: user.role, status: user.status },
+            })
             res.status(201).json({ data: user })
         } catch {
             res.status(409).json({ error: 'Tài khoản đã tồn tại hoặc dữ liệu không hợp lệ.' })
@@ -158,6 +226,13 @@ export async function createApp() {
             studentId: req.body?.studentId === undefined ? existing.student_id : req.body.studentId || null,
             status: req.body?.status,
         })
+        auditFromRequest(req, {
+            action: 'user_updated',
+            entityType: 'user',
+            entityId: user.id,
+            summary: `Cập nhật tài khoản ${user.display_name}`,
+            metadata: { role: user.role, status: user.status },
+        })
         res.json({ data: user })
     })
 
@@ -167,7 +242,14 @@ export async function createApp() {
 
     app.put('/api/snapshot', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
         if (!req.body?.data || typeof req.body.data !== 'object') return res.status(400).json({ error: 'Missing snapshot data' })
-        res.json({ data: replaceSnapshot(req.body.data) })
+        const data = replaceSnapshot(req.body.data)
+        auditFromRequest(req, {
+            action: 'snapshot_replaced',
+            entityType: 'snapshot',
+            summary: 'Đồng bộ toàn bộ dữ liệu snapshot',
+            metadata: { collections: Object.keys(req.body.data || {}) },
+        })
+        res.json({ data })
     })
 
     app.get('/api/:collection', requireAuth, (req, res) => {
@@ -189,19 +271,41 @@ export async function createApp() {
         const collection = routeToCollection(req.params.collection)
         if (!collection) return res.status(404).json({ error: 'Unknown collection' })
         const record = { ...req.body, id: req.body?.id || `${collection}-${Date.now()}` }
-        res.status(201).json({ data: upsertRecord(collection, record) })
+        const data = upsertRecord(collection, record)
+        auditFromRequest(req, {
+            action: 'record_created',
+            entityType: collection,
+            entityId: data.id,
+            summary: `Tạo ${collection}: ${data.name || data.title || data.subject || data.id}`,
+        })
+        res.status(201).json({ data })
     })
 
     app.put('/api/:collection/:id', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
         const collection = routeToCollection(req.params.collection)
         if (!collection) return res.status(404).json({ error: 'Unknown collection' })
-        res.json({ data: upsertRecord(collection, { ...req.body, id: req.params.id }) })
+        const data = upsertRecord(collection, { ...req.body, id: req.params.id })
+        auditFromRequest(req, {
+            action: 'record_updated',
+            entityType: collection,
+            entityId: data.id,
+            summary: `Cập nhật ${collection}: ${data.name || data.title || data.subject || data.id}`,
+        })
+        res.json({ data })
     })
 
     app.delete('/api/:collection/:id', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
         const collection = routeToCollection(req.params.collection)
         if (!collection) return res.status(404).json({ error: 'Unknown collection' })
-        res.json({ deleted: deleteRecord(collection, req.params.id) })
+        const deleted = deleteRecord(collection, req.params.id)
+        auditFromRequest(req, {
+            action: 'record_deleted',
+            entityType: collection,
+            entityId: req.params.id,
+            summary: `Xóa ${collection}: ${req.params.id}`,
+            metadata: { deleted },
+        })
+        res.json({ deleted })
     })
 
     app.post('/api/uploads', requireAuth, upload.single('file'), (req, res) => {
@@ -212,6 +316,14 @@ export async function createApp() {
           INSERT INTO uploads (id, original_name, stored_name, mime_type, size, path, uploaded_by)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `).run(id, req.file.originalname, req.file.filename, req.file.mimetype, req.file.size, `/uploads/${req.file.filename}`, req.user.id)
+
+        auditFromRequest(req, {
+            action: 'file_uploaded',
+            entityType: 'upload',
+            entityId: id,
+            summary: `Tải file ${req.file.originalname}`,
+            metadata: { mimeType: req.file.mimetype, size: req.file.size },
+        })
 
         res.status(201).json({
             data: {

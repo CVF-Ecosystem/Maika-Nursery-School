@@ -119,6 +119,25 @@ describe('Maika API', () => {
         expect(users.body.data.some(user => user.id === created.body.data.id)).toBe(true)
     })
 
+    it('records audit logs for authenticated changes', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        await api('/api/students', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ id: 's-audit-test', name: 'Audit Test', status: 'active' }),
+        })
+
+        const logs = await api('/api/audit-logs?limit=20', { headers })
+        expect(logs.response.status).toBe(200)
+        expect(logs.body.data.some(log => log.action === 'record_created' && log.entity_id === 's-audit-test')).toBe(true)
+        expect(logs.body.data.some(log => log.action === 'login_success')).toBe(true)
+    })
+
     it('filters parent data to their student', async () => {
         const login = await api('/api/auth/login', {
             method: 'POST',

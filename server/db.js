@@ -48,6 +48,25 @@ db.exec(`
     uploaded_by TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT,
+    actor_role TEXT,
+    actor_name TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    summary TEXT NOT NULL,
+    metadata TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_logs(actor_id);
+  CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
 `)
 
 for (const statement of [
@@ -124,6 +143,68 @@ export function listUsers() {
       FROM users
       ORDER BY role, display_name
     `).all()
+}
+
+export function addAuditLog(entry) {
+    const id = entry.id || `audit-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    db.prepare(`
+      INSERT INTO audit_logs (
+        id, actor_id, actor_role, actor_name, action, entity_type, entity_id,
+        summary, metadata, ip_address, user_agent
+      )
+      VALUES (
+        @id, @actor_id, @actor_role, @actor_name, @action, @entity_type, @entity_id,
+        @summary, @metadata, @ip_address, @user_agent
+      )
+    `).run({
+        id,
+        actor_id: entry.actorId || null,
+        actor_role: entry.actorRole || null,
+        actor_name: entry.actorName || null,
+        action: entry.action,
+        entity_type: entry.entityType,
+        entity_id: entry.entityId || null,
+        summary: entry.summary,
+        metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
+        ip_address: entry.ipAddress || null,
+        user_agent: entry.userAgent || null,
+    })
+    return getAuditLog(id)
+}
+
+export function getAuditLog(id) {
+    const row = db.prepare('SELECT * FROM audit_logs WHERE id = ?').get(id)
+    if (!row) return null
+    return { ...row, metadata: row.metadata ? JSON.parse(row.metadata) : null }
+}
+
+export function listAuditLogs({ limit = 100, action, entityType, actorId } = {}) {
+    const clauses = []
+    const params = {}
+
+    if (action) {
+        clauses.push('action = @action')
+        params.action = action
+    }
+    if (entityType) {
+        clauses.push('entity_type = @entityType')
+        params.entityType = entityType
+    }
+    if (actorId) {
+        clauses.push('actor_id = @actorId')
+        params.actorId = actorId
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500)
+    const rows = db.prepare(`
+      SELECT * FROM audit_logs
+      ${where}
+      ORDER BY created_at DESC
+      LIMIT ${safeLimit}
+    `).all(params)
+
+    return rows.map(row => ({ ...row, metadata: row.metadata ? JSON.parse(row.metadata) : null }))
 }
 
 export function getUser(id) {

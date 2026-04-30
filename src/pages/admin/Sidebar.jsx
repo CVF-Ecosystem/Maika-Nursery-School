@@ -13,6 +13,7 @@ const NAV_ITEMS = [
     { id: 'resources', icon: '📚', label: 'Tài nguyên' },
     { id: 'gamification', icon: '🏆', label: 'Thành tích' },
     { id: 'users', icon: '⚙', label: 'Tài khoản' },
+    { id: 'audit', icon: '◷', label: 'Nhật ký' },
 ]
 
 const GROUPS = [
@@ -20,7 +21,7 @@ const GROUPS = [
     { label: 'HOẠT ĐỘNG', ids: ['attendance', 'reports', 'finance'] },
     { label: 'GIAO TIẾP', ids: ['messages', 'calendar'] },
     { label: 'PHÂN TÍCH', ids: ['analytics', 'resources', 'gamification'] },
-    { label: 'HỆ THỐNG', ids: ['users'] },
+    { label: 'HỆ THỐNG', ids: ['users', 'audit'] },
 ]
 
 export default function Sidebar({ active, onNav, unreadCount }) {
