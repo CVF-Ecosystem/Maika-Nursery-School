@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 30/04/2026  
 > **Tác giả**: EA Assessment Agent  
-> **Trạng thái**: 🔴 CHỜ TRIỂN KHAI — roadmap đã phê duyệt, chưa bắt đầu code
+> **Trạng thái**: 🟡 ĐANG TRIỂN KHAI — Đã hoàn thành Phase 1 (Vite + React migration)
 
 ## ⚡ Quyết định kiến trúc (đã xác nhận bởi EA)
 
@@ -38,11 +38,11 @@
 |---|--------|--------|
 | 1 | **Không backend** — toàn bộ dữ liệu localStorage, mất khi xóa cache | 🔴 |
 | 2 | **Hardcoded credentials** — `123456` plaintext trong source | 🔴 |
-| 3 | **Monolith** — `index.html` 822 dòng chứa 3 views + CSS + JS | 🔴 |
-| 4 | **Duplicate code** — Landing + Parent Portal tồn tại 2 bản (standalone + nhúng) | 🟠 |
-| 5 | **XSS** — `innerHTML` với user input không sanitize | 🟠 |
-| 6 | **Global namespace** — tất cả components dùng `window.*` | 🟠 |
-| 7 | **Không tests, không CI/CD, không .gitignore** | 🟠 |
+| 3 | ~~**Monolith** — `index.html` 822 dòng chứa 3 views + CSS + JS~~ (ĐÃ FIX: tách ra 55 ES modules) | 🔴 |
+| 4 | ~~**Duplicate code** — Landing + Parent Portal tồn tại 2 bản (standalone + nhúng)~~ (ĐÃ FIX) | 🟠 |
+| 5 | **XSS** — `innerHTML` với user input không sanitize (ĐÃ FIX 1 PHẦN trong Messages) | 🟠 |
+| 6 | ~~**Global namespace** — tất cả components dùng `window.*`~~ (ĐÃ FIX: dùng JS import/export) | 🟠 |
+| 7 | **Không tests, không CI/CD** (Đã tạo .gitignore) | 🟠 |
 | 8 | **Ảnh lưu Base64 trong localStorage** — giới hạn ~5MB | 🟡 |
 
 ### Điểm mạnh giữ nguyên
@@ -54,49 +54,46 @@
 
 ---
 
-## 2. File Inventory
+## 2. File Inventory (Đã cập nhật sau Phase 1)
 
 ```
 Nha tre Maika/
-├── index.html              62 KB   ← MONOLITH — chứa 3 views, cần tách
-├── Maika-Landing.html      14 KB   ← DUPLICATE — xóa sau khi merge
-├── Maika-Parent.html       31 KB   ← DUPLICATE — xóa sau khi merge
-├── Maika.html              11 KB   ← Admin standalone — gộp vào router
-├── landing.css             11 KB   ← Giữ, move → src/styles/
-├── landing-content.js       4 KB   ← Nhúng vào Landing.jsx
-├── bb-data.js              15 KB   ← Data layer — thay bằng API client
-├── bb-sidebar.jsx           6 KB   ← Move → src/pages/admin/Sidebar.jsx
-├── bb-dashboard.jsx        11 KB   ← Move → src/pages/admin/Dashboard.jsx
-├── bb-students.jsx         19 KB   ← Move → src/pages/admin/Students.jsx
-├── bb-teachers.jsx         10 KB   ← Move → src/pages/admin/Teachers.jsx
-├── bb-attendance.jsx       18 KB   ← Move → src/pages/admin/Attendance.jsx
-├── bb-finance.jsx          13 KB   ← Move → src/pages/admin/Finance.jsx
-├── bb-communication.jsx    12 KB   ← Move → src/pages/admin/Communication.jsx
-├── bb-calendar.jsx         13 KB   ← Move → src/pages/admin/Calendar.jsx
-├── bb-analytics.jsx        12 KB   ← Move → src/pages/admin/Analytics.jsx
-├── bb-resources.jsx        19 KB   ← Move → src/pages/admin/Resources.jsx
-├── uploads/
-│   └── pasted-*.png       236 KB
-└── AGENT_HANDOFF.md        ← BẠN ĐANG ĐỌC FILE NÀY
+├── src/
+│   ├── pages/ (landing/, parent/, admin/)
+│   ├── data/store.js
+│   ├── styles/global.css
+│   ├── utils/format.js
+│   ├── App.jsx
+│   └── main.jsx
+├── public/
+│   ├── uploads/
+│   └── _redirects
+├── index.html              (Minimal Vite entry)
+├── package.json
+├── vite.config.js
+├── vercel.json
+├── .gitignore
+└── AGENT_HANDOFF.md
 ```
+*(Đã loại bỏ các file `bb-*.jsx`, `Maika*.html`, `landing-content.js`, `landing.css` cũ)*
 
 ---
 
 ## 3. Roadmap 6 Phases
 
-### Phase 0 — CVF Governance (~0.5 ngày)
-- [ ] Chạy `/cvf-onboard`
-- [ ] Tạo `.gitignore` (node_modules, dist, .env, uploads)
-- [ ] Git init + first commit snapshot
+### Phase 0 — CVF Governance (✅ Đã xong)
+- [x] Chạy `/cvf-onboard`
+- [x] Tạo `.gitignore` (node_modules, dist, .env, uploads)
+- [x] Git init + first commit snapshot
 
-### Phase 1 — Tái Cấu Trúc Code (~4 ngày)
-- [ ] Setup Vite: `npm create vite@latest ./ -- --template react`
-- [ ] Install: `npm install react-router-dom`
-- [ ] Tách `index.html` monolith → từng file JSX riêng (xem cấu trúc bên dưới)
-- [ ] Loại bỏ `Maika-Landing.html`, `Maika-Parent.html`, `Maika.html` (duplicate)
-- [ ] Convert `bb-*.jsx` → ES module imports (bỏ `window.*` exports)
-- [ ] Setup React Router v6 thay `showView()` + `display:none`
-- [ ] Extract inline styles → CSS classes hoặc CSS modules
+### Phase 1 — Tái Cấu Trúc Code (✅ Đã xong)
+- [x] Setup Vite: `npm create vite@latest ./ -- --template react`
+- [x] Install: `npm install react-router-dom`
+- [x] Tách `index.html` monolith → từng file JSX riêng (xem cấu trúc bên dưới)
+- [x] Loại bỏ `Maika-Landing.html`, `Maika-Parent.html`, `Maika.html` (duplicate)
+- [x] Convert `bb-*.jsx` → ES module imports (bỏ `window.*` exports)
+- [x] Setup React Router v6 thay `showView()` + `display:none`
+- [x] Extract inline styles → CSS classes hoặc CSS modules
 
 **Cấu trúc thư mục mới**:
 ```
@@ -201,4 +198,4 @@ src/
 | Babel Standalone | 7.29.0 | unpkg.com (có SRI) |
 | Nunito Font | — | Google Fonts |
 
-**Sau Phase 1**: Chuyển sang `npm install react react-dom` + Vite bundle. Bỏ Babel Standalone.
+**Sau Phase 1 (Đã làm)**: Cập nhật sang dùng Vite bundler `npm install react react-dom react-router-dom dompurify`. Loại bỏ hoàn toàn Babel Standalone (đã xóa script trên index.html).
