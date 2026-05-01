@@ -37,11 +37,7 @@ Deploy the Edge Function after changing code:
 supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
 ```
 
-If the function environment does not already expose `SUPABASE_SERVICE_ROLE_KEY`, set the same value as a function secret named `SUPABASE_SERVICE_KEY`:
-
-```powershell
-supabase secrets set SUPABASE_SERVICE_KEY="<service-role-key>" --project-ref czxoozwydvmjisydyims
-```
+Supabase Edge Functions expose `SUPABASE_SERVICE_ROLE_KEY` automatically at runtime. Do not create custom secrets starting with `SUPABASE_`; Supabase CLI ignores those names.
 
 The local script remains available for one-time recovery or emergency admin creation:
 

@@ -25,13 +25,7 @@ Deploy function tạo/reset tài khoản:
 supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
 ```
 
-Function dùng service role key ở phía Supabase. Nếu môi trường function chưa có sẵn `SUPABASE_SERVICE_ROLE_KEY`, set thêm secret tương đương:
-
-```powershell
-supabase secrets set SUPABASE_SERVICE_KEY="<service-role-key>" --project-ref czxoozwydvmjisydyims
-```
-
-Không đặt service key trong Netlify hoặc biến frontend.
+Function dùng `SUPABASE_SERVICE_ROLE_KEY` do Supabase Edge Functions cung cấp ở runtime. Không đặt service key trong Netlify hoặc biến frontend.
 
 ### Admin Đầu Tiên
 
