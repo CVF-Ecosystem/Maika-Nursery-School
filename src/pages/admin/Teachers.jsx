@@ -101,12 +101,20 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
     }, [selectedFacilityId])
 
     async function handleSave(form) {
+        const editingTeacher = selected
+        const prevTeachers = teachers
+        if (editingTeacher) {
+            setTeachers(prev => prev.map(t => t.id === editingTeacher.id ? { ...t, ...form } : t))
+        } else {
+            setTeachers(prev => [...prev, { ...form, id: `temp_${Date.now()}` }])
+        }
+        setModal(null)
+        setSelected(null)
         try {
-            await saveSupabaseTeacher({ ...form, id: selected?.id, facilityId: selectedFacilityId })
-            setModal(null)
-            setSelected(null)
-            await reload()
+            await saveSupabaseTeacher({ ...form, id: editingTeacher?.id, facilityId: selectedFacilityId })
+            if (!editingTeacher) await reload()
         } catch (err) {
+            setTeachers(prevTeachers)
             setError(err.message)
         }
     }

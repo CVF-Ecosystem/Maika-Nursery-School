@@ -110,8 +110,15 @@ export default function Notifications({ readOnly = false }) {
         e.preventDefault()
         setSaving(true)
         setErr('')
+        const isEdit = !!editing
+        const prevItems = items
+        if (isEdit) {
+            setItems(prev => prev.map(item => item.id === editing.id
+                ? { ...item, title: form.title, body: form.body, type: form.type, priority: form.priority, target_role: form.targetRole, channel: form.channel, scheduled_at: form.scheduledAt, status: form.status }
+                : item))
+        }
         try {
-            if (editing) {
+            if (isEdit) {
                 if (supabaseMode) {
                     await updateNotification(editing.id, form)
                 } else {
@@ -123,37 +130,48 @@ export default function Notifications({ readOnly = false }) {
                 } else {
                     await apiFetch('/api/notifications', { method: 'POST', body: JSON.stringify(form) })
                 }
+                reload()
             }
             setShowModal(false)
-            reload()
-        } catch (ex) { setErr(ex.message) }
+        } catch (ex) {
+            if (isEdit) setItems(prevItems)
+            setErr(ex.message)
+        }
         setSaving(false)
     }
 
     async function handleSend(item) {
         if (!confirm(`Gửi thông báo "${item.title}" ngay bây giờ?`)) return
         setSaving(true)
+        const prevItems = items
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'sent', sent_at: new Date().toISOString() } : i))
         try {
             if (supabaseMode) {
                 await updateNotification(item.id, { status: 'sent' })
             } else {
                 await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'sent' }) })
             }
-            reload()
-        } catch (ex) { setErr(ex.message) }
+        } catch (ex) {
+            setItems(prevItems)
+            setErr(ex.message)
+        }
         setSaving(false)
     }
 
     async function handleCancel(item) {
         if (!confirm('Hủy thông báo này?')) return
+        const prevItems = items
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'cancelled' } : i))
         try {
             if (supabaseMode) {
                 await updateNotification(item.id, { status: 'cancelled' })
             } else {
                 await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'cancelled' }) })
             }
-            reload()
-        } catch (ex) { setErr(ex.message) }
+        } catch (ex) {
+            setItems(prevItems)
+            setErr(ex.message)
+        }
     }
 
     if (!supabaseMode && !hasBackendAPI()) return <NoBackend />

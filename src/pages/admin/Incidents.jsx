@@ -166,12 +166,33 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
 
     async function handleSave(form) {
         setError('')
+        const editingIncident = selected
+        const prevIncidents = incidents
+
+        const optimistic = {
+            ...(editingIncident || {}),
+            id: editingIncident?.id || `temp_${Date.now()}`,
+            student_id: form.studentId,
+            occurred_at: form.occurredAt ? new Date(form.occurredAt).toISOString() : null,
+            severity: form.severity,
+            description: form.description,
+            initial_action: form.initialAction || '',
+            status: form.status || 'open',
+        }
+        if (editingIncident) {
+            setIncidents(prev => prev.map(inc => inc.id === editingIncident.id ? { ...inc, ...optimistic } : inc))
+        } else {
+            setIncidents(prev => [optimistic, ...prev])
+        }
+        setModal(null)
+        setSelected(null)
+
         try {
             if (supabaseMode) {
-                await saveSupabaseIncident({ ...form, id: selected?.id, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined })
-                setMessage(selected ? 'Đã cập nhật sự cố.' : 'Đã ghi nhận sự cố.')
-            } else if (selected) {
-                await apiRequest(`/api/incidents/${selected.id}`, {
+                await saveSupabaseIncident({ ...form, id: editingIncident?.id, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined })
+                setMessage(editingIncident ? 'Đã cập nhật sự cố.' : 'Đã ghi nhận sự cố.')
+            } else if (editingIncident) {
+                await apiRequest(`/api/incidents/${editingIncident.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({ ...form, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined }),
                 })
@@ -183,16 +204,19 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                 })
                 setMessage('Đã ghi nhận sự cố.')
             }
-            setModal(null)
-            setSelected(null)
-            await load()
+            if (!editingIncident) await load()
             setTimeout(() => setMessage(''), 3000)
         } catch (err) {
+            setIncidents(prevIncidents)
             setError(err.message)
         }
     }
 
     async function acknowledge(id) {
+        const prevIncidents = incidents
+        setIncidents(prev => prev.map(inc => inc.id === id
+            ? { ...inc, status: 'parent_acknowledged', parent_acknowledged_at: new Date().toISOString() }
+            : inc))
         try {
             if (supabaseMode) {
                 await acknowledgeIncident(id)
@@ -200,9 +224,9 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                 await apiRequest(`/api/incidents/${id}`, { method: 'PUT', body: JSON.stringify({}) })
             }
             setMessage('Đã xác nhận đã đọc.')
-            await load()
             setTimeout(() => setMessage(''), 3000)
         } catch (err) {
+            setIncidents(prevIncidents)
             setError(err.message)
         }
     }

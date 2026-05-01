@@ -646,27 +646,52 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
 
     async function handleSave(form) {
         setError('')
+        const editingInvoice = selected
+        const prevInvoices = invoices
+
+        const payload = {
+            studentId: form.studentId,
+            type: form.type,
+            description: form.description,
+            amount: form.amount,
+            dueDate: form.dueDate,
+            status: form.status,
+            notes: form.notes,
+            paidDate: form.paidDate || null,
+            paymentMethod: form.paymentMethod || null,
+        }
+        const invoiceNumber = editingInvoice?.invoice_number || receiptCodeForStudent(students, db, invoices, payload.studentId, payload.type, payload.dueDate)
+
+        const optimistic = {
+            id: editingInvoice?.id || `temp_${Date.now()}`,
+            invoice_number: invoiceNumber,
+            student_id: payload.studentId,
+            type: payload.type,
+            description: payload.description,
+            amount: Number(payload.amount || 0),
+            due_date: payload.dueDate,
+            status: payload.status,
+            notes: payload.notes,
+            paid_date: payload.paidDate || null,
+            payment_method: payload.paymentMethod || null,
+        }
+        if (editingInvoice) {
+            setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? { ...inv, ...optimistic } : inv))
+        } else {
+            setInvoices(prev => [optimistic, ...prev])
+        }
+        setModal(null)
+        setSelected(null)
+
         try {
-            const payload = {
-                studentId: form.studentId,
-                type: form.type,
-                description: form.description,
-                amount: form.amount,
-                dueDate: form.dueDate,
-                status: form.status,
-                notes: form.notes,
-                paidDate: form.paidDate || null,
-                paymentMethod: form.paymentMethod || null,
-            }
-            const invoiceNumber = selected?.invoice_number || receiptCodeForStudent(students, db, invoices, payload.studentId, payload.type, payload.dueDate)
             if (supabaseMode) {
-                await saveSupabaseInvoice({ ...payload, id: selected?.id, invoiceNumber })
-                setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
+                await saveSupabaseInvoice({ ...payload, id: editingInvoice?.id, invoiceNumber })
+                setMessage(editingInvoice ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
             } else if (localMode) {
                 const ndb = getDB()
                 if (!Array.isArray(ndb.finance)) ndb.finance = []
                 const localPayload = {
-                    id: selected?.id || `f${Date.now()}`,
+                    id: editingInvoice?.id || `f${Date.now()}`,
                     studentId: payload.studentId,
                     invoiceNumber,
                     type: payload.type,
@@ -682,18 +707,18 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                 if (idx >= 0) ndb.finance[idx] = { ...ndb.finance[idx], ...localPayload }
                 else ndb.finance.unshift(localPayload)
                 commit()
-                setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
-            } else if (selected) {
-                await apiRequest(`/api/invoices/${selected.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+                setMessage(editingInvoice ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
+            } else if (editingInvoice) {
+                await apiRequest(`/api/invoices/${editingInvoice.id}`, { method: 'PUT', body: JSON.stringify(payload) })
                 setMessage('Đã cập nhật hóa đơn.')
             } else {
                 await apiRequest('/api/invoices', { method: 'POST', body: JSON.stringify({ ...payload, invoiceNumber }) })
                 setMessage('Đã tạo hóa đơn mới.')
             }
-            setModal(null); setSelected(null)
-            await load()
+            if (!editingInvoice) await load()
             setTimeout(() => setMessage(''), 3000)
         } catch (err) {
+            setInvoices(prevInvoices)
             setError(err.message)
         }
     }
@@ -836,6 +861,11 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
     }
 
     async function markPaid(invoice) {
+        const prevInvoices = invoices
+        const today = new Date().toISOString().slice(0, 10)
+        setInvoices(prev => prev.map(inv => inv.id === invoice.id
+            ? { ...inv, status: 'paid', paid_date: today }
+            : inv))
         try {
             if (supabaseMode) {
                 await saveSupabaseInvoice({
@@ -843,7 +873,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                     studentId: invoice.student_id,
                     invoiceNumber: invoice.invoice_number,
                     dueDate: invoice.due_date,
-                    paidDate: new Date().toISOString().slice(0, 10),
+                    paidDate: today,
                     paymentMethod: invoice.payment_method,
                     notes: invoice.notes,
                     status: 'paid',
@@ -855,7 +885,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                     ndb.finance[idx] = {
                         ...ndb.finance[idx],
                         status: 'paid',
-                        paidDate: new Date().toISOString().slice(0, 10),
+                        paidDate: today,
                         method: ndb.finance[idx].method || 'Chuyển khoản',
                     }
                     commit()
@@ -863,11 +893,11 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
             } else {
                 await apiRequest(`/api/invoices/${invoice.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify({ status: 'paid', paidDate: new Date().toISOString().slice(0, 10) }),
+                    body: JSON.stringify({ status: 'paid', paidDate: today }),
                 })
             }
-            await load()
         } catch (err) {
+            setInvoices(prevInvoices)
             setError(err.message)
         }
     }

@@ -151,6 +151,36 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
         reload(selectedFacilityId, status)
     }, [selectedFacilityId])
 
+    async function handleSaveStudent() {
+        const editingStudent = form
+        const prevStudents = students
+        if (editingStudent.id) {
+            setStudents(prev => prev.map(s => s.id === editingStudent.id ? { ...s, ...editingStudent } : s))
+        } else {
+            setStudents(prev => [...prev, { ...editingStudent, id: `temp_${Date.now()}` }])
+        }
+        setForm(null)
+        try {
+            await saveStudent(editingStudent)
+            if (!editingStudent.id) await reload(facilityId, status)
+        } catch (ex) {
+            setStudents(prevStudents)
+            setForm(editingStudent)
+            setErr(ex.message)
+        }
+    }
+
+    async function handleMarkInactive(student) {
+        const prevStudents = students
+        setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: 'inactive' } : s))
+        try {
+            await markStudentInactive(student.id)
+        } catch (ex) {
+            setStudents(prevStudents)
+            setErr(ex.message)
+        }
+    }
+
     async function handleImport(file) {
         if (!file || !facilityId) return
         setErr('')
@@ -190,7 +220,7 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
                 {canEdit && <button onClick={() => setForm({ ...emptyForm, facilityId: facilityId || facilities[0]?.id || '' })} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 900 }}>+ Thêm học sinh</button>}
             </div>
             {err && <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontWeight: 800, fontSize: 13 }}>{err}</div>}
-            {form && <StudentEditor form={form} facilities={facilities} classOptions={classOptions} canEdit={canEdit} onChange={setForm} onCancel={() => setForm(null)} onSave={async () => { await saveStudent(form); setForm(null); reload() }} />}
+            {form && <StudentEditor form={form} facilities={facilities} classOptions={classOptions} canEdit={canEdit} onChange={setForm} onCancel={() => setForm(null)} onSave={handleSaveStudent} />}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm học sinh, phụ huynh, lớp..." style={{ flex: 1, minWidth: 220, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }} />
                 <select value={status} onChange={e => { setStatus(e.target.value); reload(facilityId, e.target.value) }} style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }}><option value="active">Đang học</option><option value="inactive">Nghỉ học</option><option value="all">Tất cả</option></select>
@@ -206,7 +236,7 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
                             <td style={{ padding: '12px 14px' }}>{student.parentName || '—'}</td>
                             <td style={{ padding: '12px 14px', color: '#6B6494' }}>{student.parentPhone || student.parentEmail || '—'}</td>
                             <td style={{ padding: '12px 14px' }}>{student.status === 'active' ? 'Đang học' : 'Nghỉ học'}</td>
-                            <td style={{ padding: '12px 14px' }}>{canEdit && <div style={{ display: 'flex', gap: 6 }}><button onClick={() => setForm(student)} style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 800 }}>Sửa</button><button onClick={async () => { await markStudentInactive(student.id); reload() }} style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #DC2626', background: '#fff', color: '#DC2626', fontWeight: 800 }}>Nghỉ</button></div>}</td>
+                            <td style={{ padding: '12px 14px' }}>{canEdit && <div style={{ display: 'flex', gap: 6 }}><button onClick={() => setForm(student)} style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 800 }}>Sửa</button><button onClick={() => handleMarkInactive(student)} style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #DC2626', background: '#fff', color: '#DC2626', fontWeight: 800 }}>Nghỉ</button></div>}</td>
                         </tr>
                     ))}</tbody>
                 </table>
