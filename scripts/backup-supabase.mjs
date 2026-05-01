@@ -62,6 +62,7 @@ function quoteIdentifier(name) {
     return `"${String(name).replace(/"/g, '""')}"`
 }
 
+// Fallback dùng pg driver (TCP port 5432) — chỉ dùng khi có SUPABASE_POSTGRES_URL
 async function runJsonSnapshotBackup(reason) {
     const postgresUrl = requireEnv('SUPABASE_POSTGRES_URL')
     const client = new pg.Client({
@@ -113,6 +114,47 @@ async function runJsonSnapshotBackup(reason) {
     } finally {
         await client.end()
     }
+}
+
+// Fallback REST API — dùng HTTPS, không cần port 5432, hoạt động trên CI/GitHub Actions
+const KNOWN_TABLES = [
+    'facilities', 'profiles', 'students', 'attendance',
+    'parent_student_links', 'media_albums', 'media_assets', 'import_batches',
+    'health_records', 'incidents', 'invoices', 'student_consents', 'audit_logs',
+    'notifications', 'notification_reads', 'school_settings',
+    'academic_years', 'school_holidays', 'tuition_plans', 'meal_menus',
+]
+
+async function runRestApiSnapshot(reason) {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    if (!supabaseUrl) throw new Error('Missing SUPABASE_URL')
+    const serviceKey = requireEnv('SUPABASE_SERVICE_KEY')
+    const client = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+    })
+
+    const tables = {}
+    for (const tableName of KNOWN_TABLES) {
+        const { data, error } = await client.from(tableName).select('*')
+        tables[tableName] = error
+            ? { error: error.message, rows: [] }
+            : { rowCount: data.length, rows: data }
+    }
+
+    const payload = {
+        app: 'maika',
+        source: 'supabase-rest-api',
+        format: 'public-schema-json-snapshot',
+        warning: 'Use pg_dump/PITR for production restore. This JSON snapshot uses REST API (HTTPS).',
+        fallbackReason: reason,
+        createdAt: new Date().toISOString(),
+        tableCount: KNOWN_TABLES.length,
+        tables,
+    }
+    const outputPath = join(BACKUP_DIR, `supabase-public-${TIMESTAMP}.json.gz`)
+    const compressed = await gzipAsync(Buffer.from(JSON.stringify(payload, null, 2), 'utf8'))
+    await pipeline(Readable.from([compressed]), createWriteStream(outputPath))
+    return { path: outputPath, size: statSync(outputPath).size, format: payload.format, tableCount: KNOWN_TABLES.length }
 }
 
 async function listStorageObjects(client, prefix = '') {
@@ -196,10 +238,21 @@ async function writeStorageManifest() {
 
 async function main() {
     const results = {}
-    try {
-        results.database = await runPgDump()
-    } catch (error) {
-        results.database = await runJsonSnapshotBackup(error.message)
+
+    if (process.env.SUPABASE_POSTGRES_URL) {
+        // Có POSTGRES_URL: thử pg_dump → pg driver → REST API
+        try {
+            results.database = await runPgDump()
+        } catch (pgDumpError) {
+            try {
+                results.database = await runJsonSnapshotBackup(pgDumpError.message)
+            } catch (pgError) {
+                results.database = await runRestApiSnapshot(pgError.message)
+            }
+        }
+    } else {
+        // Không có POSTGRES_URL (CI/GitHub Actions): dùng REST API trực tiếp
+        results.database = await runRestApiSnapshot('SUPABASE_POSTGRES_URL not configured')
     }
 
     if ((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && process.env.SUPABASE_SERVICE_KEY) {
