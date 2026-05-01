@@ -618,7 +618,6 @@ export async function createApp() {
 
     app.post('/api/media-assets/upload', requireAuth, uploadLimiter, upload.single('file'), async (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'Chỉ hỗ trợ file ảnh tối đa 5MB.' })
-        const role = sessionStorage?.maika_role
         const settings = getSchoolSettings()
         const retentionDays = settings?.retention_days || 365
 
