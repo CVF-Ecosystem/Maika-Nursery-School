@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listStudents } from '../../features/students/studentService'
+import { getHealthRecord as getSupabaseHealthRecord, saveHealthRecord as saveSupabaseHealthRecord } from '../../features/sensitive/sensitiveService'
 
 const BLOOD_TYPES = ['A', 'B', 'AB', 'O', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/Chị', 'Khác']
@@ -21,10 +24,13 @@ function Field({ label, value, type = 'text', options, onChange, readOnly }) {
 }
 
 export default function HealthRecords({ readOnly = false, filterStudentId = null }) {
+    const supabaseMode = isSupabaseSession()
     const db = getDB()
-    const students = filterStudentId
+    const localStudents = filterStudentId
         ? db.students.filter(s => s.id === filterStudentId)
         : db.students.filter(s => s.status === 'active')
+    const [supabaseStudents, setSupabaseStudents] = useState([])
+    const students = supabaseMode ? supabaseStudents : localStudents
 
     const [selectedId, setSelectedId] = useState(filterStudentId || students[0]?.id || '')
     const [record, setRecord] = useState({})
@@ -35,13 +41,28 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
 
     const student = students.find(s => s.id === selectedId)
 
+    useEffect(() => {
+        if (!supabaseMode) return
+        listStudents({ status: 'active' })
+            .then(items => {
+                const next = filterStudentId ? items.filter(s => s.id === filterStudentId) : items
+                setSupabaseStudents(next)
+                if (!selectedId && next[0]) setSelectedId(next[0].id)
+            })
+            .catch(err => setError(err.message))
+    }, [supabaseMode, filterStudentId])
+
     async function loadRecord(sid) {
-        if (!sid || !hasBackendAPI()) return
+        if (!sid || (!hasBackendAPI() && !supabaseMode)) return
         setLoading(true)
         setError('')
         try {
-            const body = await apiRequest(`/api/health-records/${encodeURIComponent(sid)}`)
-            setRecord(body.data || {})
+            if (supabaseMode) {
+                setRecord(await getSupabaseHealthRecord(sid))
+            } else {
+                const body = await apiRequest(`/api/health-records/${encodeURIComponent(sid)}`)
+                setRecord(body.data || {})
+            }
         } catch (err) {
             setError(err.message)
         } finally {
@@ -56,15 +77,19 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
     }
 
     async function save() {
-        if (!hasBackendAPI()) return
+        if (!hasBackendAPI() && !supabaseMode) return
         setSaving(true)
         setMessage('')
         setError('')
         try {
-            await apiRequest(`/api/health-records/${encodeURIComponent(selectedId)}`, {
-                method: 'PUT',
-                body: JSON.stringify(record),
-            })
+            if (supabaseMode) {
+                await saveSupabaseHealthRecord(selectedId, record)
+            } else {
+                await apiRequest(`/api/health-records/${encodeURIComponent(selectedId)}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(record),
+                })
+            }
             setMessage('Đã lưu hồ sơ sức khỏe.')
             setTimeout(() => setMessage(''), 3000)
         } catch (err) {
@@ -74,7 +99,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
         }
     }
 
-    if (!hasBackendAPI() && !readOnly) {
+    if (!hasBackendAPI() && !supabaseMode && !readOnly) {
         return (
             <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
@@ -124,7 +149,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
                                 </div>
                                 <div>
                                     <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{student.name}</div>
-                                    <div style={{ fontSize: 12, color: '#7C6D9B' }}>{db.classes.find(c => c.id === student.classId)?.name || ''}</div>
+                                    <div style={{ fontSize: 12, color: '#7C6D9B' }}>{student.className || db.classes.find(c => c.id === student.classId)?.name || ''}</div>
                                 </div>
                                 <div style={{ marginLeft: 'auto', fontSize: 11, color: '#9B93C9', fontWeight: 600 }}>
                                     {record.updated_at ? `Cập nhật: ${new Date(record.updated_at).toLocaleString('vi-VN')}` : 'Chưa có hồ sơ'}

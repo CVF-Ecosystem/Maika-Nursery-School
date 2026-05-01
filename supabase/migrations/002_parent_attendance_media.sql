@@ -68,7 +68,7 @@ create index if not exists idx_media_assets_student on public.media_assets(stude
 create index if not exists idx_import_batches_facility on public.import_batches(facility_id);
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('maika-media', 'maika-media', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+values ('maika-media', 'maika-media', false, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
@@ -209,9 +209,6 @@ using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
 
 drop policy if exists "storage maika media select" on storage.objects;
-create policy "storage maika media select"
-on storage.objects for select
-using (bucket_id = 'maika-media');
 
 drop policy if exists "storage maika media admin all" on storage.objects;
 create policy "storage maika media admin all"

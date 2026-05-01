@@ -5,6 +5,7 @@ const BUCKET = 'maika-media'
 
 const ALBUM_COLUMNS = 'id, facility_id, title, description, status, created_by, created_at'
 const ASSET_COLUMNS = 'id, album_id, facility_id, student_id, storage_path, public_url, original_name, mime_type, caption, status, created_by, created_at'
+const SIGNED_URL_TTL_SECONDS = 600
 
 export function mapAlbum(row) {
     return {
@@ -25,7 +26,7 @@ export function mapAsset(row) {
         facilityId: row.facility_id || '',
         studentId: row.student_id || '',
         path: row.storage_path,
-        url: row.public_url || '',
+        url: row.signed_url || '',
         originalName: row.original_name || '',
         mimeType: row.mime_type || '',
         caption: row.caption || '',
@@ -33,6 +34,16 @@ export function mapAsset(row) {
         createdBy: row.created_by || '',
         createdAt: row.created_at,
     }
+}
+
+export async function getSignedUrl(storagePath, expiresInSeconds = SIGNED_URL_TTL_SECONDS) {
+    if (!storagePath) return ''
+    const client = requireSupabase()
+    const { data, error } = await client.storage
+        .from(BUCKET)
+        .createSignedUrl(storagePath, expiresInSeconds)
+    if (error) throw error
+    return data?.signedUrl || ''
 }
 
 export async function listAlbums({ facilityId } = {}) {
@@ -71,7 +82,10 @@ export async function listAssets({ albumId, facilityId } = {}) {
     if (facilityId) query = query.eq('facility_id', facilityId)
     const { data, error } = await query
     if (error) throw error
-    return (data || []).map(mapAsset)
+    return Promise.all((data || []).map(async row => mapAsset({
+        ...row,
+        signed_url: await getSignedUrl(row.storage_path),
+    })))
 }
 
 export async function updateAssetStatus(id, status) {
@@ -100,7 +114,6 @@ export async function uploadMediaAsset({ file, albumId, facilityId, studentId, c
     })
     if (upload.error) throw upload.error
 
-    const { data: publicData } = client.storage.from(BUCKET).getPublicUrl(path)
     const { data, error } = await client
         .from('media_assets')
         .insert({
@@ -108,7 +121,7 @@ export async function uploadMediaAsset({ file, albumId, facilityId, studentId, c
             facility_id: ownerFacility,
             student_id: studentId || null,
             storage_path: path,
-            public_url: publicData.publicUrl,
+            public_url: null,
             original_name: file.name,
             mime_type: file.type,
             caption: caption || file.name,
@@ -118,5 +131,5 @@ export async function uploadMediaAsset({ file, albumId, facilityId, studentId, c
         .select(ASSET_COLUMNS)
         .single()
     if (error) throw error
-    return mapAsset(data)
+    return mapAsset({ ...data, signed_url: await getSignedUrl(data.storage_path) })
 }

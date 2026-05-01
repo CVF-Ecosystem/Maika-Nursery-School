@@ -35,12 +35,6 @@ export function mapAttendanceFromSupabase(row) {
         pickupPhone: row.pickup_phone || '',
         lateReason: row.late_reason || '',
         earlyPickupReason: row.early_pickup_reason || '',
-        check_in_time: row.check_in_time || '',
-        check_out_time: row.check_out_time || '',
-        pickup_person: row.pickup_person || '',
-        pickup_phone: row.pickup_phone || '',
-        late_reason: row.late_reason || '',
-        early_pickup_reason: row.early_pickup_reason || '',
     }
 }
 

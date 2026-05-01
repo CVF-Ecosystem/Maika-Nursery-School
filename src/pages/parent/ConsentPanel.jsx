@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { getStudentConsent, saveStudentConsent } from '../../features/sensitive/sensitiveService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -29,13 +31,15 @@ const RETENTION_OPTIONS = [
 ]
 
 export default function ConsentPanel({ studentId, studentName }) {
+    const supabaseMode = isSupabaseSession()
     const [consent, setConsent] = useState(null)
     const [saving, setSaving] = useState(false)
     const [msg, setMsg] = useState('')
 
     useEffect(() => {
-        if (!hasBackendAPI()) return
-        apiFetch(`/api/student-consents/${studentId}`)
+        if (!hasBackendAPI() && !supabaseMode) return
+        const request = supabaseMode ? getStudentConsent(studentId) : apiFetch(`/api/student-consents/${studentId}`)
+        request
             .then(d => setConsent({
                 allowPhotos: !!d.allow_photos,
                 allowNotifications: !!d.allow_notifications,
@@ -51,10 +55,12 @@ export default function ConsentPanel({ studentId, studentName }) {
         setSaving(true)
         setMsg('')
         try {
-            const updated = await apiFetch(`/api/student-consents/${studentId}`, {
-                method: 'PUT',
-                body: JSON.stringify(consent),
-            })
+            const updated = supabaseMode
+                ? await saveStudentConsent(studentId, consent)
+                : await apiFetch(`/api/student-consents/${studentId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(consent),
+                })
             setConsent({
                 allowPhotos: !!updated.allow_photos,
                 allowNotifications: !!updated.allow_notifications,
@@ -79,7 +85,7 @@ export default function ConsentPanel({ studentId, studentName }) {
         })
     }
 
-    if (!hasBackendAPI()) {
+    if (!hasBackendAPI() && !supabaseMode) {
         return (
             <div style={{ background: '#fff', borderRadius: 20, padding: 48, textAlign: 'center', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>

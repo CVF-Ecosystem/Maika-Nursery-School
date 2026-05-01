@@ -1,5 +1,21 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { getStudentConsent, saveStudentConsent } from '../../features/sensitive/sensitiveService'
+import { listStudents } from '../../features/students/studentService'
+import {
+    createAcademicYear,
+    createSchoolHoliday,
+    createTuitionPlan,
+    deleteSchoolHoliday,
+    getSchoolSettings,
+    listAcademicYears,
+    listSchoolHolidays,
+    listTuitionPlans,
+    saveSchoolSettings,
+    updateAcademicYear,
+    updateTuitionPlan,
+} from '../../features/operations/operationalService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -36,12 +52,14 @@ function NoBackend() {
 // ─── Tab: Thông tin trường ─────────────────────────────────────────────────────
 
 function SchoolInfoTab() {
+    const supabaseMode = isSupabaseSession()
     const [form, setForm] = useState(null)
     const [saving, setSaving] = useState(false)
     const [msg, setMsg] = useState('')
 
     useEffect(() => {
-        apiFetch('/api/school-settings').then(d => setForm({
+        const request = supabaseMode ? getSchoolSettings() : apiFetch('/api/school-settings')
+        request.then(d => setForm({
             schoolName: d.school_name || '',
             logoUrl: d.logo_url || '',
             address: d.address || '',
@@ -53,14 +71,18 @@ function SchoolInfoTab() {
             pickupEnd: d.pickup_end || '18:00',
             timezone: d.timezone || 'Asia/Ho_Chi_Minh',
         })).catch(() => setMsg('Không tải được cấu hình'))
-    }, [])
+    }, [supabaseMode])
 
     async function handleSave(e) {
         e.preventDefault()
         setSaving(true)
         setMsg('')
         try {
-            await apiFetch('/api/school-settings', { method: 'PUT', body: JSON.stringify(form) })
+            if (supabaseMode) {
+                await saveSchoolSettings(form)
+            } else {
+                await apiFetch('/api/school-settings', { method: 'PUT', body: JSON.stringify(form) })
+            }
             setMsg('✅ Lưu thành công!')
         } catch (err) {
             setMsg(`❌ ${err.message}`)
@@ -118,6 +140,7 @@ function SchoolInfoTab() {
 // ─── Tab: Năm học & Ngày nghỉ ─────────────────────────────────────────────────
 
 function AcademicTab() {
+    const supabaseMode = isSupabaseSession()
     const [years, setYears] = useState([])
     const [holidays, setHolidays] = useState([])
     const [yearForm, setYearForm] = useState({ name: '', startDate: '', endDate: '', isCurrent: false })
@@ -126,18 +149,22 @@ function AcademicTab() {
 
     function reload() {
         Promise.all([
-            apiFetch('/api/academic-years'),
-            apiFetch('/api/school-holidays'),
+            supabaseMode ? listAcademicYears() : apiFetch('/api/academic-years'),
+            supabaseMode ? listSchoolHolidays() : apiFetch('/api/school-holidays'),
         ]).then(([y, h]) => { setYears(y); setHolidays(h) }).catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
-    useEffect(reload, [])
+    useEffect(reload, [supabaseMode])
 
     async function addYear(e) {
         e.preventDefault()
         setErr('')
         try {
-            await apiFetch('/api/academic-years', { method: 'POST', body: JSON.stringify(yearForm) })
+            if (supabaseMode) {
+                await createAcademicYear(yearForm)
+            } else {
+                await apiFetch('/api/academic-years', { method: 'POST', body: JSON.stringify(yearForm) })
+            }
             setYearForm({ name: '', startDate: '', endDate: '', isCurrent: false })
             reload()
         } catch (ex) { setErr(ex.message) }
@@ -146,7 +173,11 @@ function AcademicTab() {
     async function setCurrentYear(id) {
         setErr('')
         try {
-            await apiFetch(`/api/academic-years/${id}`, { method: 'PUT', body: JSON.stringify({ isCurrent: true }) })
+            if (supabaseMode) {
+                await updateAcademicYear(id, { isCurrent: true })
+            } else {
+                await apiFetch(`/api/academic-years/${id}`, { method: 'PUT', body: JSON.stringify({ isCurrent: true }) })
+            }
             reload()
         } catch (ex) { setErr(ex.message) }
     }
@@ -155,7 +186,11 @@ function AcademicTab() {
         e.preventDefault()
         setErr('')
         try {
-            await apiFetch('/api/school-holidays', { method: 'POST', body: JSON.stringify(holForm) })
+            if (supabaseMode) {
+                await createSchoolHoliday(holForm)
+            } else {
+                await apiFetch('/api/school-holidays', { method: 'POST', body: JSON.stringify(holForm) })
+            }
             setHolForm({ name: '', date: '', isRecurring: false, note: '' })
             reload()
         } catch (ex) { setErr(ex.message) }
@@ -164,7 +199,11 @@ function AcademicTab() {
     async function deleteHoliday(id) {
         if (!confirm('Xóa ngày nghỉ này?')) return
         try {
-            await apiFetch(`/api/school-holidays/${id}`, { method: 'DELETE' })
+            if (supabaseMode) {
+                await deleteSchoolHoliday(id)
+            } else {
+                await apiFetch(`/api/school-holidays/${id}`, { method: 'DELETE' })
+            }
             reload()
         } catch (ex) { setErr(ex.message) }
     }
@@ -241,16 +280,18 @@ function AcademicTab() {
 // ─── Tab: Mức học phí ─────────────────────────────────────────────────────────
 
 function TuitionTab() {
+    const supabaseMode = isSupabaseSession()
     const [plans, setPlans] = useState([])
     const [editing, setEditing] = useState(null)
     const [form, setForm] = useState({ name: '', amount: '', billingCycle: 'monthly', description: '', isActive: true })
     const [err, setErr] = useState('')
 
     function reload() {
-        apiFetch('/api/tuition-plans').then(setPlans).catch(() => setErr('Lỗi tải dữ liệu'))
+        const request = supabaseMode ? listTuitionPlans() : apiFetch('/api/tuition-plans')
+        request.then(setPlans).catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
-    useEffect(reload, [])
+    useEffect(reload, [supabaseMode])
 
     function startEdit(p) {
         setEditing(p.id)
@@ -264,9 +305,17 @@ function TuitionTab() {
         setErr('')
         try {
             if (editing) {
-                await apiFetch(`/api/tuition-plans/${editing}`, { method: 'PUT', body: JSON.stringify(form) })
+                if (supabaseMode) {
+                    await updateTuitionPlan(editing, form)
+                } else {
+                    await apiFetch(`/api/tuition-plans/${editing}`, { method: 'PUT', body: JSON.stringify(form) })
+                }
             } else {
-                await apiFetch('/api/tuition-plans', { method: 'POST', body: JSON.stringify(form) })
+                if (supabaseMode) {
+                    await createTuitionPlan(form)
+                } else {
+                    await apiFetch('/api/tuition-plans', { method: 'POST', body: JSON.stringify(form) })
+                }
             }
             cancelEdit()
             reload()
@@ -335,6 +384,7 @@ function TuitionTab() {
 // ─── Tab: Đồng ý dữ liệu (admin overview) ────────────────────────────────────
 
 function ConsentsTab() {
+    const supabaseMode = isSupabaseSession()
     const [students, setStudents] = useState([])
     const [consents, setConsents] = useState({})
     const [loading, setLoading] = useState(true)
@@ -343,8 +393,8 @@ function ConsentsTab() {
 
     useEffect(() => {
         Promise.all([
-            apiFetch('/api/students'),
-            apiFetch('/api/student-consents/all').catch(() => null),
+            supabaseMode ? listStudents({ status: 'active' }) : apiFetch('/api/students'),
+            supabaseMode ? Promise.resolve(null) : apiFetch('/api/student-consents/all').catch(() => null),
         ]).then(([s]) => {
             setStudents(s)
             const map = {}
@@ -352,20 +402,31 @@ function ConsentsTab() {
             setConsents(map)
             setLoading(false)
             s.forEach(st => {
-                apiFetch(`/api/student-consents/${st.id}`)
+                const request = supabaseMode ? getStudentConsent(st.id) : apiFetch(`/api/student-consents/${st.id}`)
+                request
                     .then(c => setConsents(prev => ({ ...prev, [st.id]: c })))
                     .catch(() => {})
             })
         }).catch(() => { setErr('Lỗi tải dữ liệu'); setLoading(false) })
-    }, [])
+    }, [supabaseMode])
 
     async function toggleConsent(studentId, field, currentVal) {
         setSaving(studentId + field)
         try {
-            const updated = await apiFetch(`/api/student-consents/${studentId}`, {
-                method: 'PUT',
-                body: JSON.stringify({ [field]: !currentVal }),
-            })
+            const current = consents[studentId] || { allow_photos: 1, allow_notifications: 1, allow_photo_sharing: 0, data_retention_days: 365, contact_channels: ['app'] }
+            const supabasePayload = {
+                allowPhotos: field === 'allowPhotos' ? !currentVal : !!current.allow_photos,
+                allowNotifications: field === 'allowNotifications' ? !currentVal : !!current.allow_notifications,
+                allowPhotoSharing: field === 'allowPhotoSharing' ? !currentVal : !!current.allow_photo_sharing,
+                dataRetentionDays: current.data_retention_days || 365,
+                contactChannels: current.contact_channels || ['app'],
+            }
+            const updated = supabaseMode
+                ? await saveStudentConsent(studentId, supabasePayload)
+                : await apiFetch(`/api/student-consents/${studentId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ [field]: !currentVal }),
+                })
             setConsents(prev => ({ ...prev, [studentId]: updated }))
         } catch (ex) { setErr(ex.message) }
         setSaving(null)
@@ -454,9 +515,10 @@ const tdStyle = { padding: '12px', verticalAlign: 'middle' }
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Settings() {
+    const supabaseMode = isSupabaseSession()
     const [tab, setTab] = useState('school')
 
-    if (!hasBackendAPI()) return <NoBackend />
+    if (!supabaseMode && !hasBackendAPI()) return <NoBackend />
 
     const tabContent = {
         school: <SchoolInfoTab />,

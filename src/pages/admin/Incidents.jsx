@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listStudents } from '../../features/students/studentService'
+import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident } from '../../features/sensitive/sensitiveService'
 
 const SEVERITY_MAP = {
     minor: ['#D97706', '#FFFBEB', 'Nhẹ'],
@@ -119,8 +122,10 @@ function IncidentModal({ incident, students, onClose, onSave }) {
 }
 
 export default function Incidents({ readOnly = false, filterStudentId = null }) {
+    const supabaseMode = isSupabaseSession()
     const db = getDB()
-    const students = db.students.filter(s => s.status === 'active')
+    const [supabaseStudents, setSupabaseStudents] = useState([])
+    const students = supabaseMode ? supabaseStudents : db.students.filter(s => s.status === 'active')
     const [incidents, setIncidents] = useState([])
     const [loading, setLoading] = useState(false)
     const [modal, setModal] = useState(null)
@@ -129,16 +134,27 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
 
+    useEffect(() => {
+        if (!supabaseMode) return
+        listStudents({ status: 'active' })
+            .then(items => setSupabaseStudents(filterStudentId ? items.filter(s => s.id === filterStudentId) : items))
+            .catch(err => setError(err.message))
+    }, [supabaseMode, filterStudentId])
+
     async function load() {
-        if (!hasBackendAPI()) return
+        if (!hasBackendAPI() && !supabaseMode) return
         setLoading(true)
         setError('')
         try {
-            const params = new URLSearchParams()
-            if (filterStudentId) params.set('studentId', filterStudentId)
-            if (filterStatus !== 'all') params.set('status', filterStatus)
-            const body = await apiRequest(`/api/incidents?${params}`)
-            setIncidents(body.data || [])
+            if (supabaseMode) {
+                setIncidents(await listSupabaseIncidents({ studentId: filterStudentId, status: filterStatus }))
+            } else {
+                const params = new URLSearchParams()
+                if (filterStudentId) params.set('studentId', filterStudentId)
+                if (filterStatus !== 'all') params.set('status', filterStatus)
+                const body = await apiRequest(`/api/incidents?${params}`)
+                setIncidents(body.data || [])
+            }
         } catch (err) {
             setError(err.message)
         } finally {
@@ -151,7 +167,10 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
     async function handleSave(form) {
         setError('')
         try {
-            if (selected) {
+            if (supabaseMode) {
+                await saveSupabaseIncident({ ...form, id: selected?.id, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined })
+                setMessage(selected ? 'Đã cập nhật sự cố.' : 'Đã ghi nhận sự cố.')
+            } else if (selected) {
                 await apiRequest(`/api/incidents/${selected.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({ ...form, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined }),
@@ -175,7 +194,11 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
 
     async function acknowledge(id) {
         try {
-            await apiRequest(`/api/incidents/${id}`, { method: 'PUT', body: JSON.stringify({}) })
+            if (supabaseMode) {
+                await acknowledgeIncident(id)
+            } else {
+                await apiRequest(`/api/incidents/${id}`, { method: 'PUT', body: JSON.stringify({}) })
+            }
             setMessage('Đã xác nhận đã đọc.')
             await load()
             setTimeout(() => setMessage(''), 3000)
@@ -185,10 +208,10 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
     }
 
     function getStudentName(sid) {
-        return db.students.find(s => s.id === sid)?.name || sid
+        return students.find(s => s.id === sid)?.name || sid
     }
 
-    if (!hasBackendAPI()) {
+    if (!hasBackendAPI() && !supabaseMode) {
         return (
             <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
@@ -278,7 +301,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
                                         <div style={{ display: 'flex', gap: 6 }}>
                                             {!readOnly && (
                                                 <button
-                                                    onClick={() => { setSelected(inc); setModal('form') }}
+                                                    onClick={() => { setSelected({ ...inc, studentId: inc.student_id, occurredAt: inc.occurred_at, initialAction: inc.initial_action }); setModal('form') }}
                                                     style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                                                     aria-label={`Sửa sự cố ${inc.id}`}
                                                 >

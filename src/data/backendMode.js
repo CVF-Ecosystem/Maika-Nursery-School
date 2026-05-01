@@ -1,4 +1,4 @@
-export const DATA_BACKEND = import.meta.env.VITE_DATA_BACKEND || 'local'
+export const DATA_BACKEND = import.meta.env.VITE_DATA_BACKEND || 'supabase'
 
 export function isSupabaseBackend() {
     return DATA_BACKEND === 'supabase'

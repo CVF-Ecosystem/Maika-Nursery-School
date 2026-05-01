@@ -3,6 +3,7 @@ dist/
 .env
 .env.local
 .env.production
+.env.*.local
 uploads/*.jpg
 uploads/*.jpeg
 uploads/*.png

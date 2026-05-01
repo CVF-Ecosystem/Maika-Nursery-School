@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listMealMenus, upsertMealMenu } from '../../features/operations/operationalService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -36,6 +38,7 @@ function offsetWeek(weekStart, n) {
 }
 
 export default function MealMenu({ readOnly = false }) {
+    const supabaseMode = isSupabaseSession()
     const [weekStart, setWeekStart] = useState(() => getMondayOf(new Date()))
     const [menus, setMenus] = useState([])
     const [editCell, setEditCell] = useState(null)
@@ -44,13 +47,16 @@ export default function MealMenu({ readOnly = false }) {
     const [err, setErr] = useState('')
 
     function reload() {
-        if (!hasBackendAPI()) return
-        apiFetch(`/api/meal-menus?weekStart=${weekStart}`)
+        if (!supabaseMode && !hasBackendAPI()) return
+        const request = supabaseMode
+            ? listMealMenus({ weekStart, published: readOnly })
+            : apiFetch(`/api/meal-menus?weekStart=${weekStart}`)
+        request
             .then(setMenus)
             .catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
-    useEffect(reload, [weekStart])
+    useEffect(reload, [weekStart, supabaseMode, readOnly])
 
     function getMenu(dayOfWeek, mealType) {
         return menus.find(m => m.day_of_week === dayOfWeek && m.meal_type === mealType)
@@ -73,18 +79,20 @@ export default function MealMenu({ readOnly = false }) {
     async function handleSave() {
         setSaving(true)
         try {
-            await apiFetch('/api/meal-menus', {
-                method: 'PUT',
-                body: JSON.stringify({
-                    weekStart,
-                    dayOfWeek: editCell.dayOfWeek,
-                    mealType: editCell.mealType,
-                    dishes: editForm.dishes,
-                    ingredients: editForm.ingredients,
-                    allergenNotes: editForm.allergenNotes,
-                    isPublished: editForm.isPublished,
-                }),
-            })
+            const payload = {
+                weekStart,
+                dayOfWeek: editCell.dayOfWeek,
+                mealType: editCell.mealType,
+                dishes: editForm.dishes,
+                ingredients: editForm.ingredients,
+                allergenNotes: editForm.allergenNotes,
+                isPublished: editForm.isPublished,
+            }
+            if (supabaseMode) {
+                await upsertMealMenu(payload)
+            } else {
+                await apiFetch('/api/meal-menus', { method: 'PUT', body: JSON.stringify(payload) })
+            }
             setEditCell(null)
             reload()
         } catch (ex) { setErr(ex.message) }
@@ -101,7 +109,7 @@ export default function MealMenu({ readOnly = false }) {
         setEditForm(f => ({ ...f, dishes: f.dishes.filter((_, idx) => idx !== i) }))
     }
 
-    if (!hasBackendAPI()) {
+    if (!supabaseMode && !hasBackendAPI()) {
         return (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>

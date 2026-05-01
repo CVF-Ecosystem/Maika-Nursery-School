@@ -208,10 +208,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                                 <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{student.name}</div>
                                 <div style={{ fontSize: 12, color: '#7C6D9B' }}>
                                     {cls?.name || student.classId || ''}
-                                    {rec?.check_in_time && <span style={{ marginLeft: 8, color: '#059669' }}>⏱ Vào {rec.check_in_time}</span>}
-                                    {rec?.check_out_time && <span style={{ marginLeft: 8, color: '#2563EB' }}>⏱ Ra {rec.check_out_time}</span>}
+                                    {rec?.checkInTime && <span style={{ marginLeft: 8, color: '#059669' }}>⏱ Vào {rec.checkInTime}</span>}
+                                    {rec?.checkOutTime && <span style={{ marginLeft: 8, color: '#2563EB' }}>⏱ Ra {rec.checkOutTime}</span>}
                                 </div>
-                                {rec?.pickup_person && <div style={{ fontSize: 11, color: '#9CA3AF' }}>🚗 {rec.pickup_person} ({rec.pickup_phone || '—'})</div>}
+                                {rec?.pickupPerson && <div style={{ fontSize: 11, color: '#9CA3AF' }}>🚗 {rec.pickupPerson} ({rec.pickupPhone || '—'})</div>}
                             </div>
                             {/* Quick actions */}
                             {!readOnly && (
@@ -274,12 +274,12 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
 function DetailModal({ student, rec, date, saving, onSave, onClose }) {
     const [form, setForm] = useState({
         status: rec?.status || 'present',
-        checkInTime: rec?.check_in_time || '',
-        checkOutTime: rec?.check_out_time || '',
-        pickupPerson: rec?.pickup_person || '',
-        pickupPhone: rec?.pickup_phone || '',
-        lateReason: rec?.late_reason || '',
-        earlyPickupReason: rec?.early_pickup_reason || '',
+        checkInTime: rec?.checkInTime || rec?.check_in_time || '',
+        checkOutTime: rec?.checkOutTime || rec?.check_out_time || '',
+        pickupPerson: rec?.pickupPerson || rec?.pickup_person || '',
+        pickupPhone: rec?.pickupPhone || rec?.pickup_phone || '',
+        lateReason: rec?.lateReason || rec?.late_reason || '',
+        earlyPickupReason: rec?.earlyPickupReason || rec?.early_pickup_reason || '',
         note: rec?.note || '',
     })
 

@@ -49,6 +49,7 @@ describe('app routes', () => {
 
     it('renders teacher portal for teacher role', () => {
         sessionStorage.setItem('maika_role', 'teacher')
+        sessionStorage.setItem('maika_data_backend', 'local')
         renderRoute('/teacher/app')
         expect(screen.getByText('Cổng giáo viên')).toBeInTheDocument()
         expect(screen.getByText('Công cụ hằng ngày cho giáo viên')).toBeInTheDocument()

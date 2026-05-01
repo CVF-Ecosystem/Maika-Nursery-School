@@ -411,8 +411,6 @@ src/
 - `npm run test:e2e` nếu có thay đổi route/UI chính
 - Smoke API bằng DB tạm cho endpoint mới, không dùng DB production/local thật.
 
----
-
 ## 8. Roadmap Refactor Supabase Theo Layer (Quyết Định Mới)
 > Quyết định mới: frontend vẫn deploy Netlify, backend/data/auth chuyển sang Supabase. Roadmap này **ưu tiên thay Phase 13/14 cũ**. Express + SQLite hiện tại giữ tạm làm fallback/migration helper, không mở rộng thêm nghiệp vụ mới trên SQLite.
 
@@ -537,7 +535,7 @@ src/
 - [x] Sau login, load `profiles` để điều hướng theo role.
 - [x] Parent portal Supabase nền: parent user xem học sinh được link qua `parent_student_links`.
 - [x] Khóa demo login ở production khi không bật `VITE_DEMO_MODE=true`.
-- [ ] Thêm màn trạng thái khi profile chưa được gán cơ sở/role.
+- [x] Thêm màn trạng thái `/no-access` khi profile bị khóa hoặc teacher chưa được gán cơ sở.
 
 **Done when:** admin/teacher login bằng Supabase Auth và app tự lọc theo role/facility.
 
@@ -576,3 +574,62 @@ src/
 5. Layer 5: Supabase Auth UX.
 6. Layer 6: import Excel thật đầy đủ.
 7. Layer 7: CI/deploy cutover.
+
+---
+
+## 9. EA_REVIEW Claude — Phản Biện Và Roadmap Final Codex (01/05/2026)
+
+### Kết luận phản biện
+- Đúng: bucket `maika-media` public là rủi ro privacy cao; RoleGate dựa thuần `sessionStorage` chưa đủ cho Supabase; attendance mapper xuất cả camelCase và snake_case là nợ kỹ thuật; cần env validation rõ hơn khi bật Supabase production.
+- Đúng nhưng là roadmap dài hạn: split-brain SQLite/Supabase cho health/incidents/invoices/notifications/settings/menu là rủi ro production thật, nhưng không thể fix sạch trong một lượt nhỏ mà không migrate toàn domain + audit + test. Quyết định final: đóng các lỗ hổng trực tiếp trước, rồi migrate domain theo tranche.
+- Chưa đúng với repo hiện tại: file `Danh sach tre CS1.xlsx` không nằm trong `git ls-files`; `.gitignore` đã có `*.xlsx` và `*.xls`. Không cần `git rm --cached`, nhưng vẫn cần không commit PII và clean history nếu từng push bản cũ có file đó.
+- Không thể xử lý bằng code: rotate Supabase service role key phải làm trong Supabase Dashboard. Repo chỉ document/checklist được.
+
+### Roadmap final đã thống nhất
+1. P0 trong repo ngay: private media storage + signed URL, RoleGate check profile thật khi Supabase session, `/no-access`, env validation startup, dọn attendance mapper.
+2. P0 vận hành ngoài repo: rotate service role key, thay test password, verify bucket private trên Supabase Dashboard.
+3. P1 tuần production đầu: Supabase backup/PITR hoặc `pg_dump` + storage backup; Playwright Supabase teacher login/attendance; RLS smoke cho parent/teacher facility isolation.
+4. P2 Phase 13: migrate từng domain nhạy cảm từ SQLite sang Supabase theo thứ tự `health_records`, `incidents`, `invoices`, `student_consents`, sau đó notifications/settings/menu/media legacy. Mỗi domain cần migration SQL/RLS, import script, audit strategy, service adapter, tests.
+5. P3 cleanup: retire Express/SQLite khỏi production sau khi Netlify chạy `VITE_DATA_BACKEND=supabase` ổn, giữ SQLite chỉ làm migration/demo nếu còn cần.
+
+### Fix đã thực hiện trong lượt này
+- [x] `src/app/RoleGate.jsx`: khi build đang `VITE_DATA_BACKEND=supabase`, route guard gọi `getCurrentProfile()` thật; legacy `sessionStorage` gate chỉ còn cho DEV/demo fallback. Tài khoản khóa hoặc teacher thiếu facility chuyển sang `/no-access`.
+- [x] `src/pages/NoAccess.jsx` và route `/no-access`.
+- [x] `src/main.jsx`: fail-fast cấu hình khi `VITE_DATA_BACKEND=supabase` nhưng thiếu `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`.
+- [x] `supabase/migrations/003_private_media_storage.sql`: đổi bucket `maika-media` sang private, bỏ broad select, thêm policy select/insert scoped.
+- [x] `supabase/migrations/002_parent_attendance_media.sql`: chỉnh bucket mặc định thành private và không tạo lại broad select policy, tránh fresh/dev reset vô tình mở public bucket trước khi chạy `003`.
+- [x] `src/features/media/mediaService.js`: không tạo public URL mới; render ảnh Supabase bằng signed URL TTL 10 phút.
+- [x] `src/features/attendance/attendanceService.js`: mapper Supabase chỉ trả camelCase; thêm unit test.
+- [x] `SUPABASE_OPERATIONS.md`: cập nhật thao tác storage private/signed URL.
+
+### Việc còn mở sau lượt P0 ban đầu
+- [x] Chạy hardening storage trên Supabase project thật và xác nhận bucket `maika-media.public = false`; trạng thái mới nhất xem thêm phần “Còn lại sau batch này”.
+- [ ] Rotate Supabase service role key trong Dashboard trước production.
+- [ ] Nếu repo từng push file Excel PII ở lịch sử cũ, chạy history-clean theo owner repo xác nhận.
+- [ ] Bổ sung Supabase integration/e2e với test project hoặc mock client cho teacher attendance, parent media signed URL, và parent/student isolation.
+
+### Kiểm chứng phản biện bổ sung
+- [x] Phát hiện bản RoleGate sửa lần đầu vẫn có bypass nếu production Supabase bị user tự set `maika_data_backend=local`; đã đổi sang gate theo `VITE_DATA_BACKEND=supabase`, chỉ cho legacy session gate trong DEV/demo fallback.
+- [x] Phát hiện migration `002_parent_attendance_media.sql` có thể mở lại bucket public nếu chạy lẻ; đã đổi bucket mặc định sang private và bỏ tạo broad storage select policy trong file này.
+- [x] Verify sau phản biện: `npm run test:run` = 7 files / 30 tests passed; `npm run build` pass; `npm audit --audit-level=high` = 0 vulnerabilities; `npm run test:e2e` = 2 passed.
+
+### Batch fix tiếp theo theo EA_REVIEW
+- [x] CAM-6 backup Supabase: thêm `scripts/backup-supabase.mjs` và npm script `backup:supabase`. Script dump schema `public` bằng `pg_dump`, gzip file SQL, và backup storage bucket `maika-media` bằng service-role key khi được cấp env. Local verify guardrail: thiếu `SUPABASE_POSTGRES_URL` thì fail rõ ràng, không dùng secret thật.
+- [x] VÀNG-13 API versioning: thêm alias `/api/v1/*` tương thích ngược với route `/api/*`; test cover `/api/v1/health` và `/api/v1/auth/login`.
+- [x] VÀNG-14 frontend failure mode: thêm `src/app/ErrorBoundary.jsx` và wrap root app để lỗi runtime không làm trắng trang; log chi tiết chỉ ở non-production.
+- [x] CAM-8 phản biện lại: `src/portals/teacher/TeacherApp.jsx` trong repo hiện tại không còn là shell rỗng; đã có tab Điểm danh/Nhật ký/Ảnh và default vào Điểm danh. Không cần move thêm trong batch này.
+- [x] Verify batch: `npm run test:run` = 7 files / 31 tests passed; `npm run build` pass; `npm audit --audit-level=high` = 0 vulnerabilities; `npm run test:e2e` = 2 passed.
+
+### Còn lại sau batch này
+- [x] CAM-6 vận hành DB backup: đã lưu `SUPABASE_POSTGRES_URL` trong `.env.backup.local` ignored; `npm run backup:supabase` chạy thật sau migration `005` và tạo snapshot JSON gzip của schema `public` (20 bảng) trong `server/backups/supabase`. Do máy chưa có `pg_dump`/Docker nên script fallback sang JSON snapshot qua `pg`; production vẫn nên dùng `pg_dump`/PITR.
+- [x] CAM-6 storage backup: đã có `SUPABASE_SERVICE_KEY` trong `.env.backup.local` ignored; `npm run backup:supabase` tạo manifest storage `maika-media` và thư mục download. Bucket hiện 0 object.
+- [x] CAM-9: thêm `attendanceService.isolation.test.js` (5 tests: facility filter, camelCase-only output, upsert snake_case payload, cs2 không thấy cs1) và `mediaService.test.js` (8 tests: signed URL TTL 600s, maika-media bucket, error handling, mapAsset dùng signed_url không dùng public_url, parent isolation fields).
+- [x] ĐỎ-1 tranche P0 schema/RLS: thêm và apply `supabase/migrations/004_sensitive_domains.sql` lên Supabase thật cho `health_records`, `incidents`, `invoices`, `student_consents`, `audit_logs`; verify bảng/policy tồn tại và `maika-media.public=false`.
+- [x] ĐỎ-1 tranche P0 frontend cutover: thêm `src/features/sensitive/sensitiveService.js`; các màn Health, Incidents, Invoices, ConsentPanel dùng Supabase khi `maika_data_backend=supabase`; Supabase parent portal mở lại tab Sức khỏe/Sự cố/Học phí/Quyền riêng tư.
+- [x] SQLite local hiện không có dữ liệu ở `health_records`, `incidents`, `invoices`, `student_consents`, `notifications`, `meal_menus` nên chưa cần import data cho tranche P0.
+- [x] ĐỎ-1/P1 schema/RLS: thêm và apply `supabase/migrations/005_operational_domains.sql` lên Supabase thật cho `notifications`, `notification_reads`, `school_settings`, `academic_years`, `school_holidays`, `tuition_plans`, `meal_menus`; verify đủ 7 bảng và policy.
+- [x] ĐỎ-1/P1 frontend cutover: thêm `src/features/operations/operationalService.js`; các màn Notifications, Settings, MealMenu và Supabase parent portal dùng Supabase khi `maika_data_backend=supabase`, vẫn giữ Express/SQLite fallback cho local.
+- [x] Verify sau P1 cutover: `npm run test:run` = 7 files / 31 tests passed; `npm run build` pass; `npm audit --audit-level=high` = 0 vulnerabilities; `npm run test:e2e` = 2 passed.
+- [x] Rotate legacy JWT key: disable JWT-based API keys trong Dashboard; `.env.backup.local` đã cập nhật sang `sb_secret_*` key mới.
+- [x] Verify sau CAM-9: `npm run test:run` = 9 files / 44 tests passed; `npm run build` pass; `npm audit --audit-level=high` = 0 vulnerabilities.
+- [ ] Còn lại: retire legacy Express/API/media paths (đổi `VITE_DATA_BACKEND=supabase` cho production Netlify, xóa SQLite fallback khỏi code production).

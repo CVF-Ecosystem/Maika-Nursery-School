@@ -5,11 +5,23 @@ import { listMyLinkedStudents } from '../../features/parents/parentService'
 
 const AttendanceAdvanced = lazy(() => import('../admin/AttendanceAdvanced'))
 const MediaLibrary = lazy(() => import('../admin/MediaLibrary'))
+const MealMenu = lazy(() => import('../admin/MealMenu'))
+const NotificationCenter = lazy(() => import('./NotificationCenter'))
+const HealthRecords = lazy(() => import('../admin/HealthRecords'))
+const Incidents = lazy(() => import('../admin/Incidents'))
+const Invoices = lazy(() => import('../admin/Invoices'))
+const ConsentPanel = lazy(() => import('./ConsentPanel'))
 
 const TABS = [
     ['overview', 'Tổng quan'],
     ['attendance', 'Điểm danh'],
+    ['notifications', 'Thông báo'],
+    ['mealMenu', 'Thực đơn'],
     ['gallery', 'Hình ảnh'],
+    ['health', 'Sức khỏe'],
+    ['incidents', 'Sự cố'],
+    ['invoices', 'Học phí'],
+    ['privacy', 'Quyền riêng tư'],
 ]
 
 function Loading() {
@@ -91,9 +103,39 @@ export default function SupabaseParentPortal() {
                         <AttendanceAdvanced readOnly filterStudentId={student.id} />
                     </Suspense>
                 )}
+                {student && tab === 'notifications' && (
+                    <Suspense fallback={<Loading />}>
+                        <NotificationCenter studentId={student.id} classId={student.className} />
+                    </Suspense>
+                )}
+                {student && tab === 'mealMenu' && (
+                    <Suspense fallback={<Loading />}>
+                        <MealMenu readOnly />
+                    </Suspense>
+                )}
                 {student && tab === 'gallery' && (
                     <Suspense fallback={<Loading />}>
                         <MediaLibrary readOnly forParent />
+                    </Suspense>
+                )}
+                {student && tab === 'health' && (
+                    <Suspense fallback={<Loading />}>
+                        <HealthRecords readOnly filterStudentId={student.id} />
+                    </Suspense>
+                )}
+                {student && tab === 'incidents' && (
+                    <Suspense fallback={<Loading />}>
+                        <Incidents readOnly filterStudentId={student.id} />
+                    </Suspense>
+                )}
+                {student && tab === 'invoices' && (
+                    <Suspense fallback={<Loading />}>
+                        <Invoices readOnly filterStudentId={student.id} />
+                    </Suspense>
+                )}
+                {student && tab === 'privacy' && (
+                    <Suspense fallback={<Loading />}>
+                        <ConsentPanel studentId={student.id} studentName={student.name} />
                     </Suspense>
                 )}
             </main>

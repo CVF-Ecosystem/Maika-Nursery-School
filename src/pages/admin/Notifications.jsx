@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { createNotification, listNotifications, updateNotification } from '../../features/operations/operationalService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -60,6 +62,7 @@ function NoBackend() {
 }
 
 export default function Notifications({ readOnly = false }) {
+    const supabaseMode = isSupabaseSession()
     const [items, setItems] = useState([])
     const [showModal, setShowModal] = useState(false)
     const [editing, setEditing] = useState(null)
@@ -69,13 +72,15 @@ export default function Notifications({ readOnly = false }) {
     const [filterStatus, setFilterStatus] = useState('')
 
     function reload() {
-        const qs = filterStatus ? `?status=${filterStatus}` : ''
-        apiFetch(`/api/notifications${qs}`)
+        const request = supabaseMode
+            ? listNotifications({ status: filterStatus })
+            : apiFetch(`/api/notifications${filterStatus ? `?status=${filterStatus}` : ''}`)
+        request
             .then(d => setItems(Array.isArray(d) ? d : d.data || []))
             .catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
-    useEffect(reload, [filterStatus])
+    useEffect(reload, [filterStatus, supabaseMode])
 
     function openCreate() {
         setEditing(null)
@@ -107,9 +112,17 @@ export default function Notifications({ readOnly = false }) {
         setErr('')
         try {
             if (editing) {
-                await apiFetch(`/api/notifications/${editing.id}`, { method: 'PUT', body: JSON.stringify(form) })
+                if (supabaseMode) {
+                    await updateNotification(editing.id, form)
+                } else {
+                    await apiFetch(`/api/notifications/${editing.id}`, { method: 'PUT', body: JSON.stringify(form) })
+                }
             } else {
-                await apiFetch('/api/notifications', { method: 'POST', body: JSON.stringify(form) })
+                if (supabaseMode) {
+                    await createNotification(form)
+                } else {
+                    await apiFetch('/api/notifications', { method: 'POST', body: JSON.stringify(form) })
+                }
             }
             setShowModal(false)
             reload()
@@ -121,7 +134,11 @@ export default function Notifications({ readOnly = false }) {
         if (!confirm(`Gửi thông báo "${item.title}" ngay bây giờ?`)) return
         setSaving(true)
         try {
-            await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'sent' }) })
+            if (supabaseMode) {
+                await updateNotification(item.id, { status: 'sent' })
+            } else {
+                await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'sent' }) })
+            }
             reload()
         } catch (ex) { setErr(ex.message) }
         setSaving(false)
@@ -130,12 +147,16 @@ export default function Notifications({ readOnly = false }) {
     async function handleCancel(item) {
         if (!confirm('Hủy thông báo này?')) return
         try {
-            await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'cancelled' }) })
+            if (supabaseMode) {
+                await updateNotification(item.id, { status: 'cancelled' })
+            } else {
+                await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'cancelled' }) })
+            }
             reload()
         } catch (ex) { setErr(ex.message) }
     }
 
-    if (!hasBackendAPI()) return <NoBackend />
+    if (!supabaseMode && !hasBackendAPI()) return <NoBackend />
 
     const typeMap = Object.fromEntries(TYPE_OPTIONS.map(t => [t.value, t]))
 

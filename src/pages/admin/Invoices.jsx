@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listStudents } from '../../features/students/studentService'
+import { listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
 import { fmtMoney, fmtDate } from '../../utils/format'
 
 const STATUS_MAP = {
@@ -172,8 +175,10 @@ function InvoiceModal({ invoice, students, onClose, onSave }) {
 }
 
 export default function Invoices({ readOnly = false, filterStudentId = null }) {
+    const supabaseMode = isSupabaseSession()
     const db = getDB()
-    const students = db.students.filter(s => s.status === 'active')
+    const [supabaseStudents, setSupabaseStudents] = useState([])
+    const students = supabaseMode ? supabaseStudents : db.students.filter(s => s.status === 'active')
     const [invoices, setInvoices] = useState([])
     const [loading, setLoading] = useState(false)
     const [modal, setModal] = useState(null)
@@ -182,15 +187,26 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
 
+    useEffect(() => {
+        if (!supabaseMode) return
+        listStudents({ status: 'active' })
+            .then(items => setSupabaseStudents(filterStudentId ? items.filter(s => s.id === filterStudentId) : items))
+            .catch(err => setError(err.message))
+    }, [supabaseMode, filterStudentId])
+
     async function load() {
-        if (!hasBackendAPI()) return
+        if (!hasBackendAPI() && !supabaseMode) return
         setLoading(true)
         setError('')
         try {
-            const params = new URLSearchParams()
-            if (filterStudentId) params.set('studentId', filterStudentId)
-            const body = await apiRequest(`/api/invoices?${params}`)
-            setInvoices(body.data || [])
+            if (supabaseMode) {
+                setInvoices(await listSupabaseInvoices({ studentId: filterStudentId }))
+            } else {
+                const params = new URLSearchParams()
+                if (filterStudentId) params.set('studentId', filterStudentId)
+                const body = await apiRequest(`/api/invoices?${params}`)
+                setInvoices(body.data || [])
+            }
         } catch (err) {
             setError(err.message)
         } finally {
@@ -214,7 +230,10 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
                 paidDate: form.paidDate || null,
                 paymentMethod: form.paymentMethod || null,
             }
-            if (selected) {
+            if (supabaseMode) {
+                await saveSupabaseInvoice({ ...payload, id: selected?.id, invoiceNumber: selected?.invoice_number })
+                setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
+            } else if (selected) {
                 await apiRequest(`/api/invoices/${selected.id}`, { method: 'PUT', body: JSON.stringify(payload) })
                 setMessage('Đã cập nhật hóa đơn.')
             } else {
@@ -231,10 +250,23 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
 
     async function markPaid(invoice) {
         try {
-            await apiRequest(`/api/invoices/${invoice.id}`, {
-                method: 'PUT',
-                body: JSON.stringify({ status: 'paid', paidDate: new Date().toISOString().slice(0, 10) }),
-            })
+            if (supabaseMode) {
+                await saveSupabaseInvoice({
+                    ...invoice,
+                    studentId: invoice.student_id,
+                    invoiceNumber: invoice.invoice_number,
+                    dueDate: invoice.due_date,
+                    paidDate: new Date().toISOString().slice(0, 10),
+                    paymentMethod: invoice.payment_method,
+                    notes: invoice.notes,
+                    status: 'paid',
+                })
+            } else {
+                await apiRequest(`/api/invoices/${invoice.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'paid', paidDate: new Date().toISOString().slice(0, 10) }),
+                })
+            }
             await load()
         } catch (err) {
             setError(err.message)
@@ -246,7 +278,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
     const totalPending = invoices.filter(i => i.status === 'pending').reduce((s, i) => s + i.amount, 0)
     const totalOverdue = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
 
-    if (!hasBackendAPI()) {
+    if (!hasBackendAPI() && !supabaseMode) {
         return (
             <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
@@ -334,7 +366,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
                         </thead>
                         <tbody>
                             {filtered.map(inv => {
-                                const st = db.students.find(s => s.id === inv.student_id)
+                                const st = students.find(s => s.id === inv.student_id)
                                 const [col, bg, lbl] = STATUS_MAP[inv.status] || ['#6B6494', '#F5F5F4', '—']
                                 return (
                                     <tr key={inv.id} style={{ borderBottom: '1px solid #EDE9FE' }}>
@@ -362,7 +394,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
                                                     <button onClick={() => markPaid(inv)} style={{ padding: '5px 10px', borderRadius: 8, border: '1.5px solid #16A34A', background: '#fff', color: '#16A34A', fontWeight: 700, fontSize: 11, cursor: 'pointer' }} aria-label="Đánh dấu đã đóng">✓ Đã đóng</button>
                                                 )}
                                                 {!readOnly && (
-                                                    <button onClick={() => { setSelected(inv); setModal('form') }} style={{ padding: '5px 10px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 11, cursor: 'pointer' }} aria-label={`Sửa hóa đơn ${inv.invoice_number}`}>Sửa</button>
+                                                    <button onClick={() => { setSelected({ ...inv, studentId: inv.student_id, dueDate: inv.due_date, paidDate: inv.paid_date, paymentMethod: inv.payment_method, notes: inv.notes }); setModal('form') }} style={{ padding: '5px 10px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 11, cursor: 'pointer' }} aria-label={`Sửa hóa đơn ${inv.invoice_number}`}>Sửa</button>
                                                 )}
                                             </div>
                                         </td>

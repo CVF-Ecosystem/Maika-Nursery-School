@@ -209,6 +209,12 @@ export async function createApp() {
         legacyHeaders: false,
     })
 
+    app.use('/api/v1', (req, res, next) => {
+        const versionedUrl = req.url
+        req.url = `/api${versionedUrl}`
+        req.originalUrl = `/api${versionedUrl}`
+        app.handle(req, res, next)
+    })
     app.use('/api/', apiLimiter)
 
     app.get('/api/health', (_req, res) => {

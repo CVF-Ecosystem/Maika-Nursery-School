@@ -189,6 +189,19 @@ describe('Maika API', () => {
         expect(body.scheduler).toBeDefined()
     })
 
+    it('supports /api/v1 aliases for versioned clients', async () => {
+        const health = await api('/api/v1/health')
+        expect(health.response.status).toBe(200)
+        expect(health.body.ok).toBe(true)
+
+        const login = await api('/api/v1/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        expect(login.response.status).toBe(200)
+        expect(login.body.token).toBeTruthy()
+    })
+
     it('/api/ready returns 200 when db is ok', async () => {
         const { response, body } = await api('/api/ready')
         expect(response.status).toBe(200)

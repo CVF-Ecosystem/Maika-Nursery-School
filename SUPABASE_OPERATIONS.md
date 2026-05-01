@@ -41,11 +41,53 @@ Remove-Item Env:\SUPABASE_SERVICE_KEY
 
 ## Storage
 
-Migration `002_parent_attendance_media.sql` creates bucket `maika-media` and policies for admin/teacher uploads plus parent read of published media.
+Migration `002_parent_attendance_media.sql` creates bucket `maika-media` as private. Migration `003_private_media_storage.sql` is the production hardening step that also closes any older public bucket state and removes the broad public read policy if it already exists in a live project.
+
+Media URLs must be generated with signed URLs from `src/features/media/mediaService.js`. Do not store or render Supabase public object URLs for child photos.
+
+Run the private-storage migration before production:
+
+```sql
+-- Supabase SQL editor
+-- paste and run supabase/migrations/003_private_media_storage.sql
+```
+
+## Backup
+
+SQLite backups do not cover Supabase data. For Supabase production/staging backup, run:
+
+```powershell
+$env:SUPABASE_POSTGRES_URL="postgresql://..."
+$env:SUPABASE_URL="https://<project>.supabase.co"
+$env:SUPABASE_SERVICE_KEY="<service-role-key>"
+npm run backup:supabase
+Remove-Item Env:\SUPABASE_POSTGRES_URL
+Remove-Item Env:\SUPABASE_SERVICE_KEY
+```
+
+The script writes a compressed `public` schema dump and a `maika-media` storage backup under `MAIKA_SUPABASE_BACKUP_DIR` or `server/backups/supabase`. It requires local `pg_dump`. Set `SUPABASE_BACKUP_STORAGE_OBJECTS=false` to write only the storage manifest.
+
+Alternatively, put these values in an untracked `.env.backup.local` file. `.env.*.local` is ignored by git.
+
+On machines without `pg_dump`, `scripts/backup-supabase.mjs` falls back to a gzip JSON snapshot of public tables via the Postgres connection. That fallback is useful for staging/test data capture; use Supabase PITR or real `pg_dump` for production restore drills.
+
+## Applying Supabase migrations
+
+With `SUPABASE_POSTGRES_URL` available in `.env.backup.local`:
+
+```powershell
+npm run supabase:migrate -- supabase/migrations/003_private_media_storage.sql
+npm run supabase:migrate -- supabase/migrations/004_sensitive_domains.sql
+npm run supabase:migrate -- supabase/migrations/005_operational_domains.sql
+```
+
+Migration `005_operational_domains.sql` moves the P1 operational domains into Supabase: notifications/read state, school settings, academic years, holidays, tuition plans, and meal menus.
 
 ## Before Real Production
 
 - Rotate Supabase service/secret key used during setup.
 - Replace all test passwords.
+- Confirm `maika-media` has `public = false`.
+- Schedule `npm run backup:supabase` or enable Supabase PITR before moving real child data to Supabase.
 - Turn on real parent accounts only after consent/privacy copy is reviewed.
 - Keep `VITE_DEMO_MODE` unset or `false` on Netlify.

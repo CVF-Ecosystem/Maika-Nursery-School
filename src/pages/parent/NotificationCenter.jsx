@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listNotifications, markNotificationRead } from '../../features/operations/operationalService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -27,6 +29,7 @@ const TYPE_FILTER = [
 ]
 
 export default function NotificationCenter({ studentId, classId }) {
+    const supabaseMode = isSupabaseSession()
     const [items, setItems] = useState([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [filterType, setFilterType] = useState('')
@@ -34,8 +37,9 @@ export default function NotificationCenter({ studentId, classId }) {
     const [err, setErr] = useState('')
 
     function reload() {
-        if (!hasBackendAPI()) return
-        apiFetch('/api/notifications')
+        if (!supabaseMode && !hasBackendAPI()) return
+        const request = supabaseMode ? listNotifications() : apiFetch('/api/notifications')
+        request
             .then(d => {
                 const list = Array.isArray(d) ? d : (d.data || [])
                 setItems(list)
@@ -48,7 +52,11 @@ export default function NotificationCenter({ studentId, classId }) {
 
     async function markRead(id) {
         try {
-            await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' })
+            if (supabaseMode) {
+                await markNotificationRead(id)
+            } else {
+                await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' })
+            }
             setItems(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n))
             setUnreadCount(prev => Math.max(0, prev - 1))
         } catch {}
@@ -65,7 +73,7 @@ export default function NotificationCenter({ studentId, classId }) {
         })
     }
 
-    if (!hasBackendAPI()) {
+    if (!supabaseMode && !hasBackendAPI()) {
         return (
             <div style={{ background: '#fff', borderRadius: 20, padding: 48, textAlign: 'center', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
