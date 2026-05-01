@@ -69,7 +69,7 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
         }
 
         if (!legacyLoginAllowed) {
-            setErr('Hệ thống đăng nhập chưa sẵn sàng. Vui lòng kiểm tra cấu hình Supabase.')
+            setErr('Hệ thống đăng nhập chưa sẵn sàng. Vui lòng liên hệ bộ phận kỹ thuật.')
             setLoading(false)
             return
         }

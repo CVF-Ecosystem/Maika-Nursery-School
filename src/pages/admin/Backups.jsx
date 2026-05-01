@@ -249,13 +249,13 @@ function SupabaseStorageMaintenance() {
     }
 
     async function removeArchived() {
-        if (!confirm('Xóa toàn bộ ảnh đang ở trạng thái lưu trữ khỏi Supabase? Hãy tải ảnh xuống máy trước khi xóa.')) return
+        if (!confirm('Xóa toàn bộ ảnh đang ở trạng thái lưu trữ khỏi hệ thống? Hãy tải ảnh xuống máy trước khi xóa.')) return
         setBusy(true)
         setMessage('')
         setError('')
         try {
             const result = await deleteArchivedMedia()
-            setMessage(`Đã xóa ${result.deletedCount || 0} ảnh lưu trữ khỏi Supabase.`)
+            setMessage(`Đã xóa ${result.deletedCount || 0} ảnh lưu trữ khỏi hệ thống.`)
             await loadSummary()
         } catch (err) {
             setError(err.message)
@@ -273,7 +273,7 @@ function SupabaseStorageMaintenance() {
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Dung lượng & dọn ảnh</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Theo dõi bucket ảnh Supabase và dọn ảnh đã lưu trữ.</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Theo dõi dung lượng ảnh và dọn ảnh đã lưu trữ.</div>
                 </div>
                 <button onClick={loadSummary} disabled={loading || busy} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: loading || busy ? 'wait' : 'pointer' }}>Làm mới</button>
             </div>
@@ -298,7 +298,7 @@ function SupabaseStorageMaintenance() {
                 </div>
                 {summary?.isWarning && (
                     <div style={{ marginTop: 14, background: '#FEF2F2', color: '#DC2626', borderRadius: 10, padding: '10px 12px', fontSize: 13, fontWeight: 800 }}>
-                        Dung lượng ảnh đã vượt ngưỡng cảnh báo. Hãy tải ảnh lưu trữ xuống máy rồi xóa khỏi Supabase nếu không còn cần hiển thị trên cổng phụ huynh.
+                        Dung lượng ảnh đã vượt ngưỡng cảnh báo. Hãy tải ảnh lưu trữ xuống máy rồi xóa khỏi hệ thống nếu không còn cần hiển thị trên cổng phụ huynh.
                     </div>
                 )}
             </section>
@@ -306,11 +306,11 @@ function SupabaseStorageMaintenance() {
             <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                 <div style={{ fontWeight: 800, color: '#1E1B4B', marginBottom: 8 }}>Dọn ảnh lưu trữ</div>
                 <div style={{ color: '#7C6D9B', fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>
-                    Ảnh cần xóa khỏi Supabase nên được chuyển sang trạng thái lưu trữ trong Thư viện ảnh. Tải về máy trước, sau đó mới xóa khỏi Supabase.
+                    Ảnh cần xóa nên được chuyển sang trạng thái lưu trữ trong Thư viện ảnh. Tải về máy trước, sau đó mới xóa khỏi hệ thống.
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button onClick={downloadArchived} disabled={busy || loading || !summary?.archivedCount} style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Tải ảnh lưu trữ</button>
-                    <button onClick={removeArchived} disabled={busy || loading || !summary?.archivedCount} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer' }}>Xóa khỏi Supabase</button>
+                    <button onClick={removeArchived} disabled={busy || loading || !summary?.archivedCount} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer' }}>Xóa khỏi hệ thống</button>
                 </div>
             </section>
         </div>

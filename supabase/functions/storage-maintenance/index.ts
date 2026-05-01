@@ -51,23 +51,32 @@ async function requireAdmin(request: Request, serviceClient: ReturnType<typeof c
     return profile
 }
 
-async function listStorageObjects(serviceClient: ReturnType<typeof createClient>) {
+async function listStorageObjects(serviceClient: ReturnType<typeof createClient>, prefix = '') {
     const rows: Record<string, unknown>[] = []
-    let from = 0
+    let offset = 0
     const pageSize = 1000
 
     while (true) {
-        const { data, error } = await serviceClient
-            .schema('storage')
-            .from('objects')
-            .select('name, metadata, created_at, updated_at')
-            .eq('bucket_id', bucket)
-            .range(from, from + pageSize - 1)
-
+        const { data, error } = await serviceClient.storage.from(bucket).list(prefix, {
+            limit: pageSize,
+            offset,
+            sortBy: { column: 'name', order: 'asc' },
+        })
         if (error) throw error
-        rows.push(...(data || []))
-        if (!data || data.length < pageSize) break
-        from += pageSize
+        if (!data || data.length === 0) break
+
+        for (const item of data) {
+            const fullPath = prefix ? `${prefix}/${item.name}` : item.name
+            const metadata = item.metadata || {}
+            if (item.id || metadata.size || metadata.mimetype) {
+                rows.push({ ...item, name: fullPath })
+            } else {
+                rows.push(...await listStorageObjects(serviceClient, fullPath))
+            }
+        }
+
+        if (data.length < pageSize) break
+        offset += pageSize
     }
 
     return rows

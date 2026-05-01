@@ -322,7 +322,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
     }
 
     async function removeAsset(asset) {
-        if (!confirm(`Xóa ảnh "${asset.caption || asset.originalName}" khỏi Supabase?`)) return
+        if (!confirm(`Xóa ảnh "${asset.caption || asset.originalName}" khỏi hệ thống?`)) return
         setErr('')
         try {
             await deleteMediaAsset(asset.id)
