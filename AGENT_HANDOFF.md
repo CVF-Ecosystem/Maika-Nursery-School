@@ -427,6 +427,52 @@ src/
 - Không commit dữ liệu thật, file Excel, service role key, Supabase secret. Chỉ dùng anon key trong frontend.
 - Mỗi phase phải nhỏ, có test, build pass, và commit riêng.
 
+### Portal & Domain Architecture (Không Chỉ Riêng Supabase)
+> Tách portal theo vai trò là quyết định kiến trúc chính, chuẩn bị cho domain riêng sau này. Không gom tất cả vào một admin app rồi ẩn/hiện menu.
+
+**Route trên Netlify hiện tại / trước custom domain:**
+- `/admin` và `/admin/app`: quản trị, chủ trường, kế toán.
+- `/teacher` và `/teacher/app`: giáo viên/nhân viên cơ sở, mobile-first.
+- `/parent` và `/parent/app`: phụ huynh xem thông tin của con.
+
+**Khi mua domain riêng:**
+- Có thể giữ path-based routing: `https://maikaschool.vn/admin`, `/teacher`, `/parent`.
+- Hoặc nâng cấp sau thành subdomain nếu cần: `admin.maikaschool.vn`, `teacher.maikaschool.vn`, `parent.maikaschool.vn`.
+- Ưu tiên path-based trước vì đơn giản với Netlify SPA, ít cấu hình DNS hơn.
+
+**Role redirect bắt buộc sau đăng nhập:**
+- `admin` → `/admin/app`.
+- `teacher` → `/teacher/app`.
+- `parent` → `/parent/app`.
+- User thiếu role/facility hoặc bị khóa → trang trạng thái riêng, không vào portal.
+
+**Code layout mục tiêu:**
+```
+src/
+  app/
+    routes.jsx
+    RoleGate.jsx
+  portals/
+    admin/
+    teacher/
+    parent/
+  features/
+    auth/
+    facilities/
+    students/
+    attendance/
+    media/
+    notifications/
+```
+
+**Nguyên tắc portal:**
+- `portals/*` chỉ chứa layout, navigation, page composition theo vai trò.
+- `features/*` chứa nghiệp vụ dùng chung, service, hook, mapper, component nhỏ.
+- Teacher portal phải mobile-first: ít menu, nút lớn, thao tác nhanh.
+- Admin portal ưu tiên bảng/filter/export/report.
+- Parent portal ưu tiên read-only, thông báo, ảnh, học phí, điểm danh của con.
+- UI role gate chỉ là trải nghiệm; quyền thật vẫn do Supabase RLS kiểm soát.
+
 ### Layer 1 — Supabase Schema + RLS MVP (🔴 First)
 **Scope:** tạo nền database chuẩn cho 2 cơ sở, user, học sinh, điểm danh.
 
@@ -448,6 +494,7 @@ src/
 - [ ] Tạo `src/lib/supabaseClient.js`.
 - [ ] Tạo `src/features/auth/authService.js`: get current user/profile, sign in/out.
 - [ ] Tạo `src/features/students/studentService.js`: `listStudentsForCurrentTeacher()`.
+- [ ] Tạo route shell rõ ràng cho `/admin`, `/teacher`, `/parent` và role-based redirect.
 - [ ] Không sửa UI lớn ở phase này, chỉ thêm service + smoke route/test nhỏ nếu cần.
 
 **Done when:** frontend lấy được profile hiện tại và danh sách học sinh theo cơ sở qua RLS.
