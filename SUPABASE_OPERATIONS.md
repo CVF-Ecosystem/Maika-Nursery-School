@@ -29,12 +29,13 @@ The importer supports common Vietnamese/English headers for student, parent, pho
 
 ## Admin Account Management
 
-Production uses Netlify for the React app and Supabase Edge Function `admin-users` for privileged account actions. Admins create teachers, parents, and other admins from the web UI. The service role key stays in Supabase function secrets and is never exposed to Netlify or browser code.
+Production uses Netlify for the React app and Supabase Edge Functions for privileged admin actions. `admin-users` manages accounts; `storage-maintenance` reports media usage and lets admins download/delete archived media. The service role key stays inside Supabase Edge Functions and is never exposed to Netlify or browser code.
 
-Deploy the Edge Function after changing code:
+Deploy Edge Functions after changing code:
 
 ```powershell
 supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
+supabase functions deploy storage-maintenance --project-ref czxoozwydvmjisydyims
 ```
 
 Supabase Edge Functions expose `SUPABASE_SERVICE_ROLE_KEY` automatically at runtime. Do not create custom secrets starting with `SUPABASE_`; Supabase CLI ignores those names.

@@ -17,7 +17,7 @@ const NAV_ITEMS = [
     { id: 'gamification', icon: '🏆', label: 'Thành tích' },
     { id: 'users', icon: '⚙', label: 'Tài khoản' },
     { id: 'audit', icon: '◷', label: 'Nhật ký' },
-    { id: 'backups', icon: '⇩', label: 'Sao lưu' },
+    { id: 'backups', icon: '⇩', label: 'Lưu trữ' },
     { id: 'settings', icon: '🏫', label: 'Cấu hình' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo' },
     { id: 'attendanceAdv', icon: '📲', label: 'Điểm danh+' },

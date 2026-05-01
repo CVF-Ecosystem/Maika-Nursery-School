@@ -17,15 +17,16 @@ Chạy đầy đủ các migration trong `supabase/migrations`, gồm cả migra
 npm run supabase:migrate -- supabase/migrations/006_security_hardening.sql
 ```
 
-### Edge Function Admin Users
+### Edge Functions
 
-Deploy function tạo/reset tài khoản:
+Deploy functions tạo/reset tài khoản và quản lý dung lượng ảnh:
 
 ```powershell
 supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
+supabase functions deploy storage-maintenance --project-ref czxoozwydvmjisydyims
 ```
 
-Function dùng `SUPABASE_SERVICE_ROLE_KEY` do Supabase Edge Functions cung cấp ở runtime. Không đặt service key trong Netlify hoặc biến frontend.
+Functions dùng `SUPABASE_SERVICE_ROLE_KEY` do Supabase Edge Functions cung cấp ở runtime. Không đặt service key trong Netlify hoặc biến frontend.
 
 ### Admin Đầu Tiên
 
@@ -76,7 +77,7 @@ Không set `SUPABASE_SERVICE_KEY` trên Netlify.
 ## Checklist Production
 
 - [ ] Supabase migrations đã chạy đủ.
-- [ ] Edge Function `admin-users` đã deploy.
+- [ ] Edge Functions `admin-users` và `storage-maintenance` đã deploy.
 - [ ] Service role key chỉ nằm trong Supabase function secret.
 - [ ] Netlify chỉ có publishable/anon key.
 - [ ] Admin `admin@maika.edu.vn` active và đổi mật khẩu thật.

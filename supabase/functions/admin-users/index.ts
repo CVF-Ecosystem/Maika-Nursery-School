@@ -1,10 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, PUT, OPTIONS',
-}
+import { corsHeadersFor } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
@@ -12,18 +7,18 @@ const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SU
 
 const validRoles = new Set(['admin', 'teacher', 'parent'])
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(request: Request, body: unknown, status = 200) {
     return new Response(JSON.stringify(body), {
         status,
         headers: {
-            ...corsHeaders,
+            ...corsHeadersFor(request),
             'Content-Type': 'application/json',
         },
     })
 }
 
-function fail(message: string, status = 400) {
-    return jsonResponse({ error: message }, status)
+function fail(request: Request, message: string, status = 400) {
+    return jsonResponse(request, { error: message }, status)
 }
 
 function cleanText(value: unknown) {
@@ -134,11 +129,11 @@ async function writeAudit(
 
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
+        return new Response('ok', { headers: corsHeadersFor(request) })
     }
 
     if (!supabaseUrl || !anonKey || !serviceKey) {
-        return fail('Supabase admin function chưa được cấu hình service key.', 500)
+        return fail(request, 'Supabase admin function chưa được cấu hình service key.', 500)
     }
 
     const serviceClient = createClient(supabaseUrl, serviceKey, {
@@ -152,10 +147,10 @@ Deno.serve(async (request) => {
         if (error instanceof Response) {
             return new Response(error.body, {
                 status: error.status,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                headers: { ...corsHeadersFor(request), 'Content-Type': 'application/json' },
             })
         }
-        return fail('Không xác thực được quyền admin.', 401)
+        return fail(request, 'Không xác thực được quyền admin.', 401)
     }
 
     const url = new URL(request.url)
@@ -164,11 +159,11 @@ Deno.serve(async (request) => {
     const input = await request.json().catch(() => ({}))
     const isCreate = request.method === 'POST'
 
-    if (!isCreate && request.method !== 'PUT') return fail('Phương thức không được hỗ trợ.', 405)
-    if (!isCreate && !userId) return fail('Thiếu ID tài khoản.', 400)
+    if (!isCreate && request.method !== 'PUT') return fail(request, 'Phương thức không được hỗ trợ.', 405)
+    if (!isCreate && !userId) return fail(request, 'Thiếu ID tài khoản.', 400)
 
     const validationError = validatePayload(input, isCreate)
-    if (validationError) return fail(validationError, 400)
+    if (validationError) return fail(request, validationError, 400)
 
     const payload = profilePayload(input)
     const email = cleanText(input.email).toLowerCase()
@@ -205,7 +200,7 @@ Deno.serve(async (request) => {
             }
 
             await writeAudit(serviceClient, actor, 'profile_created', created.user.id, `Tạo tài khoản ${email}`)
-            return jsonResponse({ data: mapProfile(data) }, 201)
+            return jsonResponse(request, { data: mapProfile(data) }, 201)
         }
 
         const authUpdate: Record<string, unknown> = {
@@ -236,9 +231,9 @@ Deno.serve(async (request) => {
         }
 
         await writeAudit(serviceClient, actor, 'profile_updated', userId, `Cập nhật tài khoản ${email}`)
-        return jsonResponse({ data: mapProfile(data) })
+        return jsonResponse(request, { data: mapProfile(data) })
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Không cập nhật được tài khoản.'
-        return fail(message, 400)
+        return fail(request, message, 400)
     }
 })

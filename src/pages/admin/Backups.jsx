@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiRequest, hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { createArchivedMediaDownload, deleteArchivedMedia, getMediaStorageSummary } from '../../features/media/storageMaintenanceService'
 
 function fmtSize(bytes = 0) {
     if (bytes < 1024) return `${bytes} B`
@@ -52,6 +54,8 @@ function SchedulerStatus({ scheduler }) {
 }
 
 export default function Backups() {
+    if (isSupabaseSession()) return <SupabaseStorageMaintenance />
+
     const [backups, setBackups] = useState([])
     const [scheduler, setScheduler] = useState(null)
     const [loading, setLoading] = useState(hasBackendAPI())
@@ -188,6 +192,136 @@ export default function Backups() {
                 {loading && <div style={{ textAlign: 'center', padding: 36, color: '#7C6D9B', fontSize: 14 }}>Đang tải backup...</div>}
                 {!loading && backups.length === 0 && <div style={{ textAlign: 'center', padding: 36, color: '#7C6D9B', fontSize: 14 }}>Chưa có backup nào</div>}
             </div>
+        </div>
+    )
+}
+
+function SupabaseStorageMaintenance() {
+    const [summary, setSummary] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [busy, setBusy] = useState(false)
+    const [message, setMessage] = useState('')
+    const [error, setError] = useState('')
+
+    async function loadSummary() {
+        setLoading(true)
+        setError('')
+        try {
+            setSummary(await getMediaStorageSummary())
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => { loadSummary() }, [])
+
+    async function downloadArchived() {
+        setBusy(true)
+        setMessage('')
+        setError('')
+        try {
+            const result = await createArchivedMediaDownload()
+            if (!result.files?.length) {
+                setMessage('Không có ảnh lưu trữ để tải.')
+                return
+            }
+            for (const file of result.files) {
+                const response = await fetch(file.signedUrl)
+                if (!response.ok) throw new Error(`Không tải được ${file.name}.`)
+                const blob = await response.blob()
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = file.name || 'maika-media'
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                URL.revokeObjectURL(url)
+            }
+            setMessage(`Đã tải ${result.files.length} ảnh lưu trữ xuống máy.`)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    async function removeArchived() {
+        if (!confirm('Xóa toàn bộ ảnh đang ở trạng thái lưu trữ khỏi Supabase? Hãy tải ảnh xuống máy trước khi xóa.')) return
+        setBusy(true)
+        setMessage('')
+        setError('')
+        try {
+            const result = await deleteArchivedMedia()
+            setMessage(`Đã xóa ${result.deletedCount || 0} ảnh lưu trữ khỏi Supabase.`)
+            await loadSummary()
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    const ratio = summary?.usageRatio || 0
+    const percent = Math.min(100, Math.round(ratio * 100))
+    const barColor = summary?.isWarning ? '#DC2626' : percent >= 70 ? '#F59E0B' : '#16A34A'
+
+    return (
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Dung lượng & dọn ảnh</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Theo dõi bucket ảnh Supabase và dọn ảnh đã lưu trữ.</div>
+                </div>
+                <button onClick={loadSummary} disabled={loading || busy} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: loading || busy ? 'wait' : 'pointer' }}>Làm mới</button>
+            </div>
+
+            {message && <div style={{ color: '#059669', background: '#ECFDF5', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }} role="alert">{message}</div>}
+            {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }} role="alert">{error}</div>}
+
+            <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, marginBottom: 18 }}>
+                    <Metric label="Đã dùng" value={loading ? 'Đang tải...' : fmtSize(summary?.totalBytes || 0)} />
+                    <Metric label="Số file ảnh" value={loading ? '—' : `${summary?.objectCount || 0}`} />
+                    <Metric label="Ảnh lưu trữ" value={loading ? '—' : `${summary?.archivedCount || 0} file`} />
+                    <Metric label="Có thể dọn" value={loading ? '—' : fmtSize(summary?.archivedBytes || 0)} />
+                </div>
+
+                <div style={{ height: 12, background: '#F3F4F6', borderRadius: 999, overflow: 'hidden', marginBottom: 10 }}>
+                    <div style={{ width: `${percent}%`, height: '100%', background: barColor, transition: 'width 240ms ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#7C6D9B', fontWeight: 700 }}>
+                    <span>{percent}% so với ngưỡng cảnh báo {fmtSize(summary?.warningBytes || 0)}</span>
+                    <span>{summary?.updatedAt ? `Cập nhật ${fmtDate(summary.updatedAt)}` : ''}</span>
+                </div>
+                {summary?.isWarning && (
+                    <div style={{ marginTop: 14, background: '#FEF2F2', color: '#DC2626', borderRadius: 10, padding: '10px 12px', fontSize: 13, fontWeight: 800 }}>
+                        Dung lượng ảnh đã vượt ngưỡng cảnh báo. Hãy tải ảnh lưu trữ xuống máy rồi xóa khỏi Supabase nếu không còn cần hiển thị trên cổng phụ huynh.
+                    </div>
+                )}
+            </section>
+
+            <section style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
+                <div style={{ fontWeight: 800, color: '#1E1B4B', marginBottom: 8 }}>Dọn ảnh lưu trữ</div>
+                <div style={{ color: '#7C6D9B', fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>
+                    Ảnh cần xóa khỏi Supabase nên được chuyển sang trạng thái lưu trữ trong Thư viện ảnh. Tải về máy trước, sau đó mới xóa khỏi Supabase.
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button onClick={downloadArchived} disabled={busy || loading || !summary?.archivedCount} style={{ padding: '10px 18px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Tải ảnh lưu trữ</button>
+                    <button onClick={removeArchived} disabled={busy || loading || !summary?.archivedCount} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontWeight: 900, cursor: busy ? 'wait' : 'pointer' }}>Xóa khỏi Supabase</button>
+                </div>
+            </section>
+        </div>
+    )
+}
+
+function Metric({ label, value }) {
+    return (
+        <div style={{ background: '#F8F7FF', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, fontWeight: 900, color: '#7C6D9B', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#1E1B4B' }}>{value}</div>
         </div>
     )
 }

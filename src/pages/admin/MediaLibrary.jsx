@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getCurrentProfile } from '../../features/auth/authService'
-import { listAlbums, listAssets, saveAlbum, updateAssetStatus, uploadMediaAsset } from '../../features/media/mediaService'
+import { deleteMediaAsset, listAlbums, listAssets, saveAlbum, updateAssetStatus, uploadMediaAsset } from '../../features/media/mediaService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -304,6 +304,33 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
     }
 
     const canWrite = !readOnly && !forParent && profile?.role !== 'parent'
+    const canDelete = canWrite && profile?.role === 'admin'
+
+    async function downloadAsset(asset) {
+        if (!asset.url) return
+        const response = await fetch(asset.url)
+        if (!response.ok) throw new Error('Không tải được ảnh.')
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = asset.originalName || 'maika-media'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
+    async function removeAsset(asset) {
+        if (!confirm(`Xóa ảnh "${asset.caption || asset.originalName}" khỏi Supabase?`)) return
+        setErr('')
+        try {
+            await deleteMediaAsset(asset.id)
+            await reload(activeAlbum)
+        } catch (ex) {
+            setErr(ex.message)
+        }
+    }
 
     return (
         <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: 20 }}>
@@ -347,7 +374,10 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
                                 <div style={{ fontSize: 12, color: '#1E1B4B', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.caption || asset.originalName}</div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                                     <span style={{ fontSize: 10, color: '#7C6D9B', fontWeight: 900 }}>{asset.status}</span>
+                                    <button onClick={() => downloadAsset(asset).catch(ex => setErr(ex.message))} style={{ border: 'none', borderRadius: 6, background: '#F5F3FF', color: '#6D28D9', fontSize: 10, fontWeight: 900 }}>Tải</button>
                                     {canWrite && asset.status !== 'published' && <button onClick={() => updateAssetStatus(asset.id, 'published').then(() => reload(activeAlbum))} style={{ border: 'none', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontSize: 10, fontWeight: 900 }}>Đăng</button>}
+                                    {canWrite && asset.status !== 'archived' && <button onClick={() => updateAssetStatus(asset.id, 'archived').then(() => reload(activeAlbum))} style={{ border: 'none', borderRadius: 6, background: '#F3F4F6', color: '#6B7280', fontSize: 10, fontWeight: 900 }}>Lưu trữ</button>}
+                                    {canDelete && <button onClick={() => removeAsset(asset)} style={{ border: 'none', borderRadius: 6, background: '#FEF2F2', color: '#DC2626', fontSize: 10, fontWeight: 900 }}>Xóa</button>}
                                 </div>
                             </div>
                         </div>

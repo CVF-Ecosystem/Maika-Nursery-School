@@ -59,11 +59,12 @@ describe('mediaService — mapAsset (parent isolation)', () => {
             public_url: 'https://SHOULD-NOT-BE-USED.example/photo.jpg',
             signed_url: 'https://signed.example/photo.jpg',
             original_name: 'photo.jpg', mime_type: 'image/jpeg',
-            caption: 'Giờ ăn', status: 'published',
+            caption: 'Giờ ăn', status: 'published', size_bytes: 2048,
             created_by: 'u1', created_at: '2026-05-01T08:00:00Z',
         })
         expect(mapped.url).toBe('https://signed.example/photo.jpg')
         expect(mapped.url).not.toContain('SHOULD-NOT-BE-USED')
+        expect(mapped.sizeBytes).toBe(2048)
     })
 
     it('url is empty string when signed_url absent', () => {

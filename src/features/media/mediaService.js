@@ -4,7 +4,7 @@ import { requireSupabase } from '../../lib/supabaseClient'
 const BUCKET = 'maika-media'
 
 const ALBUM_COLUMNS = 'id, facility_id, title, description, status, created_by, created_at'
-const ASSET_COLUMNS = 'id, album_id, facility_id, student_id, storage_path, public_url, original_name, mime_type, caption, status, created_by, created_at'
+const ASSET_COLUMNS = 'id, album_id, facility_id, student_id, storage_path, public_url, original_name, mime_type, caption, status, size_bytes, created_by, created_at'
 const SIGNED_URL_TTL_SECONDS = 600
 
 export function mapAlbum(row) {
@@ -31,6 +31,7 @@ export function mapAsset(row) {
         mimeType: row.mime_type || '',
         caption: row.caption || '',
         status: row.status || 'draft',
+        sizeBytes: row.size_bytes || 0,
         createdBy: row.created_by || '',
         createdAt: row.created_at,
     }
@@ -126,10 +127,33 @@ export async function uploadMediaAsset({ file, albumId, facilityId, studentId, c
             mime_type: file.type,
             caption: caption || file.name,
             status: 'draft',
+            size_bytes: file.size || 0,
             created_by: profile?.id || null,
         })
         .select(ASSET_COLUMNS)
         .single()
     if (error) throw error
     return mapAsset({ ...data, signed_url: await getSignedUrl(data.storage_path) })
+}
+
+export async function deleteMediaAsset(id) {
+    const client = requireSupabase()
+    const { data: asset, error: assetError } = await client
+        .from('media_assets')
+        .select('id, storage_path')
+        .eq('id', id)
+        .single()
+    if (assetError) throw assetError
+
+    if (asset?.storage_path) {
+        const { error: storageError } = await client.storage.from(BUCKET).remove([asset.storage_path])
+        if (storageError) throw storageError
+    }
+
+    const { error } = await client
+        .from('media_assets')
+        .delete()
+        .eq('id', id)
+    if (error) throw error
+    return true
 }
