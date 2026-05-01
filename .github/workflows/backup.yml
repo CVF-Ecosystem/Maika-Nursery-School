@@ -1,0 +1,48 @@
+name: Supabase Backup
+
+on:
+  schedule:
+    # 2:00 AM Asia/Ho_Chi_Minh = 19:00 UTC hôm trước
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Lý do chạy backup thủ công'
+        required: false
+        default: 'manual trigger'
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  backup:
+    name: Backup Supabase DB + Storage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Supabase backup
+        run: npm run backup:supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_POSTGRES_URL: ${{ secrets.SUPABASE_POSTGRES_URL }}
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: server/backups/supabase/
+          retention-days: 90
+          if-no-files-found: error

@@ -241,7 +241,10 @@ export default function Landing() {
                 </div>
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 22, display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,0.68)', flexWrap: 'wrap', gap: 8 }}>
                     <span>© 2026 Maika Nursery School.</span>
-                    <span>Được xây dựng với ❤️ cho các bé</span>
+                    <span style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                        <a href="/privacy" style={{ color: 'rgba(255,255,255,0.68)', textDecoration: 'underline', fontWeight: 700 }}>Chính sách dữ liệu</a>
+                        <span>Được xây dựng với ❤️ cho các bé</span>
+                    </span>
                 </div>
             </footer>
         </div>

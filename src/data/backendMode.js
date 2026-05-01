@@ -10,7 +10,5 @@ export function setActiveDataBackend(mode) {
 }
 
 export function isSupabaseSession() {
-    if (!isSupabaseBackend()) return false
-    if (typeof sessionStorage === 'undefined') return false
-    return sessionStorage.getItem('maika_data_backend') === 'supabase'
+    return isSupabaseBackend()
 }

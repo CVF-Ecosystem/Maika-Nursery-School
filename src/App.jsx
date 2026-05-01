@@ -6,6 +6,7 @@ import AdminLogin from './pages/admin/AdminLogin'
 import AdminApp from './pages/admin/AdminApp'
 import RoleGate from './app/RoleGate'
 import NoAccess from './pages/NoAccess'
+import Privacy from './pages/Privacy'
 import TeacherLogin from './portals/teacher/TeacherLogin'
 import TeacherApp from './portals/teacher/TeacherApp'
 
@@ -13,6 +14,7 @@ export default function App() {
     return (
         <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/login" element={<AdminLogin defaultRole="admin" title="Đăng nhập Maika" subtitle="Một tài khoản cho Admin, Giáo viên và Phụ huynh" />} />
             <Route path="/parent" element={<ParentLogin />} />
             <Route path="/parent/app" element={<RoleGate allowedRoles={['parent']} loginPath="/login"><ParentPortal /></RoleGate>} />
