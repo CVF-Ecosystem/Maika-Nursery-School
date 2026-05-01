@@ -46,20 +46,23 @@ function normalizeStatus(value = '') {
 }
 
 async function readTeacherImportFile(file) {
-    const rows = await readObjectsFromTable(file)
+    const rows = await readObjectsFromTable(file, {
+        preferredSheetNames: ['giao vien', 'nhan su', 'teacher'],
+        headerKeywords: ['hoten', 'tengiaovien', 'sodienthoai', 'email', 'chucvu'],
+    })
     return rows.map(row => {
-        const name = pickImportValue(row, ['hoten', 'tengiaovien', 'giaovien', 'fullname', 'name'])
+        const name = pickImportValue(row, ['hovaten', 'hoten', 'tengiaovien', 'giaovien', 'fullname', 'name'])
         return {
             name,
             className: pickImportValue(row, ['lop', 'phutrachlop', 'classname', 'class']),
-            subject: pickImportValue(row, ['chuyenmon', 'mon', 'vaitro', 'chucvu', 'vitri', 'subject']) || 'Giáo viên chủ nhiệm',
+            subject: pickImportValue(row, ['chuyenmon', 'mon', 'vaitro', 'chucvu', 'vitri', 'nhiemvu', 'subject']) || 'Giáo viên chủ nhiệm',
             phone: pickImportValue(row, ['dienthoai', 'sodienthoai', 'sdt', 'phone']),
             email: pickImportValue(row, ['email', 'mail']),
             joinDate: normalizeImportDate(pickImportValue(row, ['ngayvaolam', 'ngaybatdau', 'joindate', 'join'])),
             status: normalizeStatus(pickImportValue(row, ['trangthai', 'status'])),
             initials: pickImportValue(row, ['viettat', 'initials']) || initialsFromName(name),
             degree: pickImportValue(row, ['trinhdo', 'bangcap', 'hocvan', 'degree']),
-            notes: pickImportValue(row, ['ghichu', 'note', 'notes']),
+            notes: pickImportValue(row, ['diachi', 'ghichu', 'note', 'notes']),
         }
     }).filter(item => item.name)
 }
@@ -114,7 +117,14 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
         setImportMsg('Đang import hồ sơ giáo viên...')
         try {
             const rows = await readTeacherImportFile(file)
-            for (const row of rows) await saveSupabaseTeacher({ ...row, facilityId: selectedFacilityId })
+            for (const row of rows) {
+                const existing = teachers.find(teacher =>
+                    (row.email && normalizeImportKey(teacher.email) === normalizeImportKey(row.email))
+                    || (row.phone && normalizeImportKey(teacher.phone) === normalizeImportKey(row.phone))
+                    || normalizeImportKey(teacher.name) === normalizeImportKey(row.name)
+                )
+                await saveSupabaseTeacher({ ...row, id: existing?.id || '', facilityId: selectedFacilityId })
+            }
             setImportMsg(`Đã import ${rows.length} hồ sơ giáo viên.`)
             await reload()
             setTimeout(() => setImportMsg(''), 3500)
@@ -126,7 +136,7 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
+            <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
             {modal === 'add' && <TeacherModal db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => setModal(null)} onSave={handleSave} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => { setModal(null); setSelected(null) }} onSave={handleSave} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
@@ -198,7 +208,11 @@ export default function Teachers(props) {
             const ndb = getDB()
             rows.forEach(row => {
                 const classMatch = ndb.classes.find(c => normalizeImportKey(c.name) === normalizeImportKey(row.className))
-                const existingIndex = row.email ? ndb.teachers.findIndex(t => normalizeImportKey(t.email) === normalizeImportKey(row.email)) : -1
+                const existingIndex = ndb.teachers.findIndex(t =>
+                    (row.email && normalizeImportKey(t.email) === normalizeImportKey(row.email))
+                    || (row.phone && normalizeImportKey(t.phone) === normalizeImportKey(row.phone))
+                    || normalizeImportKey(t.name) === normalizeImportKey(row.name)
+                )
                 const record = { ...row, classId: classMatch?.id || '', id: existingIndex >= 0 ? ndb.teachers[existingIndex].id : 't' + Date.now() + Math.random() }
                 if (existingIndex >= 0) ndb.teachers[existingIndex] = { ...ndb.teachers[existingIndex], ...record }
                 else ndb.teachers.push(record)
@@ -215,7 +229,7 @@ export default function Teachers(props) {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
+            <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
             {modal === 'add' && <TeacherModal db={db} onClose={() => setModal(null)} onSave={saveTeacher} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveTeacher} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, gap: 12 }}>

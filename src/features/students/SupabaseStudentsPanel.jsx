@@ -3,6 +3,7 @@ import { getCurrentProfile } from '../auth/authService'
 import { listFacilities } from '../facilities/facilityService'
 import { listStudents, markStudentInactive, saveStudent } from './studentService'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
+import { sanitizeText } from '../../utils/security'
 import { normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable } from '../../utils/tabularImport'
 
 const emptyForm = {
@@ -64,20 +65,27 @@ function normalizeStudentStatus(value = '') {
 }
 
 async function readStudentImportFile(file, facilityId) {
-    const rows = await readObjectsFromTable(file)
+    const rows = await readObjectsFromTable(file, {
+        preferredSheetNames: ['thong tin hoc sinh', 'hoc sinh', 'student'],
+        headerKeywords: ['stt', 'mshs', 'hovaten', 'hovatenhocsinh', 'ngaysinh', 'lop', 'hoclop', 'sodienthoai'],
+    })
     return rows.map(row => {
-        const name = pickImportValue(row, ['hoten', 'hotentre', 'tenhocsinh', 'tenhocvien', 'tenbe', 'hocsinh', 'fullname', 'name'])
+        const code = sanitizeText(pickImportValue(row, ['mshs', 'mahocsinh', 'studentcode', 'studentid', 'id']))
+        const name = sanitizeText(pickImportValue(row, ['hovatenhocsinh', 'hovaten', 'hoten', 'hotentre', 'tenhocsinh', 'tenhocvien', 'tenbe', 'hocsinh', 'fullname', 'name']))
+        const address = sanitizeText(pickImportValue(row, ['diachi', 'noio', 'address']))
+        const notes = sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes']))
         return {
             facilityId,
+            code,
             name,
             dob: normalizeImportDate(pickImportValue(row, ['ngaysinh', 'dob', 'birthday', 'dateofbirth'])),
             gender: normalizeGender(pickImportValue(row, ['gioitinh', 'gender', 'sex'])),
-            className: pickImportValue(row, ['lop', 'tenlop', 'class', 'classname']),
-            parentName: pickImportValue(row, ['phuhuynh', 'tenphuhuynh', 'hotenphuhuynh', 'cha', 'me', 'bo', 'parent', 'parentname']),
+            className: pickImportValue(row, ['hoclop', 'lop', 'tenlop', 'class', 'classname']),
+            parentName: sanitizeText(pickImportValue(row, ['hovatenchahoacme', 'hotenchame', 'phuhuynh', 'tenphuhuynh', 'hotenphuhuynh', 'cha', 'me', 'bo', 'parent', 'parentname'])),
             parentPhone: pickImportValue(row, ['sdt', 'sodienthoai', 'dienthoai', 'sdtphuhuynh', 'phone', 'parentphone']),
             parentEmail: pickImportValue(row, ['email', 'emailphuhuynh', 'parentemail']),
             status: normalizeStudentStatus(pickImportValue(row, ['trangthai', 'status'])),
-            notes: pickImportValue(row, ['ghichu', 'note', 'notes']),
+            notes: [code ? `MSHS: ${code}` : '', notes, address ? `Địa chỉ: ${address}` : ''].filter(Boolean).join(' · '),
         }
     }).filter(item => item.name)
 }
@@ -150,12 +158,15 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
         try {
             const rows = await readStudentImportFile(file, facilityId)
             for (const row of rows) {
+                const codeKey = normalizeImportKey(row.code || '')
                 const existing = students.find(student =>
-                    normalizeImportKey(student.name) === normalizeImportKey(row.name)
-                    && (!row.dob || !student.dob || student.dob === row.dob)
-                    && (!row.parentPhone || !student.parentPhone || student.parentPhone === row.parentPhone)
+                    (codeKey && normalizeImportKey(student.notes || '').includes(codeKey))
+                    || (normalizeImportKey(student.name) === normalizeImportKey(row.name)
+                        && (!row.dob || !student.dob || student.dob === row.dob)
+                        && (!row.parentPhone || !student.parentPhone || student.parentPhone === row.parentPhone))
                 )
-                await saveStudent({ ...row, id: existing?.id || '' })
+                const { code, ...payload } = row
+                await saveStudent({ ...payload, id: existing?.id || '' })
             }
             setImportMsg(`Đã import ${rows.length} học sinh.`)
             await reload(facilityId, status)
@@ -172,7 +183,7 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
+            <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center', marginBottom: 18 }}>
                 {importMsg && <span style={{ fontSize: 13, fontWeight: 800, color: '#059669', background: '#ECFDF5', borderRadius: 8, padding: '7px 12px' }}>{importMsg}</span>}
                 {canEdit && <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 900 }}>📥 Import Excel/CSV</button>}

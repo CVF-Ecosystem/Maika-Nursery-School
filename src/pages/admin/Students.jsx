@@ -80,19 +80,28 @@ function normalizeStatus(value = '') {
 }
 
 async function readStudentImportFile(file) {
-    const rows = await readObjectsFromTable(file)
+    const rows = await readObjectsFromTable(file, {
+        preferredSheetNames: ['thong tin hoc sinh', 'hoc sinh', 'student'],
+        headerKeywords: ['stt', 'mshs', 'hovaten', 'hovatenhocsinh', 'ngaysinh', 'lop', 'hoclop', 'sodienthoai'],
+    })
     return rows.map(row => {
-        const name = sanitizeText(pickImportValue(row, ['hoten', 'hotentre', 'tenhocsinh', 'tenhocvien', 'tenbe', 'hocsinh', 'fullname', 'name']))
+        const code = sanitizeText(pickImportValue(row, ['mshs', 'mahocsinh', 'studentcode', 'studentid', 'id']))
+        const name = sanitizeText(pickImportValue(row, ['hovatenhocsinh', 'hovaten', 'hoten', 'hotentre', 'tenhocsinh', 'tenhocvien', 'tenbe', 'hocsinh', 'fullname', 'name']))
+        const address = sanitizeText(pickImportValue(row, ['diachi', 'noio', 'address']))
+        const notes = sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes']))
         return {
+            code,
             name,
             dob: sanitizeText(normalizeImportDate(pickImportValue(row, ['ngaysinh', 'dob', 'birthday', 'dateofbirth']))),
             gender: normalizeGender(pickImportValue(row, ['gioitinh', 'gender', 'sex'])),
-            className: sanitizeText(pickImportValue(row, ['lop', 'tenlop', 'class', 'classname'])),
-            parentName: sanitizeText(pickImportValue(row, ['phuhuynh', 'tenphuhuynh', 'hotenphuhuynh', 'cha', 'me', 'bo', 'parent', 'parentname'])),
+            className: sanitizeText(pickImportValue(row, ['hoclop', 'lop', 'tenlop', 'class', 'classname'])),
+            parentName: sanitizeText(pickImportValue(row, ['hovatenchahoacme', 'hotenchame', 'phuhuynh', 'tenphuhuynh', 'hotenphuhuynh', 'cha', 'me', 'bo', 'parent', 'parentname'])),
             parentPhone: sanitizeText(pickImportValue(row, ['sdt', 'sodienthoai', 'dienthoai', 'sdtphuhuynh', 'phone', 'parentphone'])),
             parentEmail: sanitizeText(pickImportValue(row, ['email', 'emailphuhuynh', 'parentemail'])),
+            enrollDate: sanitizeText(normalizeImportDate(pickImportValue(row, ['ngaynhaphoc', 'ngayvaohoc', 'enrolldate', 'joindate']))),
             status: normalizeStatus(pickImportValue(row, ['trangthai', 'status'])),
-            notes: sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes'])),
+            address,
+            notes: [notes, address ? `Địa chỉ: ${address}` : ''].filter(Boolean).join(' · '),
             initials: initialsFromName(name),
         }
     }).filter(item => item.name)
@@ -135,7 +144,7 @@ export default function Students(props) {
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && <StudentModal db={db} onClose={() => setModal(null)} onSave={saveStudent} />}
             {modal === 'edit' && <StudentModal student={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveStudent} />}
-            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={async e => {
+            <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={async e => {
                 const file = e.target.files[0]; if (!file) return
                 try {
                     const imported = await readStudentImportFile(file)
@@ -143,11 +152,12 @@ export default function Students(props) {
                     imported.forEach(student => {
                         const classMatch = ndb.classes.find(c => normalizeImportKey(c.name) === normalizeImportKey(student.className))
                         const existingIndex = ndb.students.findIndex(s =>
-                            normalizeImportKey(s.name) === normalizeImportKey(student.name)
+                            (student.code && normalizeImportKey(s.code || s.studentCode || s.id) === normalizeImportKey(student.code))
+                            || normalizeImportKey(s.name) === normalizeImportKey(student.name)
                             && (!student.dob || !s.dob || s.dob === student.dob)
                             && (!student.parentPhone || !s.parentPhone || s.parentPhone === student.parentPhone)
                         )
-                        const record = { ...student, id: existingIndex >= 0 ? ndb.students[existingIndex].id : 's' + Date.now() + Math.random(), classId: classMatch?.id || 'c1', enrollDate: todayStr() }
+                        const record = { ...student, id: existingIndex >= 0 ? ndb.students[existingIndex].id : (student.code || 's' + Date.now() + Math.random()), classId: classMatch?.id || 'c1', enrollDate: student.enrollDate || todayStr() }
                         if (existingIndex >= 0) ndb.students[existingIndex] = { ...ndb.students[existingIndex], ...record }
                         else ndb.students.push(record)
                     })

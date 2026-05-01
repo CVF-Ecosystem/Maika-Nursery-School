@@ -672,9 +672,9 @@ export function updateIncident(id, input, actorId) {
 let _invoiceSeq = 0
 
 function nextInvoiceNumber() {
-    const prefix = `INV${new Date().toISOString().slice(0, 7).replace('-', '')}`
+    const prefix = `HP-${new Date().toISOString().slice(0, 7).replace('-', '')}-AUTO`
     _invoiceSeq++
-    return `${prefix}-${String(_invoiceSeq).padStart(4, '0')}`
+    return `${prefix}${String(_invoiceSeq).padStart(4, '0')}`
 }
 
 export function listInvoices({ studentId, status, limit = 200 } = {}) {

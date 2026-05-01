@@ -82,13 +82,56 @@ export async function readWorkbookTables(file) {
     }))
 }
 
-export async function readObjectsFromTable(file) {
-    const table = await readTabularRows(file)
-    const [headers = [], ...body] = table
+function rowText(row = []) {
+    return row.map(cell => normalizeImportKey(cell)).filter(Boolean).join(' ')
+}
+
+function countHeaderHits(row = [], keywords = []) {
+    const keys = row.map(normalizeImportKey).filter(Boolean)
+    const wanted = keywords.map(normalizeImportKey).filter(Boolean)
+    if (!wanted.length) return keys.length ? 1 : 0
+    return wanted.reduce((count, key) => count + (keys.includes(key) ? 1 : 0), 0)
+}
+
+function findHeaderIndex(rows = [], keywords = []) {
+    let best = { index: -1, hits: 0, filled: 0 }
+    rows.forEach((row, index) => {
+        const filled = row.filter(cell => String(cell ?? '').trim()).length
+        if (filled < 2) return
+        const hits = countHeaderHits(row, keywords)
+        if (hits > best.hits || (hits === best.hits && filled > best.filled && best.index < 0)) {
+            best = { index, hits, filled }
+        }
+    })
+    if (best.index >= 0 && (best.hits > 0 || !keywords.length)) return best.index
+    return rows.findIndex(row => row.filter(cell => String(cell ?? '').trim()).length >= 2)
+}
+
+function chooseSheet(sheets = [], preferredSheetNames = [], headerKeywords = []) {
+    const preferred = preferredSheetNames.map(normalizeImportKey).filter(Boolean)
+    return sheets.find(sheet => preferred.some(name => normalizeImportKey(sheet.name).includes(name)))
+        || sheets.find(sheet => preferred.some(name => rowText(sheet.rows?.[0] || []).includes(name)))
+        || sheets.find(sheet => findHeaderIndex(sheet.rows || [], headerKeywords) >= 0)
+        || sheets[0]
+}
+
+export function objectsFromRows(rows = [], { headerKeywords = [] } = {}) {
+    const headerIndex = findHeaderIndex(rows, headerKeywords)
+    if (headerIndex < 0) return []
+    const headers = rows[headerIndex] || []
+    const body = rows.slice(headerIndex + 1)
     const keys = headers.map(normalizeImportKey)
     return body.map(cells => {
         const row = {}
         keys.forEach((key, index) => { row[key] = cells[index] ?? '' })
         return row
-    })
+    }).filter(row => Object.values(row).some(value => String(value ?? '').trim()))
+}
+
+export async function readObjectsFromTable(file, options = {}) {
+    const lowerName = file.name.toLowerCase()
+    if (lowerName.endsWith('.csv')) return objectsFromRows(await readTabularRows(file), options)
+    const sheets = await readWorkbookTables(file)
+    const sheet = chooseSheet(sheets, options.preferredSheetNames, options.headerKeywords)
+    return objectsFromRows(sheet?.rows || [], options)
 }

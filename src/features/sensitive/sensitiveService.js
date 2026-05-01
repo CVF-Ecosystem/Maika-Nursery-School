@@ -1,5 +1,6 @@
 import { getCurrentProfile } from '../auth/authService'
 import { requireSupabase } from '../../lib/supabaseClient'
+import { buildReceiptNumber } from '../payments/receiptNumbers'
 
 const HEALTH_COLUMNS = 'id, student_id, facility_id, allergies, blood_type, medications, medical_notes, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, doctor_name, doctor_phone, updated_by, created_at, updated_at'
 const INCIDENT_COLUMNS = 'id, student_id, facility_id, occurred_at, reported_by, reporter_name, severity, description, initial_action, status, parent_acknowledged_at, parent_note, created_at, updated_at'
@@ -143,9 +144,7 @@ export async function acknowledgeIncident(id, parentNote = '') {
 }
 
 function invoiceNumber() {
-    const now = new Date()
-    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
-    return `INV${ym}-${String(Date.now()).slice(-6)}`
+    return buildReceiptNumber({ dueDate: new Date(), fallbackCode: `AUTO${String(Date.now()).slice(-5)}` })
 }
 
 export async function listInvoices({ studentId, facilityId, status } = {}) {

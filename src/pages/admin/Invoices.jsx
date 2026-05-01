@@ -5,6 +5,7 @@ import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents, saveStudent as saveSupabaseStudent } from '../../features/students/studentService'
 import { listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
 import { buildPaymentQrUrl, getPaymentSettings, hasPaymentQrSettings } from '../../features/payments/paymentSettings'
+import { buildReceiptNumber, studentCodeFromReceiptNumber } from '../../features/payments/receiptNumbers'
 import { fmtMoney, fmtDate } from '../../utils/format'
 import { sanitizeText } from '../../utils/security'
 import { normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable, readWorkbookTables } from '../../utils/tabularImport'
@@ -126,9 +127,24 @@ function studentCode(student, index, className, invoices = []) {
     if (student?.code) return student.code
     if (student?.studentCode) return student.studentCode
     if (/^[A-Z]{1,4}_?\d+$/i.test(String(student?.id || ''))) return student.id
+    const matchedReceiptCode = invoices.map(inv => inv.student_id === student?.id ? studentCodeFromReceiptNumber(inv.invoice_number) : '').find(Boolean)
+    if (matchedReceiptCode) return matchedReceiptCode
     const matchedInvoice = invoices.find(inv => inv.student_id === student?.id && /^[A-Z]{1,4}_?\d+-\d{4}-\d{2}$/i.test(String(inv.invoice_number || '')))
     if (matchedInvoice) return String(matchedInvoice.invoice_number).replace(/-\d{4}-\d{2}$/i, '')
     return `${prefixForClass(className)}_${String(index + 1).padStart(2, '0')}`
+}
+
+function receiptCodeForStudent(students, db, invoices, studentId, type, dueDate) {
+    const index = students.findIndex(student => student.id === studentId)
+    const student = index >= 0 ? students[index] : null
+    const code = student ? studentCode(student, index, studentClassName(student, db), invoices) : ''
+    return buildReceiptNumber({
+        type,
+        dueDate,
+        studentCode: code,
+        fallbackCode: `HS${String(Math.max(index, 0) + 1).padStart(3, '0')}`,
+        existingNumbers: invoices.map(invoice => invoice.invoice_number),
+    })
 }
 
 function exportFileName(month, year, className) {
@@ -331,7 +347,7 @@ function parseMaikaTuitionSheet(sheet, students, studentProfiles = new Map()) {
         const studentProfile = studentProfiles.get(normalizeImportKey(code)) || null
         const status = paidAmount > 0 || paidDate ? 'paid' : 'pending'
         return {
-            invoiceNumber: code && period ? `${code}-${period}` : '',
+            invoiceNumber: buildReceiptNumber({ type: 'tuition', dueDate, studentCode: code }),
             studentId: student?.id || '',
             studentProfile,
             type: 'tuition',
@@ -351,21 +367,31 @@ async function readInvoiceImportFile(file, students) {
     const maikaSheet = findMaikaTuitionSheet(sheets)
     if (maikaSheet) return parseMaikaTuitionSheet(maikaSheet, students, parseMaikaStudentSheet(findMaikaStudentSheet(sheets)))
 
-    const rows = await readObjectsFromTable(file)
+    const rows = await readObjectsFromTable(file, {
+        preferredSheetNames: ['hoc phi', 'khoan thu', 'hoa don', 'bien lai'],
+        headerKeywords: ['mabienlai', 'mahoadon', 'mshs', 'hocsinh', 'sotien', 'hannop'],
+    })
     return rows.map(row => {
         const student = students.find(item => studentMatchesImport(item, row))
         const type = normalizeInvoiceType(pickImportValue(row, ['loaiphi', 'loai', 'type', 'khoanthu']))
         const description = sanitizeText(pickImportValue(row, ['noidung', 'mota', 'diengiai', 'description', 'desc'])) || TYPE_MAP[type] || 'Khoản thu'
         const status = normalizeInvoiceStatus(pickImportValue(row, ['trangthai', 'status']))
         const paidDate = normalizeImportDate(pickImportValue(row, ['ngaynop', 'ngaythu', 'paiddate', 'paidat']))
+        const dueDate = normalizeImportDate(pickImportValue(row, ['hannop', 'ngaydenhan', 'ngay', 'duedate', 'date']))
+        const studentImportCode = sanitizeText(pickImportValue(row, ['mshs', 'mahocsinh', 'studentcode', 'studentid']))
+        const explicitInvoiceNumber = sanitizeText(pickImportValue(row, ['mabienlai', 'mahoadon', 'invoice', 'invoicenumber', 'sobienlai']))
         return {
-            invoiceNumber: sanitizeText(pickImportValue(row, ['mabienlai', 'mahoadon', 'invoice', 'invoicenumber', 'sobienlai', 'mshs'])),
+            invoiceNumber: explicitInvoiceNumber || buildReceiptNumber({
+                type,
+                dueDate,
+                studentCode: studentImportCode || student?.code || student?.studentCode || '',
+            }),
             studentId: student?.id || '',
             studentProfile: null,
             type,
             description,
             amount: parseImportAmount(pickImportValue(row, ['sotien', 'amount', 'hocphi', 'thanhtien', 'tongtien'])),
-            dueDate: normalizeImportDate(pickImportValue(row, ['hannop', 'ngaydenhan', 'ngay', 'duedate', 'date'])),
+            dueDate,
             status,
             notes: sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes'])),
             paidDate: paidDate || (status === 'paid' ? new Date().toISOString().slice(0, 10) : ''),
@@ -626,8 +652,9 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                 paidDate: form.paidDate || null,
                 paymentMethod: form.paymentMethod || null,
             }
+            const invoiceNumber = selected?.invoice_number || receiptCodeForStudent(students, db, invoices, payload.studentId, payload.type, payload.dueDate)
             if (supabaseMode) {
-                await saveSupabaseInvoice({ ...payload, id: selected?.id, invoiceNumber: selected?.invoice_number })
+                await saveSupabaseInvoice({ ...payload, id: selected?.id, invoiceNumber })
                 setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
             } else if (localMode) {
                 const ndb = getDB()
@@ -635,7 +662,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                 const localPayload = {
                     id: selected?.id || `f${Date.now()}`,
                     studentId: payload.studentId,
-                    invoiceNumber: selected?.invoice_number || `BL${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Date.now()).slice(-5)}`,
+                    invoiceNumber,
                     type: payload.type,
                     desc: payload.description,
                     amount: Number(payload.amount || 0),
@@ -654,7 +681,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                 await apiRequest(`/api/invoices/${selected.id}`, { method: 'PUT', body: JSON.stringify(payload) })
                 setMessage('Đã cập nhật hóa đơn.')
             } else {
-                await apiRequest('/api/invoices', { method: 'POST', body: JSON.stringify(payload) })
+                await apiRequest('/api/invoices', { method: 'POST', body: JSON.stringify({ ...payload, invoiceNumber }) })
                 setMessage('Đã tạo hóa đơn mới.')
             }
             setModal(null); setSelected(null)
@@ -688,10 +715,11 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
             const ndb = getDB()
             if (!Array.isArray(ndb.finance)) ndb.finance = []
             const id = existing?.id || `f${Date.now()}${Math.random().toString(36).slice(2, 6)}`
+            const invoiceNumber = row.invoiceNumber || existing?.invoice_number || receiptCodeForStudent(students, db, invoices, payload.studentId, payload.type, payload.dueDate)
             const localPayload = {
                 id,
                 studentId: payload.studentId,
-                invoiceNumber: row.invoiceNumber || existing?.invoice_number || `BL${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Date.now()).slice(-5)}`,
+                invoiceNumber,
                 type: payload.type,
                 desc: payload.description,
                 amount: Number(payload.amount || 0),
