@@ -26,6 +26,11 @@ export function normalizeImportDate(value) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text
     const match = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
     if (match) return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+    const shortYearMatch = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2})$/)
+    if (shortYearMatch) {
+        const year = Number(shortYearMatch[3]) >= 70 ? `19${shortYearMatch[3]}` : `20${shortYearMatch[3]}`
+        return `${year}-${shortYearMatch[2].padStart(2, '0')}-${shortYearMatch[1].padStart(2, '0')}`
+    }
     return text
 }
 
@@ -59,8 +64,22 @@ export async function readTabularRows(file) {
         const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
         return lines.map(parseCsvLine)
     }
-    const { default: readXlsxFile } = await import('read-excel-file/browser')
-    return readXlsxFile(file)
+    const sheets = await readWorkbookTables(file)
+    return sheets[0]?.rows || []
+}
+
+export async function readWorkbookTables(file) {
+    const lowerName = file.name.toLowerCase()
+    if (lowerName.endsWith('.csv')) {
+        return [{ name: file.name, rows: await readTabularRows(file) }]
+    }
+    const XLSX = await import('xlsx')
+    const data = await file.arrayBuffer()
+    const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+    return workbook.SheetNames.map(name => ({
+        name,
+        rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: '', raw: false }),
+    }))
 }
 
 export async function readObjectsFromTable(file) {

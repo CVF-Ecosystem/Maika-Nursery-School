@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { commit, getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
-import { listStudents } from '../../features/students/studentService'
+import { listStudents, saveStudent as saveSupabaseStudent } from '../../features/students/studentService'
 import { listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
 import { buildPaymentQrUrl, getPaymentSettings, hasPaymentQrSettings } from '../../features/payments/paymentSettings'
 import { fmtMoney, fmtDate } from '../../utils/format'
+import { sanitizeText } from '../../utils/security'
+import { normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable, readWorkbookTables } from '../../utils/tabularImport'
 
 const STATUS_MAP = {
     pending: ['#D97706', '#FFFBEB', 'Chưa đóng'],
@@ -36,6 +38,340 @@ function localFinanceToInvoice(row) {
         status: row.status || 'pending',
         notes: row.notes || row.note || '',
     }
+}
+
+function normalizeInvoiceStatus(value = '') {
+    const text = normalizeImportKey(value)
+    if (['paid', 'dadong', 'dathu', 'danop', 'hoanthanh', 'complete', 'completed'].includes(text)) return 'paid'
+    if (['overdue', 'quahan', 'trehan', 'noqua', 'congnoquahan'].includes(text)) return 'overdue'
+    if (['cancelled', 'canceled', 'dahuy', 'huy'].includes(text)) return 'cancelled'
+    return 'pending'
+}
+
+function normalizeInvoiceType(value = '') {
+    const text = normalizeImportKey(value)
+    if (['meal', 'tienan', 'an', 'phiantin'].includes(text)) return 'meal'
+    if (['material', 'hoclieu', 'tailieu', 'sachvo'].includes(text)) return 'material'
+    if (['activity', 'hoatdong', 'ngoaikhoa'].includes(text)) return 'activity'
+    if (['other', 'khac'].includes(text)) return 'other'
+    return 'tuition'
+}
+
+function normalizePaymentMethod(value = '') {
+    const text = normalizeImportKey(value)
+    if (['cash', 'tienmat', 'tm'].includes(text)) return 'cash'
+    if (['transfer', 'chuyenkhoan', 'ck', 'bank', 'banking'].includes(text)) return 'transfer'
+    if (['other', 'khac'].includes(text)) return 'other'
+    return ''
+}
+
+function normalizeImportedStudentGender(value = '') {
+    const text = normalizeImportKey(value)
+    if (['nam', 'male', 'm'].includes(text)) return 'male'
+    if (['nu', 'female', 'f'].includes(text)) return 'female'
+    return 'unknown'
+}
+
+function normalizeImportedStudentStatus(value = '') {
+    const text = normalizeImportKey(value)
+    if (['nghihoc', 'nghi', 'off', 'inactive'].includes(text)) return 'inactive'
+    return 'active'
+}
+
+function parseImportAmount(value) {
+    if (typeof value === 'number') return Math.round(value)
+    const digits = String(value || '').replace(/[^\d]/g, '')
+    return Number(digits || 0)
+}
+
+function moneyNumber(value) {
+    return Math.max(0, Math.round(Number(value || 0)))
+}
+
+function cellText(value) {
+    return sanitizeText(String(value ?? ''))
+}
+
+function vnDate(value) {
+    if (!value) return ''
+    const normalized = normalizeImportDate(value)
+    const match = String(normalized).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value)
+}
+
+function studentClassName(student, db) {
+    if (student?.className) return student.className
+    const cls = db?.classes?.find(item => item.id === student?.classId)
+    return cls?.name || ''
+}
+
+function studentStatusLabel(student) {
+    return student?.status === 'inactive' ? 'Nghỉ học' : 'Đang học'
+}
+
+function studentGenderLabel(student) {
+    if (student?.gender === 'male') return 'Nam'
+    if (student?.gender === 'female') return 'Nữ'
+    return ''
+}
+
+function prefixForClass(className = '') {
+    const key = normalizeImportKey(className)
+    if (key.includes('nhatre')) return 'NT'
+    if (key.includes('mam') || key.includes('choi')) return 'MC'
+    return 'HS'
+}
+
+function studentCode(student, index, className, invoices = []) {
+    if (student?.code) return student.code
+    if (student?.studentCode) return student.studentCode
+    if (/^[A-Z]{1,4}_?\d+$/i.test(String(student?.id || ''))) return student.id
+    const matchedInvoice = invoices.find(inv => inv.student_id === student?.id && /^[A-Z]{1,4}_?\d+-\d{4}-\d{2}$/i.test(String(inv.invoice_number || '')))
+    if (matchedInvoice) return String(matchedInvoice.invoice_number).replace(/-\d{4}-\d{2}$/i, '')
+    return `${prefixForClass(className)}_${String(index + 1).padStart(2, '0')}`
+}
+
+function exportFileName(month, year, className) {
+    const suffix = normalizeImportKey(className || 'hoc phi') || 'hoc-phi'
+    return `bang-thu-hoc-phi-${suffix}-${year}-${String(month).padStart(2, '0')}.xlsx`
+}
+
+async function exportMaikaTuitionWorkbook({ invoices, students, db }) {
+    const XLSX = await import('xlsx')
+    const firstInvoice = invoices.find(inv => inv.due_date) || {}
+    const baseDate = firstInvoice.due_date || new Date().toISOString().slice(0, 10)
+    const [year, month] = baseDate.split('-').map(Number)
+    const invoiceStudentIds = new Set(invoices.map(inv => inv.student_id).filter(Boolean))
+    const exportStudents = students
+        .filter(student => invoiceStudentIds.size ? invoiceStudentIds.has(student.id) : student.status !== 'inactive')
+        .sort((a, b) => String(studentClassName(a, db)).localeCompare(String(studentClassName(b, db)), 'vi') || String(a.name || '').localeCompare(String(b.name || ''), 'vi'))
+    const className = exportStudents.length ? studentClassName(exportStudents[0], db) : ''
+    const studentRows = exportStudents.map((student, index) => {
+        const cls = studentClassName(student, db)
+        return [
+            index + 1,
+            studentCode(student, index, cls, invoices),
+            student.name || '',
+            studentGenderLabel(student),
+            vnDate(student.dob),
+            vnDate(student.enrollDate),
+            cls,
+            studentStatusLabel(student),
+            student.address || '',
+            student.parentName || '',
+            student.parentPhone || '',
+            student.notes || '',
+        ]
+    })
+
+    const invoiceByStudent = new Map()
+    invoices.forEach(inv => {
+        if (!inv.student_id || inv.status === 'cancelled') return
+        const current = invoiceByStudent.get(inv.student_id)
+        if (!current || moneyNumber(inv.amount) > moneyNumber(current.amount)) invoiceByStudent.set(inv.student_id, inv)
+    })
+
+    const tuitionRows = exportStudents.map((student, index) => {
+        const cls = studentClassName(student, db)
+        const inv = invoiceByStudent.get(student.id) || {}
+        const amount = moneyNumber(inv.amount)
+        const paid = inv.status === 'paid' ? amount : 0
+        return [
+            index + 1,
+            studentCode(student, index, cls, invoices),
+            student.name || '',
+            cls,
+            amount,
+            '',
+            '',
+            '',
+            '',
+            0,
+            amount,
+            vnDate(inv.paid_date),
+            student.parentName || '',
+            paid || '',
+            inv.notes || '',
+        ]
+    })
+
+    const totals = tuitionRows.reduce((sum, row) => ({
+        tuition: sum.tuition + moneyNumber(row[4]),
+        due: sum.due + moneyNumber(row[10]),
+        paid: sum.paid + moneyNumber(row[13]),
+    }), { tuition: 0, due: 0, paid: 0 })
+
+    const studentSheet = [
+        [`THÔNG TIN HỌC SINH ${className ? className.toUpperCase() : ''}`],
+        ['STT', 'MSHS', 'Họ và tên', 'Giới tính', 'Ngày sinh', 'Ngày nhập học', 'Lớp', 'Trạng thái', 'Địa chỉ', 'Họ tên Cha/Mẹ', 'Số điện thoại', 'Ghi chú'],
+        ...studentRows,
+    ]
+    const tuitionSheet = [
+        ['MẦM NON THIÊN THẦN MAIKA', '', '', '', 'BẢNG THEO DÕI HỌC PHÍ'],
+        [],
+        ['', 'Tháng', month],
+        ['', 'Năm', year],
+        ['', 'Ngày học chuẩn trong tháng', '', ''],
+        ['STT', 'MSHS', 'Họ và tên', 'Lớp', 'Học phí', 'Số ngày đi học thực tế', '', 'Tiền thừa tháng trước', '', '', 'Tiền phải thu trong tháng', 'Ngày nộp tiền', 'Họ & Tên người nộp tiền', 'Số tiền nộp', 'Ghi chú'],
+        ['', '', '', '', '', '', 'Số ngày vắng không phép', 'Số ngày vắng có phép', 'Tiền hoàn lại', 'Tổng cộng', '', '', '', '', ''],
+        ['', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+        ['', '', '', '', totals.tuition, '', '', '', '', 0, totals.due, '', '', totals.paid, ''],
+        ...tuitionRows,
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    const wsStudents = XLSX.utils.aoa_to_sheet(studentSheet)
+    const wsTuition = XLSX.utils.aoa_to_sheet(tuitionSheet)
+    wsStudents['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 16 }, { wch: 28 }]
+    wsTuition['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 28 }]
+    XLSX.utils.book_append_sheet(workbook, wsStudents, 'Thông tin học sinh')
+    XLSX.utils.book_append_sheet(workbook, wsTuition, 'Bảng học phí_nội  bộ')
+    XLSX.writeFile(workbook, exportFileName(month, year, className))
+}
+
+function numberFromCell(value) {
+    if (typeof value === 'number') return value
+    const digits = String(value || '').replace(/[^\d.-]/g, '')
+    return Number(digits || 0)
+}
+
+function findRightValue(rows, labels) {
+    const wanted = labels.map(normalizeImportKey)
+    for (const row of rows.slice(0, 12)) {
+        for (let c = 0; c < row.length; c += 1) {
+            if (!wanted.includes(normalizeImportKey(row[c]))) continue
+            for (let next = c + 1; next < row.length; next += 1) {
+                if (String(row[next] ?? '').trim()) return row[next]
+            }
+        }
+    }
+    return ''
+}
+
+function periodDueDate(rows) {
+    const month = numberFromCell(findRightValue(rows, ['Tháng', 'Thang']))
+    const year = numberFromCell(findRightValue(rows, ['Năm', 'Nam']))
+    if (!month || !year) return new Date().toISOString().slice(0, 10)
+    return `${Math.round(year)}-${String(Math.round(month)).padStart(2, '0')}-01`
+}
+
+function findMaikaTuitionSheet(sheets) {
+    return sheets.find(sheet => normalizeImportKey(sheet.name).includes('hocphi'))
+        || sheets.find(sheet => sheet.rows.some(row => row.some(cell => normalizeImportKey(cell).includes('bangtheodoihocphi'))))
+}
+
+function studentMatchesImport(student, row) {
+    const id = sanitizeText(pickImportValue(row, ['mahocsinh', 'studentid', 'id']))
+    const name = sanitizeText(pickImportValue(row, ['hocsinh', 'hoten', 'hotenhocsinh', 'tenhocsinh', 'tenbe', 'student', 'studentname', 'name']))
+    const phone = sanitizeText(pickImportValue(row, ['sdt', 'sodienthoai', 'dienthoai', 'sdtphuhuynh', 'parentphone', 'phone']))
+    if (id && normalizeImportKey(student.id) === normalizeImportKey(id)) return true
+    if (phone && normalizeImportKey(student.parentPhone || '') === normalizeImportKey(phone)) return true
+    return Boolean(name && normalizeImportKey(student.name || '') === normalizeImportKey(name))
+}
+
+function findStudentByCodeName(students, code, name) {
+    const codeKey = normalizeImportKey(code)
+    const nameKey = normalizeImportKey(name)
+    return students.find(student => codeKey && normalizeImportKey(student.id) === codeKey)
+        || students.find(student => codeKey && normalizeImportKey(student.code || student.studentCode || '') === codeKey)
+        || students.find(student => nameKey && normalizeImportKey(student.name || '') === nameKey)
+}
+
+function findMaikaStudentSheet(sheets) {
+    return sheets.find(sheet => normalizeImportKey(sheet.name).includes('thongtinhocsinh'))
+        || sheets.find(sheet => sheet.rows.some(row => row.some(cell => normalizeImportKey(cell).includes('thongtinhocsinh'))))
+}
+
+function parseMaikaStudentSheet(sheet) {
+    if (!sheet) return new Map()
+    const headerIndex = sheet.rows.findIndex(row => {
+        const keys = row.map(normalizeImportKey)
+        return keys.includes('mshs') && keys.includes('hovaten')
+    })
+    if (headerIndex < 0) return new Map()
+    const map = new Map()
+    sheet.rows.slice(headerIndex + 1).forEach(row => {
+        const code = cellText(row[1])
+        const name = cellText(row[2])
+        if (!code || !name) return
+        map.set(normalizeImportKey(code), {
+            code,
+            name,
+            gender: normalizeImportedStudentGender(row[3]),
+            dob: normalizeImportDate(row[4]),
+            enrollDate: normalizeImportDate(row[5]),
+            className: cellText(row[6]),
+            status: normalizeImportedStudentStatus(row[7]),
+            address: cellText(row[8]),
+            parentName: cellText(row[9]),
+            parentPhone: cellText(row[10]),
+            notes: cellText(row[11]),
+        })
+    })
+    return map
+}
+
+function parseMaikaTuitionSheet(sheet, students, studentProfiles = new Map()) {
+    const headerIndex = sheet.rows.findIndex(row => {
+        const keys = row.map(normalizeImportKey)
+        return keys.includes('mshs') && keys.includes('hovaten') && keys.includes('hocphi')
+    })
+    if (headerIndex < 0) return []
+    const dueDate = periodDueDate(sheet.rows)
+    const period = dueDate.slice(0, 7)
+    return sheet.rows.slice(headerIndex + 1).map(row => {
+        const code = cellText(row[1])
+        const name = cellText(row[2])
+        const klass = cellText(row[3])
+        const amountDue = parseImportAmount(row[10])
+        const paidDate = normalizeImportDate(row[11])
+        const paidAmount = parseImportAmount(row[13])
+        const note = cellText(row[14])
+        const student = findStudentByCodeName(students, code, name)
+        const studentProfile = studentProfiles.get(normalizeImportKey(code)) || null
+        const status = paidAmount > 0 || paidDate ? 'paid' : 'pending'
+        return {
+            invoiceNumber: code && period ? `${code}-${period}` : '',
+            studentId: student?.id || '',
+            studentProfile,
+            type: 'tuition',
+            description: `Học phí tháng ${Number(period.slice(5, 7))}/${period.slice(0, 4)}${klass ? ` - ${klass}` : ''}`,
+            amount: amountDue,
+            dueDate,
+            status,
+            notes: note,
+            paidDate: paidDate || (status === 'paid' ? dueDate : ''),
+            paymentMethod: status === 'paid' ? 'cash' : '',
+        }
+    }).filter(row => row.invoiceNumber && row.amount > 0)
+}
+
+async function readInvoiceImportFile(file, students) {
+    const sheets = await readWorkbookTables(file)
+    const maikaSheet = findMaikaTuitionSheet(sheets)
+    if (maikaSheet) return parseMaikaTuitionSheet(maikaSheet, students, parseMaikaStudentSheet(findMaikaStudentSheet(sheets)))
+
+    const rows = await readObjectsFromTable(file)
+    return rows.map(row => {
+        const student = students.find(item => studentMatchesImport(item, row))
+        const type = normalizeInvoiceType(pickImportValue(row, ['loaiphi', 'loai', 'type', 'khoanthu']))
+        const description = sanitizeText(pickImportValue(row, ['noidung', 'mota', 'diengiai', 'description', 'desc'])) || TYPE_MAP[type] || 'Khoản thu'
+        const status = normalizeInvoiceStatus(pickImportValue(row, ['trangthai', 'status']))
+        const paidDate = normalizeImportDate(pickImportValue(row, ['ngaynop', 'ngaythu', 'paiddate', 'paidat']))
+        return {
+            invoiceNumber: sanitizeText(pickImportValue(row, ['mabienlai', 'mahoadon', 'invoice', 'invoicenumber', 'sobienlai', 'mshs'])),
+            studentId: student?.id || '',
+            studentProfile: null,
+            type,
+            description,
+            amount: parseImportAmount(pickImportValue(row, ['sotien', 'amount', 'hocphi', 'thanhtien', 'tongtien'])),
+            dueDate: normalizeImportDate(pickImportValue(row, ['hannop', 'ngaydenhan', 'ngay', 'duedate', 'date'])),
+            status,
+            notes: sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes'])),
+            paidDate: paidDate || (status === 'paid' ? new Date().toISOString().slice(0, 10) : ''),
+            paymentMethod: normalizePaymentMethod(pickImportValue(row, ['hinhthuc', 'phuongthuc', 'paymentmethod', 'method'])),
+        }
+    })
 }
 
 function escapeHtml(value) {
@@ -238,6 +574,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
     const [filterStatus, setFilterStatus] = useState('all')
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
+    const fileRef = useRef(null)
 
     useEffect(() => {
         if (!supabaseMode) return
@@ -328,6 +665,142 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
         }
     }
 
+    async function saveImportedInvoice(row) {
+        const existing = row.invoiceNumber ? invoices.find(item => normalizeImportKey(item.invoice_number) === normalizeImportKey(row.invoiceNumber)) : null
+        const payload = {
+            studentId: row.studentId,
+            type: row.type,
+            description: row.description,
+            amount: row.amount,
+            dueDate: row.dueDate,
+            status: row.status,
+            notes: row.notes,
+            paidDate: row.paidDate || null,
+            paymentMethod: row.paymentMethod || null,
+        }
+
+        if (supabaseMode) {
+            await saveSupabaseInvoice({ ...payload, id: existing?.id, invoiceNumber: row.invoiceNumber || existing?.invoice_number })
+            return
+        }
+
+        if (localMode) {
+            const ndb = getDB()
+            if (!Array.isArray(ndb.finance)) ndb.finance = []
+            const id = existing?.id || `f${Date.now()}${Math.random().toString(36).slice(2, 6)}`
+            const localPayload = {
+                id,
+                studentId: payload.studentId,
+                invoiceNumber: row.invoiceNumber || existing?.invoice_number || `BL${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Date.now()).slice(-5)}`,
+                type: payload.type,
+                desc: payload.description,
+                amount: Number(payload.amount || 0),
+                date: payload.dueDate,
+                status: payload.status,
+                method: payload.paymentMethod || '',
+                paidDate: payload.paidDate || '',
+                notes: payload.notes || '',
+            }
+            const idx = ndb.finance.findIndex(item => item.id === id || (localPayload.invoiceNumber && normalizeImportKey(item.invoiceNumber || item.receiptNo || '') === normalizeImportKey(localPayload.invoiceNumber)))
+            if (idx >= 0) ndb.finance[idx] = { ...ndb.finance[idx], ...localPayload }
+            else ndb.finance.unshift(localPayload)
+            commit()
+            return
+        }
+
+        if (existing?.id) {
+            await apiRequest(`/api/invoices/${existing.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        } else {
+            await apiRequest('/api/invoices', { method: 'POST', body: JSON.stringify({ ...payload, invoiceNumber: row.invoiceNumber || undefined }) })
+        }
+    }
+
+    async function ensureStudentForImport(row) {
+        if (row.studentId || !row.studentProfile) return row.studentId
+        const profile = row.studentProfile
+        const matched = students.find(student => findStudentByCodeName([student], profile.code, profile.name))
+        if (matched) return matched.id
+
+        if (supabaseMode) {
+            if (!selectedFacilityId) return ''
+            const created = await saveSupabaseStudent({
+                facilityId: selectedFacilityId,
+                name: profile.name,
+                dob: profile.dob,
+                gender: profile.gender,
+                className: profile.className,
+                parentName: profile.parentName,
+                parentPhone: profile.parentPhone,
+                status: profile.status,
+                notes: [profile.notes, profile.address].filter(Boolean).join(' · '),
+            })
+            setSupabaseStudents(current => current.some(student => student.id === created.id) ? current : [...current, created])
+            return created.id
+        }
+
+        if (localMode) {
+            const ndb = getDB()
+            const existing = ndb.students.find(student => findStudentByCodeName([student], profile.code, profile.name))
+            if (existing) return existing.id
+            const id = profile.code || `s${Date.now()}${Math.random().toString(36).slice(2, 6)}`
+            const record = {
+                id,
+                code: profile.code,
+                name: profile.name,
+                dob: profile.dob,
+                classId: ndb.classes.find(c => normalizeImportKey(c.name) === normalizeImportKey(profile.className))?.id || 'c1',
+                className: profile.className,
+                parentName: profile.parentName,
+                parentPhone: profile.parentPhone,
+                parentEmail: '',
+                enrollDate: profile.enrollDate || new Date().toISOString().slice(0, 10),
+                status: profile.status,
+                initials: profile.name.split(' ').filter(Boolean).slice(-2).map(word => word[0]?.toUpperCase()).join('') || '?',
+                gender: profile.gender,
+                notes: [profile.notes, profile.address].filter(Boolean).join(' · '),
+            }
+            ndb.students.push(record)
+            commit()
+            return id
+        }
+
+        return ''
+    }
+
+    async function handleImport(file) {
+        if (!file) return
+        setError('')
+        setMessage('Đang import khoản thu...')
+        try {
+            const rows = await readInvoiceImportFile(file, students)
+            for (const row of rows) {
+                if (!row.studentId) row.studentId = await ensureStudentForImport(row)
+            }
+            const validRows = rows.filter(row => row.studentId && row.amount > 0 && row.dueDate)
+            for (const row of validRows) await saveImportedInvoice(row)
+            await load()
+            const skipped = rows.length - validRows.length
+            setMessage(`Đã import ${validRows.length} khoản thu${skipped ? `, bỏ qua ${skipped} dòng thiếu thông tin.` : '.'}`)
+            setTimeout(() => setMessage(''), 4000)
+        } catch (err) {
+            setMessage('')
+            setError(err.message || 'Không import được file học phí.')
+        }
+    }
+
+    async function handleExport() {
+        setError('')
+        setMessage('Đang tạo file Excel...')
+        try {
+            await exportMaikaTuitionWorkbook({ invoices, students, db })
+            setMessage('Đã xuất file Excel học phí theo mẫu Maika.')
+            setTimeout(() => setMessage(''), 3500)
+        } catch (err) {
+            setMessage('')
+            setError(err.message || 'Không xuất được file Excel học phí.')
+        }
+    }
+
     async function markPaid(invoice) {
         try {
             if (supabaseMode) {
@@ -375,6 +848,9 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
 
     return (
         <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
+            {!readOnly && (
+                <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
+            )}
             {modal === 'form' && (
                 <InvoiceModal
                     invoice={selected}
@@ -389,6 +865,18 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                     <div style={{ flex: 1, color: '#6B6494', fontSize: 13, lineHeight: 1.5 }}>
                         {!paymentReady && <div style={{ color: '#B45309', fontWeight: 700 }}>QR chuyển khoản chưa sẵn sàng. Vui lòng cập nhật thông tin nhận tiền trong Cấu hình.</div>}
                     </div>
+                    <button
+                        onClick={() => fileRef.current?.click()}
+                        style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
+                    >
+                        📥 Import Excel/CSV
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
+                    >
+                        📤 Export Excel
+                    </button>
                     <button
                         onClick={() => { setSelected(null); setModal('form') }}
                         style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}
