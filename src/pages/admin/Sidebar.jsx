@@ -9,7 +9,6 @@ const NAV_ITEMS = [
     { id: 'health', icon: '🏥', label: 'Sức khỏe' },
     { id: 'incidents', icon: '⚠', label: 'Sự cố' },
     { id: 'finance', icon: '💰', label: 'Học phí' },
-    { id: 'invoices', icon: '🧾', label: 'Hóa đơn' },
     { id: 'messages', icon: '💬', label: 'Tin nhắn' },
     { id: 'tourRequests', icon: '☎', label: 'Tuyển sinh' },
     { id: 'calendar', icon: '📅', label: 'Lịch sự kiện' },
@@ -29,7 +28,7 @@ const NAV_ITEMS = [
 const GROUPS = [
     { label: 'QUẢN LÝ', ids: ['dashboard', 'students', 'teachers'] },
     { label: 'HOẠT ĐỘNG', ids: ['attendance', 'attendanceAdv', 'reports', 'health', 'incidents'] },
-    { label: 'TÀI CHÍNH', ids: ['finance', 'invoices'] },
+    { label: 'TÀI CHÍNH', ids: ['finance'] },
     { label: 'GIAO TIẾP', ids: ['messages', 'tourRequests', 'calendar', 'notifications'] },
     { label: 'NỘI DUNG', ids: ['mealMenu', 'media', 'resources', 'gamification'] },
     { label: 'PHÂN TÍCH', ids: ['analytics'] },

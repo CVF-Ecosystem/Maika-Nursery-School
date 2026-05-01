@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { getDB } from '../../data/store'
+import { useEffect, useState } from 'react'
+import { commit, getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents } from '../../features/students/studentService'
 import { listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
+import { buildPaymentQrUrl, getPaymentSettings, hasPaymentQrSettings } from '../../features/payments/paymentSettings'
 import { fmtMoney, fmtDate } from '../../utils/format'
 
 const STATUS_MAP = {
@@ -21,10 +22,43 @@ const TYPE_MAP = {
     other: 'Khác',
 }
 
+function localFinanceToInvoice(row) {
+    return {
+        id: row.id,
+        student_id: row.studentId,
+        invoice_number: row.invoiceNumber || row.receiptNo || row.id.toUpperCase(),
+        type: row.type || 'tuition',
+        description: row.desc || row.description || '',
+        amount: Number(row.amount || 0),
+        due_date: row.date || row.dueDate || '',
+        paid_date: row.paidDate || (row.status === 'paid' ? row.date : ''),
+        payment_method: row.paymentMethod || row.method || '',
+        status: row.status || 'pending',
+        notes: row.notes || row.note || '',
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+}
+
 function ReceiptPrint({ invoice, student }) {
-    const ref = useRef()
-    function print() {
+    function exportPdf() {
+        const settings = getPaymentSettings()
+        const qrUrl = buildPaymentQrUrl({
+            amount: invoice.amount,
+            invoiceNumber: invoice.invoice_number,
+            studentName: student?.name || '',
+            settings,
+        })
         const w = window.open('', '_blank', 'width=700,height=900')
+        if (!w) return
+        const paymentMethod = invoice.payment_method === 'cash' ? 'Tiền mặt' : invoice.payment_method === 'transfer' ? 'Chuyển khoản' : (invoice.payment_method || '—')
         w.document.write(`
           <html><head><title>Biên lai ${invoice.invoice_number}</title>
           <style>
@@ -34,6 +68,8 @@ function ReceiptPrint({ invoice, student }) {
             .label { font-weight: 700; color: #7C6D9B; font-size: 13px; }
             .value { font-weight: 800; font-size: 13px; }
             .total { font-size: 20px; color: #6D28D9; }
+            .qrbox { margin-top: 22px; display: flex; gap: 18px; align-items: center; padding: 16px; border: 1px solid #EDE9FE; border-radius: 12px; background: #F8F7FF; }
+            .qrbox img { width: 170px; height: 170px; object-fit: contain; background: #fff; border-radius: 8px; }
             .footer { margin-top: 40px; font-size: 12px; color: #9B93C9; text-align: center; }
             @media print { button { display: none; } }
           </style></head><body>
@@ -42,24 +78,39 @@ function ReceiptPrint({ invoice, student }) {
             <h1>BIÊN LAI THU TIỀN</h1>
             <div style="color:#7C6D9B;font-size:13px">Nhà Trẻ Tư Thục Maika</div>
           </div>
-          <div class="row"><span class="label">Số biên lai</span><span class="value">${invoice.invoice_number}</span></div>
-          <div class="row"><span class="label">Học sinh</span><span class="value">${student?.name || '—'}</span></div>
-          <div class="row"><span class="label">Loại phí</span><span class="value">${TYPE_MAP[invoice.type] || invoice.type}</span></div>
-          <div class="row"><span class="label">Nội dung</span><span class="value">${invoice.description}</span></div>
+          <div class="row"><span class="label">Số biên lai</span><span class="value">${escapeHtml(invoice.invoice_number)}</span></div>
+          <div class="row"><span class="label">Học sinh</span><span class="value">${escapeHtml(student?.name || '—')}</span></div>
+          <div class="row"><span class="label">Loại phí</span><span class="value">${escapeHtml(TYPE_MAP[invoice.type] || invoice.type)}</span></div>
+          <div class="row"><span class="label">Nội dung</span><span class="value">${escapeHtml(invoice.description)}</span></div>
           <div class="row"><span class="label">Hạn nộp</span><span class="value">${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('vi-VN') : '—'}</span></div>
           <div class="row"><span class="label">Ngày nộp</span><span class="value">${invoice.paid_date ? new Date(invoice.paid_date).toLocaleDateString('vi-VN') : '—'}</span></div>
-          <div class="row"><span class="label">Hình thức</span><span class="value">${invoice.payment_method === 'cash' ? 'Tiền mặt' : invoice.payment_method === 'transfer' ? 'Chuyển khoản' : (invoice.payment_method || '—')}</span></div>
+          <div class="row"><span class="label">Hình thức</span><span class="value">${escapeHtml(paymentMethod)}</span></div>
           <div class="row"><span class="label total">Số tiền</span><span class="value total">${Number(invoice.amount).toLocaleString('vi-VN')} ₫</span></div>
-          ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#F5F3FF;border-radius:8px;font-size:13px">Ghi chú: ${invoice.notes}</div>` : ''}
+          ${invoice.notes ? `<div style="margin-top:16px;padding:12px;background:#F5F3FF;border-radius:8px;font-size:13px">Ghi chú: ${escapeHtml(invoice.notes)}</div>` : ''}
+          ${qrUrl ? `
+            <div class="qrbox">
+              <img src="${escapeHtml(qrUrl)}" alt="QR thanh toán" />
+              <div>
+                <div style="font-weight:900;color:#1E1B4B;margin-bottom:8px">QR chuyển khoản</div>
+                <div style="font-size:13px;color:#6B6494;line-height:1.7">
+                  Ngân hàng: <b>${escapeHtml(settings.bankId)}</b><br/>
+                  Số TK: <b>${escapeHtml(settings.accountNo)}</b><br/>
+                  Chủ TK: <b>${escapeHtml(settings.accountName)}</b><br/>
+                  Số tiền: <b>${Number(invoice.amount).toLocaleString('vi-VN')} ₫</b>
+                </div>
+              </div>
+            </div>
+          ` : `<div style="margin-top:18px;padding:12px;background:#FFFBEB;border-radius:8px;font-size:13px;color:#92400E">Chưa cấu hình tài khoản nhận tiền trong Cấu hình → Tài khoản nhận tiền.</div>`}
           <div class="footer">In ngày ${new Date().toLocaleDateString('vi-VN')} · Nhà Trẻ Maika</div>
-          <button onclick="window.print()" style="display:block;margin:24px auto;padding:10px 24px;background:#6D28D9;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">🖨️ In biên lai</button>
+          <button onclick="window.print()" style="display:block;margin:24px auto;padding:10px 24px;background:#6D28D9;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">Xuất PDF / In biên lai</button>
+          <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); }</script>
           </body></html>
         `)
         w.document.close()
     }
     return (
-        <button ref={ref} onClick={print} style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }} aria-label={`In biên lai ${invoice.invoice_number}`}>
-            🖨️ In
+        <button onClick={exportPdf} style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }} aria-label={`Xuất PDF biên lai ${invoice.invoice_number}`}>
+            PDF/QR
         </button>
     )
 }
@@ -177,6 +228,7 @@ function InvoiceModal({ invoice, students, onClose, onSave }) {
 export default function Invoices({ readOnly = false, filterStudentId = null, selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const db = getDB()
+    const localMode = !hasBackendAPI() && !supabaseMode
     const [supabaseStudents, setSupabaseStudents] = useState([])
     const students = supabaseMode ? supabaseStudents : db.students.filter(s => s.status === 'active')
     const [invoices, setInvoices] = useState([])
@@ -195,7 +247,14 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
     }, [supabaseMode, filterStudentId, selectedFacilityId])
 
     async function load() {
-        if (!hasBackendAPI() && !supabaseMode) return
+        if (localMode) {
+            const localRows = (getDB().finance || [])
+                .filter(row => !filterStudentId || row.studentId === filterStudentId)
+                .map(localFinanceToInvoice)
+                .sort((a, b) => String(b.due_date || '').localeCompare(String(a.due_date || '')))
+            setInvoices(localRows)
+            return
+        }
         setLoading(true)
         setError('')
         try {
@@ -233,6 +292,27 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
             if (supabaseMode) {
                 await saveSupabaseInvoice({ ...payload, id: selected?.id, invoiceNumber: selected?.invoice_number })
                 setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
+            } else if (localMode) {
+                const ndb = getDB()
+                if (!Array.isArray(ndb.finance)) ndb.finance = []
+                const localPayload = {
+                    id: selected?.id || `f${Date.now()}`,
+                    studentId: payload.studentId,
+                    invoiceNumber: selected?.invoice_number || `BL${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Date.now()).slice(-5)}`,
+                    type: payload.type,
+                    desc: payload.description,
+                    amount: Number(payload.amount || 0),
+                    date: payload.dueDate,
+                    status: payload.status,
+                    method: payload.paymentMethod || '',
+                    paidDate: payload.paidDate || '',
+                    notes: payload.notes || '',
+                }
+                const idx = ndb.finance.findIndex(row => row.id === localPayload.id)
+                if (idx >= 0) ndb.finance[idx] = { ...ndb.finance[idx], ...localPayload }
+                else ndb.finance.unshift(localPayload)
+                commit()
+                setMessage(selected ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
             } else if (selected) {
                 await apiRequest(`/api/invoices/${selected.id}`, { method: 'PUT', body: JSON.stringify(payload) })
                 setMessage('Đã cập nhật hóa đơn.')
@@ -261,6 +341,18 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                     notes: invoice.notes,
                     status: 'paid',
                 })
+            } else if (localMode) {
+                const ndb = getDB()
+                const idx = ndb.finance.findIndex(row => row.id === invoice.id)
+                if (idx >= 0) {
+                    ndb.finance[idx] = {
+                        ...ndb.finance[idx],
+                        status: 'paid',
+                        paidDate: new Date().toISOString().slice(0, 10),
+                        method: ndb.finance[idx].method || 'Chuyển khoản',
+                    }
+                    commit()
+                }
             } else {
                 await apiRequest(`/api/invoices/${invoice.id}`, {
                     method: 'PUT',
@@ -278,18 +370,8 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
     const totalPending = invoices.filter(i => i.status === 'pending').reduce((s, i) => s + i.amount, 0)
     const totalOverdue = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
 
-    if (!hasBackendAPI() && !supabaseMode) {
-        return (
-            <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
-                <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Hóa đơn & Biên lai</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Quản lý hóa đơn đang được chuẩn bị để lưu trữ và tra cứu trực tuyến.</div>
-                </div>
-            </div>
-        )
-    }
-
     const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
+    const paymentReady = hasPaymentQrSettings()
 
     return (
         <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
@@ -304,12 +386,15 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
 
             {!readOnly && (
                 <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                    <div style={{ flex: 1, color: '#6B6494', fontSize: 13, lineHeight: 1.5 }}>
+                        {!paymentReady && <div style={{ color: '#B45309', fontWeight: 700 }}>QR chuyển khoản chưa sẵn sàng. Vui lòng cập nhật thông tin nhận tiền trong Cấu hình.</div>}
+                    </div>
                     <button
                         onClick={() => { setSelected(null); setModal('form') }}
                         style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}
                         aria-label="Tạo hóa đơn mới"
                     >
-                        + Tạo hóa đơn
+                        + Tạo khoản thu
                     </button>
                 </div>
             )}

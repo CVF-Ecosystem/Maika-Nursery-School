@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getStudentConsent, saveStudentConsent } from '../../features/sensitive/sensitiveService'
+import { getPaymentSettings, savePaymentSettings } from '../../features/payments/paymentSettings'
 import { listStudents } from '../../features/students/studentService'
 import {
     createAcademicYear,
@@ -32,6 +33,7 @@ async function apiFetch(path, opts = {}) {
 
 const TABS = [
     { id: 'school', label: '🏫 Thông tin trường' },
+    { id: 'payment', label: '🏦 Tài khoản nhận tiền' },
     { id: 'academic', label: '📅 Năm học & Ngày nghỉ' },
     { id: 'tuition', label: '💰 Mức học phí' },
     { id: 'consents', label: '🔒 Đồng ý dữ liệu' },
@@ -133,6 +135,61 @@ function SchoolInfoTab() {
             <button type="submit" disabled={saving} style={btnStyle}>
                 {saving ? 'Đang lưu...' : '💾 Lưu cấu hình'}
             </button>
+        </form>
+    )
+}
+
+function PaymentTab() {
+    const [form, setForm] = useState(() => getPaymentSettings())
+    const [msg, setMsg] = useState('')
+
+    function handleSave(e) {
+        e.preventDefault()
+        savePaymentSettings(form)
+        setMsg('✅ Đã lưu thông tin tài khoản. Biên lai sẽ tự tạo QR theo đúng số tiền hóa đơn.')
+        setTimeout(() => setMsg(''), 3000)
+    }
+
+    const bankOptions = [
+        ['MB', 'MB Bank'],
+        ['VCB', 'Vietcombank'],
+        ['TCB', 'Techcombank'],
+        ['ACB', 'ACB'],
+        ['BIDV', 'BIDV'],
+        ['VTB', 'VietinBank'],
+        ['VPB', 'VPBank'],
+        ['TPB', 'TPBank'],
+        ['MOMO', 'MoMo'],
+    ]
+
+    return (
+        <form onSubmit={handleSave}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                <div>
+                    <label style={lblStyle}>Ngân hàng/Ví nhận tiền</label>
+                    <select value={form.bankId} onChange={e => setForm(f => ({ ...f, bankId: e.target.value }))} style={inpStyle} required>
+                        <option value="">Chọn ngân hàng</option>
+                        {bankOptions.map(([id, name]) => <option key={id} value={id}>{name} ({id})</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label style={lblStyle}>Số tài khoản</label>
+                    <input value={form.accountNo} onChange={e => setForm(f => ({ ...f, accountNo: e.target.value }))} placeholder="VD: 0123456789" style={inpStyle} required />
+                </div>
+                <div>
+                    <label style={lblStyle}>Tên chủ tài khoản</label>
+                    <input value={form.accountName} onChange={e => setForm(f => ({ ...f, accountName: e.target.value }))} placeholder="TRUONG MAM NON MAIKA" style={inpStyle} required />
+                </div>
+                <div>
+                    <label style={lblStyle}>Tiền tố nội dung chuyển khoản</label>
+                    <input value={form.transferPrefix} onChange={e => setForm(f => ({ ...f, transferPrefix: e.target.value }))} placeholder="Hoc phi Maika" style={inpStyle} />
+                </div>
+            </div>
+            <div style={{ fontSize: 12, color: '#7C6D9B', lineHeight: 1.6, margin: '4px 0 14px' }}>
+                QR trên biên lai dùng số tiền của hóa đơn và nội dung gồm tiền tố, mã biên lai, tên học sinh.
+            </div>
+            {msg && <div style={{ marginBottom: 12, fontSize: 13, color: '#16a34a' }}>{msg}</div>}
+            <button type="submit" style={btnStyle}>💾 Lưu tài khoản</button>
         </form>
     )
 }
@@ -437,7 +494,7 @@ function ConsentsTab() {
     return (
         <div>
             <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 16 }}>
-                Quản lý quyền riêng tư & đồng ý sử dụng dữ liệu cho từng học sinh. Phụ huynh có thể tự cập nhật trong cổng thông tin của họ.
+                Quản lý dữ liệu từng học sinh. 
             </div>
             {err && <div style={{ color: '#DC2626', fontSize: 13, marginBottom: 12 }}>{err}</div>}
             <div className="mobile-scroll-table">
@@ -522,6 +579,7 @@ export default function Settings() {
 
     const tabContent = {
         school: <SchoolInfoTab />,
+        payment: <PaymentTab />,
         academic: <AcademicTab />,
         tuition: <TuitionTab />,
         consents: <ConsentsTab />,

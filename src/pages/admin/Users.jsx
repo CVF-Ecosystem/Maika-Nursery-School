@@ -9,6 +9,7 @@ import { listStudents } from '../../features/students/studentService'
 
 const ROLE_LABEL = { admin: 'Admin', teacher: 'Giáo viên', parent: 'Phụ huynh' }
 const STATUS_LABEL = { active: 'Đang hoạt động', locked: 'Đã khóa' }
+const MANAGED_ROLES = ['teacher', 'parent']
 
 function UserModal({ user, students, onClose, onSave }) {
     const [form, setForm] = useState({
@@ -32,7 +33,6 @@ function UserModal({ user, students, onClose, onSave }) {
                     <div>
                         <label htmlFor={`user-role-${id}`} style={ls}>Vai trò</label>
                         <select id={`user-role-${id}`} style={is} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, studentId: e.target.value === 'parent' ? form.studentId : '' })}>
-                            <option value="admin">Admin</option>
                             <option value="teacher">Giáo viên</option>
                             <option value="parent">Phụ huynh</option>
                         </select>
@@ -163,6 +163,7 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
             const link = linkFor(profile.id)
             if (!link?.student_id || !scopedStudentIds.has(link.student_id)) return false
         }
+        if (!MANAGED_ROLES.includes(profile.role)) return false
         const text = `${profile.fullName} ${profile.email} ${profile.phone} ${profile.role}`.toLowerCase()
         return text.includes(query.toLowerCase())
     })
@@ -171,7 +172,7 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && <SupabaseUserModal profile={editing === 'add' ? null : editing} facilities={facilities} students={students} link={editing === 'add' ? null : linkFor(editing.id)} defaultFacilityId={selectedFacilityId} onClose={() => setEditing(null)} onSave={save} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>Admin hiện tại: {currentProfile?.email || '—'}</div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>Quản lý tài khoản giáo viên và phụ huynh</div>
                 <button onClick={() => setEditing('add')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#6D28D9', color: '#fff', fontWeight: 900, fontSize: 13 }}>
                     + Tạo tài khoản
                 </button>
@@ -237,7 +238,7 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                 <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>{isNew ? 'Tạo tài khoản' : 'Cập nhật tài khoản'}</div>
                 <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={label}>Tên</label><input style={input} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></div>
-                    <div><label style={label}>Role</label><select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Admin</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option></select></div>
+                    <div><label style={label}>Role</label><select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option></select></div>
                     <div><label style={label}>Trạng thái</label><select style={input} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">Đang hoạt động</option><option value="locked">Đã khóa</option></select></div>
                     <div><label style={label}>Email</label><input style={input} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                     <div><label style={label}>Điện thoại</label><input style={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
@@ -281,6 +282,7 @@ export default function Users(props) {
     useEffect(() => { loadUsers() }, [])
 
     const filtered = useMemo(() => users.filter(user => {
+        if (!MANAGED_ROLES.includes(user.role)) return false
         const text = `${user.display_name} ${user.phone || ''} ${user.email || ''} ${ROLE_LABEL[user.role] || user.role}`.toLowerCase()
         return text.includes(query.toLowerCase())
     }), [users, query])
@@ -322,7 +324,7 @@ export default function Users(props) {
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal && <UserModal user={modal === 'add' ? null : modal} students={db.students} onClose={() => setModal(null)} onSave={saveUser} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{users.filter(u => u.status === 'active').length} đang hoạt động · {users.length} tổng cộng</div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{filtered.filter(u => u.status === 'active').length} đang hoạt động · {filtered.length} tài khoản giáo viên/phụ huynh</div>
                 <button onClick={() => setModal('add')} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Tạo tài khoản</button>
             </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
