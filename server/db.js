@@ -287,6 +287,65 @@ const SCHEMA_MIGRATIONS = [
           CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records(status)
         `],
     },
+    {
+        version: 6,
+        name: 'add_meal_menus_and_media',
+        statements: [`
+          CREATE TABLE IF NOT EXISTS meal_menus (
+            id TEXT PRIMARY KEY,
+            week_start TEXT NOT NULL,
+            day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 1 AND 7),
+            meal_type TEXT NOT NULL DEFAULT 'lunch' CHECK (meal_type IN ('breakfast', 'lunch', 'snack')),
+            dishes TEXT NOT NULL DEFAULT '[]',
+            ingredients TEXT,
+            allergen_notes TEXT,
+            is_published INTEGER NOT NULL DEFAULT 0,
+            created_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(week_start, day_of_week, meal_type)
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_menu_week ON meal_menus(week_start)
+        `, `
+          CREATE TABLE IF NOT EXISTS media_albums (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            class_id TEXT,
+            status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+            cover_asset_id TEXT,
+            created_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE TABLE IF NOT EXISTS media_assets (
+            id TEXT PRIMARY KEY,
+            album_id TEXT,
+            original_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            size INTEGER NOT NULL,
+            path TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+            class_id TEXT,
+            caption TEXT,
+            expires_at TEXT,
+            uploaded_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_media_album ON media_assets(album_id)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_media_status ON media_assets(status)
+        `, `
+          CREATE TABLE IF NOT EXISTS media_asset_students (
+            asset_id TEXT NOT NULL,
+            student_id TEXT NOT NULL,
+            PRIMARY KEY (asset_id, student_id)
+          )
+        `],
+    },
 ]
 
 for (const migration of SCHEMA_MIGRATIONS) {
@@ -879,6 +938,131 @@ export function upsertStudentConsent(studentId, input, actorId) {
     }
     const row = getStudentConsent(studentId)
     return { ...row, contact_channels: JSON.parse(row.contact_channels || '["app"]') }
+}
+
+// ─── Meal Menus ───────────────────────────────────────────────────────────────
+
+export function listMealMenus({ weekStart, published = false } = {}) {
+    const clauses = []
+    const params = {}
+    if (weekStart) { clauses.push('week_start = @weekStart'); params.weekStart = weekStart }
+    if (published) { clauses.push('is_published = 1'); }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const rows = db.prepare(`SELECT * FROM meal_menus ${where} ORDER BY week_start DESC, day_of_week, meal_type`).all(params)
+    return rows.map(r => ({ ...r, dishes: JSON.parse(r.dishes || '[]') }))
+}
+
+export function upsertMealMenu(input, actorId) {
+    const existing = db.prepare('SELECT id FROM meal_menus WHERE week_start = ? AND day_of_week = ? AND meal_type = ?').get(input.weekStart, input.dayOfWeek, input.mealType)
+    const id = existing?.id || `menu-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+    db.prepare(`
+      INSERT INTO meal_menus (id, week_start, day_of_week, meal_type, dishes, ingredients, allergen_notes, is_published, created_by)
+      VALUES (@id, @week_start, @day_of_week, @meal_type, @dishes, @ingredients, @allergen_notes, @is_published, @created_by)
+      ON CONFLICT(week_start, day_of_week, meal_type) DO UPDATE SET
+        dishes = excluded.dishes, ingredients = excluded.ingredients,
+        allergen_notes = excluded.allergen_notes, is_published = excluded.is_published,
+        updated_at = CURRENT_TIMESTAMP
+    `).run({
+        id,
+        week_start: input.weekStart,
+        day_of_week: Number(input.dayOfWeek),
+        meal_type: input.mealType || 'lunch',
+        dishes: JSON.stringify(Array.isArray(input.dishes) ? input.dishes : []),
+        ingredients: input.ingredients || null,
+        allergen_notes: input.allergenNotes || null,
+        is_published: input.isPublished ? 1 : 0,
+        created_by: actorId || null,
+    })
+    const row = db.prepare('SELECT * FROM meal_menus WHERE id = ?').get(id)
+    return row ? { ...row, dishes: JSON.parse(row.dishes || '[]') } : null
+}
+
+// ─── Media Assets ─────────────────────────────────────────────────────────────
+
+export function listMediaAlbums({ status, classId } = {}) {
+    const clauses = []
+    const params = {}
+    if (status) { clauses.push('status = @status'); params.status = status }
+    if (classId) { clauses.push('class_id = @classId'); params.classId = classId }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    return db.prepare(`SELECT * FROM media_albums ${where} ORDER BY created_at DESC`).all(params)
+}
+
+export function getMediaAlbum(id) {
+    return db.prepare('SELECT * FROM media_albums WHERE id = ?').get(id) || null
+}
+
+export function createMediaAlbum(input, actorId) {
+    const id = `album-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+    db.prepare(`
+      INSERT INTO media_albums (id, title, description, class_id, status, created_by)
+      VALUES (@id, @title, @description, @class_id, @status, @created_by)
+    `).run({ id, title: input.title, description: input.description || null, class_id: input.classId || null, status: input.status || 'draft', created_by: actorId || null })
+    return getMediaAlbum(id)
+}
+
+export function updateMediaAlbum(id, input) {
+    const existing = getMediaAlbum(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE media_albums SET title = @title, description = @description, class_id = @class_id, status = @status WHERE id = @id
+    `).run({ id, title: input.title ?? existing.title, description: input.description !== undefined ? input.description : existing.description, class_id: input.classId !== undefined ? input.classId : existing.class_id, status: input.status ?? existing.status })
+    return getMediaAlbum(id)
+}
+
+export function listMediaAssets({ albumId, status, classId, forParent = false } = {}) {
+    const clauses = []
+    const params = {}
+    if (albumId) { clauses.push('album_id = @albumId'); params.albumId = albumId }
+    if (status) { clauses.push('status = @status'); params.status = status }
+    if (classId) { clauses.push('class_id = @classId'); params.classId = classId }
+    if (forParent) { clauses.push("status = 'published'"); }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    return db.prepare(`SELECT * FROM media_assets ${where} ORDER BY created_at DESC LIMIT 200`).all(params)
+}
+
+export function getMediaAsset(id) {
+    return db.prepare('SELECT * FROM media_assets WHERE id = ?').get(id) || null
+}
+
+export function createMediaAsset(input, actorId) {
+    const id = `asset-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+    const expiresAt = input.retentionDays ? new Date(Date.now() + input.retentionDays * 86400000).toISOString() : null
+    db.prepare(`
+      INSERT INTO media_assets (id, album_id, original_name, stored_name, mime_type, size, path, status, class_id, caption, expires_at, uploaded_by)
+      VALUES (@id, @album_id, @original_name, @stored_name, @mime_type, @size, @path, @status, @class_id, @caption, @expires_at, @uploaded_by)
+    `).run({
+        id,
+        album_id: input.albumId || null,
+        original_name: input.originalName,
+        stored_name: input.storedName,
+        mime_type: input.mimeType,
+        size: input.size,
+        path: input.path,
+        status: input.status || 'draft',
+        class_id: input.classId || null,
+        caption: input.caption || null,
+        expires_at: expiresAt,
+        uploaded_by: actorId || null,
+    })
+    return getMediaAsset(id)
+}
+
+export function updateMediaAsset(id, input) {
+    const existing = getMediaAsset(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE media_assets
+      SET status = @status, caption = @caption, class_id = @class_id, album_id = @album_id
+      WHERE id = @id
+    `).run({
+        id,
+        status: input.status ?? existing.status,
+        caption: input.caption !== undefined ? input.caption : existing.caption,
+        class_id: input.classId !== undefined ? input.classId : existing.class_id,
+        album_id: input.albumId !== undefined ? input.albumId : existing.album_id,
+    })
+    return getMediaAsset(id)
 }
 
 // ─── Attendance (Advanced) ────────────────────────────────────────────────────

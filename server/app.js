@@ -13,6 +13,8 @@ import {
     createAcademicYear,
     createIncident,
     createInvoice,
+    createMediaAlbum,
+    createMediaAsset,
     createNotification,
     createSchoolHoliday,
     createTuitionPlan,
@@ -27,6 +29,8 @@ import {
     getHealthRecord,
     getIncident,
     getInvoice,
+    getMediaAlbum,
+    getMediaAsset,
     getNotification,
     getSchoolSettings,
     getStudentConsent,
@@ -39,6 +43,9 @@ import {
     listCollections,
     listIncidents,
     listInvoices,
+    listMealMenus,
+    listMediaAlbums,
+    listMediaAssets,
     listMigrations,
     listNotifications,
     listNotificationsForUser,
@@ -54,12 +61,15 @@ import {
     updateAcademicYear,
     updateIncident,
     updateInvoice,
+    updateMediaAlbum,
+    updateMediaAsset,
     updateNotification,
     updateSchoolSettings,
     updateTuitionPlan,
     updateUser,
     upsertAttendanceRecord,
     upsertHealthRecord,
+    upsertMealMenu,
     upsertRecord,
     upsertStudentConsent,
 } from './db.js'
@@ -511,6 +521,92 @@ export async function createApp() {
             metadata: { status: req.body.status, paidDate: req.body.paidDate },
         })
         res.json({ data: updated })
+    })
+
+    // ─── Meal Menus ───────────────────────────────────────────────────────────────
+
+    app.get('/api/meal-menus', requireAuth, (req, res) => {
+        const forParent = req.user.role === 'parent'
+        const items = listMealMenus({ weekStart: req.query.weekStart, published: forParent })
+        res.json({ data: items })
+    })
+
+    app.put('/api/meal-menus', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        if (!req.body?.weekStart || !req.body?.dayOfWeek) return res.status(400).json({ error: 'Thiếu weekStart hoặc dayOfWeek.' })
+        const menu = upsertMealMenu(req.body, req.user.id)
+        auditFromRequest(req, {
+            action: 'meal_menu_updated',
+            entityType: 'meal_menu',
+            entityId: menu.id,
+            summary: `Cập nhật thực đơn tuần ${menu.week_start} ngày ${menu.day_of_week}`,
+        })
+        res.json({ data: menu })
+    })
+
+    // ─── Media Albums ─────────────────────────────────────────────────────────────
+
+    app.get('/api/media-albums', requireAuth, (req, res) => {
+        const status = req.user.role === 'parent' ? 'published' : req.query.status
+        res.json({ data: listMediaAlbums({ status, classId: req.query.classId }) })
+    })
+
+    app.post('/api/media-albums', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        if (!req.body?.title) return res.status(400).json({ error: 'Thiếu tiêu đề album.' })
+        const album = createMediaAlbum(req.body, req.user.id)
+        auditFromRequest(req, { action: 'media_album_created', entityType: 'media_album', entityId: album.id, summary: `Tạo album ${album.title}` })
+        res.status(201).json({ data: album })
+    })
+
+    app.put('/api/media-albums/:id', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        const existing = getMediaAlbum(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy album.' })
+        const album = updateMediaAlbum(req.params.id, req.body)
+        auditFromRequest(req, { action: 'media_album_updated', entityType: 'media_album', entityId: album.id, summary: `Cập nhật album ${album.title} → ${album.status}` })
+        res.json({ data: album })
+    })
+
+    // ─── Media Assets ─────────────────────────────────────────────────────────────
+
+    app.get('/api/media-assets', requireAuth, (req, res) => {
+        const forParent = req.user.role === 'parent'
+        const assets = listMediaAssets({
+            albumId: req.query.albumId,
+            status: forParent ? 'published' : req.query.status,
+            classId: req.query.classId,
+            forParent,
+        })
+        res.json({ data: assets })
+    })
+
+    app.post('/api/media-assets/upload', requireAuth, uploadLimiter, upload.single('file'), async (req, res) => {
+        if (!req.file) return res.status(400).json({ error: 'Chỉ hỗ trợ file ảnh tối đa 5MB.' })
+        const role = sessionStorage?.maika_role
+        const settings = getSchoolSettings()
+        const retentionDays = settings?.retention_days || 365
+
+        const asset = createMediaAsset({
+            albumId: req.body?.albumId || null,
+            originalName: req.file.originalname,
+            storedName: req.file.filename,
+            mimeType: req.file.mimetype,
+            size: req.file.size,
+            path: `/uploads/${req.file.filename}`,
+            status: req.user.role === 'admin' ? 'published' : 'draft',
+            classId: req.body?.classId || null,
+            caption: req.body?.caption || null,
+            retentionDays,
+        }, req.user.id)
+
+        auditFromRequest(req, { action: 'media_asset_uploaded', entityType: 'media_asset', entityId: asset.id, summary: `Upload ảnh ${asset.original_name}` })
+        res.status(201).json({ data: asset })
+    })
+
+    app.put('/api/media-assets/:id', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        const existing = getMediaAsset(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy ảnh.' })
+        const asset = updateMediaAsset(req.params.id, req.body)
+        auditFromRequest(req, { action: 'media_asset_updated', entityType: 'media_asset', entityId: asset.id, summary: `Cập nhật ảnh ${asset.original_name} → ${asset.status}` })
+        res.json({ data: asset })
     })
 
     // ─── Attendance (Advanced) ────────────────────────────────────────────────────

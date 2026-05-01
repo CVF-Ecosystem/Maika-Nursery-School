@@ -11,6 +11,8 @@ const Invoices = lazy(() => import('../admin/Invoices'))
 const ConsentPanel = lazy(() => import('./ConsentPanel'))
 const NotificationCenter = lazy(() => import('./NotificationCenter'))
 const AttendanceAdvanced = lazy(() => import('../admin/AttendanceAdvanced'))
+const MealMenu = lazy(() => import('../admin/MealMenu'))
+const MediaLibrary = lazy(() => import('../admin/MediaLibrary'))
 
 const ANNS = [
     { id: 1, title: 'Nghỉ lễ 30/4 – 1/5', body: 'Kính gửi quý phụ huynh,\n\nNhà trường thông báo các bé được nghỉ lễ từ Thứ Tư 30/4 đến hết Thứ Sáu 2/5/2026.\n\nCác bé đi học trở lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ, an toàn!\n\nBan Giám hiệu Maika', date: '24/04/2026', tag: 'Nghỉ lễ', tagColor: '#D97706', tagBg: '#FEF3C7', icon: '🎉', important: true },
@@ -115,6 +117,7 @@ export default function ParentPortal() {
         ['announcements', '📢 Thông báo'],
         ['notifications', '🔔 Tin tức'],
         ['gallery', '📸 Hình ảnh'],
+        ['mealMenu', '🍱 Thực đơn'],
         ['attendance', '✓ Chuyên cần'],
         ['reports', '📝 Nhật ký'],
         ['messages', '💬 Nhắn tin'],
@@ -145,6 +148,14 @@ export default function ParentPortal() {
             </div>
             {/* Main */}
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 24px' }}>
+                {/* MEAL MENU */}
+                {tab === 'mealMenu' && (
+                    <div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <MealMenu readOnly />
+                        </Suspense>
+                    </div>
+                )}
                 {/* ATTENDANCE */}
                 {tab === 'attendance' && (
                     <div>
@@ -188,31 +199,9 @@ export default function ParentPortal() {
                 {/* GALLERY */}
                 {tab === 'gallery' && (
                     <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1E1B4B' }}>Hình ảnh hoạt động</h2>
-                            <button onClick={() => document.getElementById('ph-upload').click()} style={{ padding: '9px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 700, fontSize: 13 }}>📤 Thêm ảnh</button>
-                        </div>
-                        <input type="file" id="ph-upload" accept="image/*" multiple style={{ display: 'none' }} onChange={handleUpload} />
-                        {uploadMsg && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{uploadMsg}</div>}
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-                            {tags.map(t => <button key={t} onClick={() => setGalFilter(t)} style={{ padding: '6px 16px', borderRadius: 50, border: `1.5px solid ${galFilter === t ? '#6D28D9' : '#DDD6FE'}`, background: galFilter === t ? '#6D28D9' : '#fff', color: galFilter === t ? '#fff' : '#7C6D9B', fontWeight: 700, fontSize: 13 }}>{t === 'all' ? 'Tất cả' : t}</button>)}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
-                            {filtered.map(p => (
-                                <div key={p.id} style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', position: 'relative', cursor: 'pointer', transition: 'transform .2s' }}
-                                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.querySelector('.pov').style.opacity = 1 }}
-                                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.querySelector('.pov').style.opacity = 0 }}>
-                                    <div style={{ width: '100%', height: '100%', background: p.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
-                                        {p.img ? <img src={p.img} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 52 }}>{p.emoji}</span>}
-                                        <span style={{ position: 'relative' }}>{p.title}</span>
-                                    </div>
-                                    <div className="pov" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg,rgba(30,27,75,0.85),transparent 55%)', opacity: 0, transition: 'opacity .2s', display: 'flex', alignItems: 'flex-end', padding: 12 }}>
-                                        <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>{p.desc || p.title}</span>
-                                    </div>
-                                    <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(30,27,75,0.7)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20 }}>{p.date}</div>
-                                </div>
-                            ))}
-                        </div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <MediaLibrary readOnly forParent />
+                        </Suspense>
                     </div>
                 )}
                 {/* REPORT */}
