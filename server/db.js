@@ -154,6 +154,72 @@ const SCHEMA_MIGRATIONS = [
           CREATE INDEX IF NOT EXISTS idx_invoices_due ON invoices(due_date)
         `],
     },
+    {
+        version: 3,
+        name: 'add_school_settings_consents_academic_years',
+        statements: [`
+          CREATE TABLE IF NOT EXISTS school_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            school_name TEXT NOT NULL DEFAULT 'Nhà Trẻ Maika',
+            logo_url TEXT,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            hours_open TEXT NOT NULL DEFAULT '07:00',
+            hours_close TEXT NOT NULL DEFAULT '18:00',
+            pickup_start TEXT NOT NULL DEFAULT '16:30',
+            pickup_end TEXT NOT NULL DEFAULT '18:00',
+            timezone TEXT NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+            current_academic_year_id TEXT,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          INSERT OR IGNORE INTO school_settings (id) VALUES (1)
+        `, `
+          CREATE TABLE IF NOT EXISTS academic_years (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            is_current INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE TABLE IF NOT EXISTS school_holidays (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            date TEXT NOT NULL,
+            is_recurring INTEGER NOT NULL DEFAULT 0,
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_holidays_date ON school_holidays(date)
+        `, `
+          CREATE TABLE IF NOT EXISTS tuition_plans (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            class_id TEXT,
+            amount INTEGER NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'VND',
+            billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly', 'term', 'yearly')),
+            description TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE TABLE IF NOT EXISTS student_consents (
+            student_id TEXT PRIMARY KEY,
+            allow_photos INTEGER NOT NULL DEFAULT 1,
+            allow_notifications INTEGER NOT NULL DEFAULT 1,
+            contact_channels TEXT NOT NULL DEFAULT '["app"]',
+            allow_photo_sharing INTEGER NOT NULL DEFAULT 0,
+            data_retention_days INTEGER NOT NULL DEFAULT 365,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_by TEXT
+          )
+        `],
+    },
 ]
 
 for (const migration of SCHEMA_MIGRATIONS) {
@@ -542,6 +608,210 @@ export function updateInvoice(id, input) {
         due_date: input.dueDate || existing.due_date,
     })
     return getInvoice(id)
+}
+
+// ─── School Settings ──────────────────────────────────────────────────────────
+
+export function getSchoolSettings() {
+    return db.prepare('SELECT * FROM school_settings WHERE id = 1').get() || null
+}
+
+export function updateSchoolSettings(input) {
+    const cur = getSchoolSettings()
+    db.prepare(`
+      UPDATE school_settings SET
+        school_name = @school_name, logo_url = @logo_url, address = @address,
+        phone = @phone, email = @email,
+        hours_open = @hours_open, hours_close = @hours_close,
+        pickup_start = @pickup_start, pickup_end = @pickup_end,
+        timezone = @timezone, current_academic_year_id = @current_academic_year_id,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = 1
+    `).run({
+        school_name: input.schoolName ?? cur.school_name,
+        logo_url: input.logoUrl !== undefined ? input.logoUrl : cur.logo_url,
+        address: input.address !== undefined ? input.address : cur.address,
+        phone: input.phone !== undefined ? input.phone : cur.phone,
+        email: input.email !== undefined ? input.email : cur.email,
+        hours_open: input.hoursOpen ?? cur.hours_open,
+        hours_close: input.hoursClose ?? cur.hours_close,
+        pickup_start: input.pickupStart ?? cur.pickup_start,
+        pickup_end: input.pickupEnd ?? cur.pickup_end,
+        timezone: input.timezone ?? cur.timezone,
+        current_academic_year_id: input.currentAcademicYearId !== undefined ? input.currentAcademicYearId : cur.current_academic_year_id,
+    })
+    return getSchoolSettings()
+}
+
+// ─── Academic Years ───────────────────────────────────────────────────────────
+
+export function listAcademicYears() {
+    return db.prepare('SELECT * FROM academic_years ORDER BY start_date DESC').all()
+}
+
+export function getAcademicYear(id) {
+    return db.prepare('SELECT * FROM academic_years WHERE id = ?').get(id) || null
+}
+
+export function createAcademicYear(input) {
+    const id = `ay-${Date.now()}`
+    if (input.isCurrent) {
+        db.prepare('UPDATE academic_years SET is_current = 0').run()
+    }
+    db.prepare(`
+      INSERT INTO academic_years (id, name, start_date, end_date, is_current)
+      VALUES (@id, @name, @start_date, @end_date, @is_current)
+    `).run({
+        id,
+        name: input.name,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        is_current: input.isCurrent ? 1 : 0,
+    })
+    return getAcademicYear(id)
+}
+
+export function updateAcademicYear(id, input) {
+    const existing = getAcademicYear(id)
+    if (!existing) return null
+    if (input.isCurrent) {
+        db.prepare('UPDATE academic_years SET is_current = 0').run()
+    }
+    db.prepare(`
+      UPDATE academic_years
+      SET name = @name, start_date = @start_date, end_date = @end_date, is_current = @is_current
+      WHERE id = @id
+    `).run({
+        id,
+        name: input.name ?? existing.name,
+        start_date: input.startDate ?? existing.start_date,
+        end_date: input.endDate ?? existing.end_date,
+        is_current: input.isCurrent !== undefined ? (input.isCurrent ? 1 : 0) : existing.is_current,
+    })
+    return getAcademicYear(id)
+}
+
+// ─── School Holidays ──────────────────────────────────────────────────────────
+
+export function listSchoolHolidays() {
+    return db.prepare('SELECT * FROM school_holidays ORDER BY date').all()
+}
+
+export function createSchoolHoliday(input) {
+    const id = `hol-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+    db.prepare(`
+      INSERT INTO school_holidays (id, name, date, is_recurring, note)
+      VALUES (@id, @name, @date, @is_recurring, @note)
+    `).run({
+        id,
+        name: input.name,
+        date: input.date,
+        is_recurring: input.isRecurring ? 1 : 0,
+        note: input.note || null,
+    })
+    return db.prepare('SELECT * FROM school_holidays WHERE id = ?').get(id)
+}
+
+export function deleteSchoolHoliday(id) {
+    return db.prepare('DELETE FROM school_holidays WHERE id = ?').run(id).changes > 0
+}
+
+// ─── Tuition Plans ────────────────────────────────────────────────────────────
+
+export function listTuitionPlans({ activeOnly = false } = {}) {
+    const where = activeOnly ? 'WHERE is_active = 1' : ''
+    return db.prepare(`SELECT * FROM tuition_plans ${where} ORDER BY name`).all()
+}
+
+export function getTuitionPlan(id) {
+    return db.prepare('SELECT * FROM tuition_plans WHERE id = ?').get(id) || null
+}
+
+export function createTuitionPlan(input) {
+    const id = `tp-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+    db.prepare(`
+      INSERT INTO tuition_plans (id, name, class_id, amount, currency, billing_cycle, description, is_active)
+      VALUES (@id, @name, @class_id, @amount, @currency, @billing_cycle, @description, @is_active)
+    `).run({
+        id,
+        name: input.name,
+        class_id: input.classId || null,
+        amount: Math.round(Number(input.amount) || 0),
+        currency: input.currency || 'VND',
+        billing_cycle: input.billingCycle || 'monthly',
+        description: input.description || null,
+        is_active: input.isActive !== false ? 1 : 0,
+    })
+    return getTuitionPlan(id)
+}
+
+export function updateTuitionPlan(id, input) {
+    const existing = getTuitionPlan(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE tuition_plans
+      SET name = @name, class_id = @class_id, amount = @amount, currency = @currency,
+          billing_cycle = @billing_cycle, description = @description, is_active = @is_active
+      WHERE id = @id
+    `).run({
+        id,
+        name: input.name ?? existing.name,
+        class_id: input.classId !== undefined ? (input.classId || null) : existing.class_id,
+        amount: input.amount !== undefined ? Math.round(Number(input.amount)) : existing.amount,
+        currency: input.currency ?? existing.currency,
+        billing_cycle: input.billingCycle ?? existing.billing_cycle,
+        description: input.description !== undefined ? input.description : existing.description,
+        is_active: input.isActive !== undefined ? (input.isActive ? 1 : 0) : existing.is_active,
+    })
+    return getTuitionPlan(id)
+}
+
+// ─── Student Consents ─────────────────────────────────────────────────────────
+
+export function getStudentConsent(studentId) {
+    return db.prepare('SELECT * FROM student_consents WHERE student_id = ?').get(studentId) || null
+}
+
+export function upsertStudentConsent(studentId, input, actorId) {
+    const existing = getStudentConsent(studentId)
+    const channels = Array.isArray(input.contactChannels)
+        ? JSON.stringify(input.contactChannels)
+        : (existing?.contact_channels ?? '["app"]')
+
+    if (existing) {
+        db.prepare(`
+          UPDATE student_consents
+          SET allow_photos = @allow_photos, allow_notifications = @allow_notifications,
+              contact_channels = @contact_channels, allow_photo_sharing = @allow_photo_sharing,
+              data_retention_days = @data_retention_days,
+              updated_at = CURRENT_TIMESTAMP, updated_by = @updated_by
+          WHERE student_id = @student_id
+        `).run({
+            student_id: studentId,
+            allow_photos: input.allowPhotos !== undefined ? (input.allowPhotos ? 1 : 0) : existing.allow_photos,
+            allow_notifications: input.allowNotifications !== undefined ? (input.allowNotifications ? 1 : 0) : existing.allow_notifications,
+            contact_channels: channels,
+            allow_photo_sharing: input.allowPhotoSharing !== undefined ? (input.allowPhotoSharing ? 1 : 0) : existing.allow_photo_sharing,
+            data_retention_days: input.dataRetentionDays !== undefined ? Number(input.dataRetentionDays) : existing.data_retention_days,
+            updated_by: actorId || null,
+        })
+    } else {
+        db.prepare(`
+          INSERT INTO student_consents
+            (student_id, allow_photos, allow_notifications, contact_channels, allow_photo_sharing, data_retention_days, updated_by)
+          VALUES (@student_id, @allow_photos, @allow_notifications, @contact_channels, @allow_photo_sharing, @data_retention_days, @updated_by)
+        `).run({
+            student_id: studentId,
+            allow_photos: input.allowPhotos !== false ? 1 : 0,
+            allow_notifications: input.allowNotifications !== false ? 1 : 0,
+            contact_channels: channels,
+            allow_photo_sharing: input.allowPhotoSharing ? 1 : 0,
+            data_retention_days: Number(input.dataRetentionDays) || 365,
+            updated_by: actorId || null,
+        })
+    }
+    const row = getStudentConsent(studentId)
+    return { ...row, contact_channels: JSON.parse(row.contact_channels || '["app"]') }
 }
 
 // ─── Schema info ───────────────────────────────────────────────────────────────

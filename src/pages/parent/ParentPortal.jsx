@@ -8,6 +8,7 @@ import { sanitizeFilename, sanitizeText, validateImageFile } from '../../utils/s
 const HealthRecords = lazy(() => import('../admin/HealthRecords'))
 const Incidents = lazy(() => import('../admin/Incidents'))
 const Invoices = lazy(() => import('../admin/Invoices'))
+const ConsentPanel = lazy(() => import('./ConsentPanel'))
 
 const ANNS = [
     { id: 1, title: 'Nghỉ lễ 30/4 – 1/5', body: 'Kính gửi quý phụ huynh,\n\nNhà trường thông báo các bé được nghỉ lễ từ Thứ Tư 30/4 đến hết Thứ Sáu 2/5/2026.\n\nCác bé đi học trở lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ, an toàn!\n\nBan Giám hiệu Maika', date: '24/04/2026', tag: 'Nghỉ lễ', tagColor: '#D97706', tagBg: '#FEF3C7', icon: '🎉', important: true },
@@ -116,6 +117,7 @@ export default function ParentPortal() {
         ['health', '🏥 Sức khỏe'],
         ['incidents', '⚠ Sự cố'],
         ['invoices', '🧾 Học phí'],
+        ['privacy', '🔒 Quyền riêng tư'],
     ]
 
     return (
@@ -279,6 +281,14 @@ export default function ParentPortal() {
                     <div>
                         <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
                             <Invoices readOnly filterStudentId={student.id} />
+                        </Suspense>
+                    </div>
+                )}
+                {/* PRIVACY */}
+                {tab === 'privacy' && (
+                    <div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <ConsentPanel studentId={student.id} studentName={student.name} />
                         </Suspense>
                     </div>
                 )}

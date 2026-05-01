@@ -10,32 +10,47 @@ import { extname, resolve } from 'node:path'
 import { createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
 import {
     addAuditLog,
+    createAcademicYear,
     createIncident,
     createInvoice,
+    createSchoolHoliday,
+    createTuitionPlan,
     createUser,
     db,
     deleteRecord,
+    deleteSchoolHoliday,
     findUserForLogin,
+    getAcademicYear,
     getHealthRecord,
     getIncident,
     getInvoice,
+    getSchoolSettings,
+    getStudentConsent,
+    getTuitionPlan,
     getUser,
+    listAcademicYears,
     listAuditLogs,
     listCollections,
     listIncidents,
     listInvoices,
     listMigrations,
+    listSchoolHolidays,
+    listTuitionPlans,
     listUsers,
     readCollection,
     readRecord,
     readSnapshot,
     replaceSnapshot,
     seedDatabase,
+    updateAcademicYear,
     updateIncident,
     updateInvoice,
+    updateSchoolSettings,
+    updateTuitionPlan,
     updateUser,
     upsertHealthRecord,
     upsertRecord,
+    upsertStudentConsent,
 } from './db.js'
 import { publicUser, requireAuth, requireRoles, signToken } from './auth.js'
 import { schedulerState } from './scheduler.js'
@@ -484,6 +499,148 @@ export async function createApp() {
             metadata: { status: req.body.status, paidDate: req.body.paidDate },
         })
         res.json({ data: updated })
+    })
+
+    // ─── School Settings ──────────────────────────────────────────────────────────
+
+    app.get('/api/school-settings', requireAuth, (_req, res) => {
+        res.json({ data: getSchoolSettings() })
+    })
+
+    app.put('/api/school-settings', requireAuth, requireRoles('admin'), (req, res) => {
+        const settings = updateSchoolSettings(req.body || {})
+        auditFromRequest(req, {
+            action: 'school_settings_updated',
+            entityType: 'school_settings',
+            entityId: '1',
+            summary: 'Cập nhật cấu hình trường học',
+        })
+        res.json({ data: settings })
+    })
+
+    // ─── Academic Years ───────────────────────────────────────────────────────────
+
+    app.get('/api/academic-years', requireAuth, (_req, res) => {
+        res.json({ data: listAcademicYears() })
+    })
+
+    app.post('/api/academic-years', requireAuth, requireRoles('admin'), (req, res) => {
+        const { name, startDate, endDate } = req.body || {}
+        if (!name || !startDate || !endDate) return res.status(400).json({ error: 'Thiếu tên, ngày bắt đầu hoặc ngày kết thúc năm học.' })
+        const year = createAcademicYear(req.body)
+        auditFromRequest(req, {
+            action: 'academic_year_created',
+            entityType: 'academic_year',
+            entityId: year.id,
+            summary: `Tạo năm học ${year.name}`,
+        })
+        res.status(201).json({ data: year })
+    })
+
+    app.put('/api/academic-years/:id', requireAuth, requireRoles('admin'), (req, res) => {
+        const existing = getAcademicYear(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy năm học.' })
+        const year = updateAcademicYear(req.params.id, req.body)
+        auditFromRequest(req, {
+            action: 'academic_year_updated',
+            entityType: 'academic_year',
+            entityId: year.id,
+            summary: `Cập nhật năm học ${year.name}`,
+        })
+        res.json({ data: year })
+    })
+
+    // ─── School Holidays ──────────────────────────────────────────────────────────
+
+    app.get('/api/school-holidays', requireAuth, (_req, res) => {
+        res.json({ data: listSchoolHolidays() })
+    })
+
+    app.post('/api/school-holidays', requireAuth, requireRoles('admin'), (req, res) => {
+        if (!req.body?.name || !req.body?.date) return res.status(400).json({ error: 'Thiếu tên hoặc ngày nghỉ.' })
+        const holiday = createSchoolHoliday(req.body)
+        auditFromRequest(req, {
+            action: 'holiday_created',
+            entityType: 'school_holiday',
+            entityId: holiday.id,
+            summary: `Thêm ngày nghỉ ${holiday.name} (${holiday.date})`,
+        })
+        res.status(201).json({ data: holiday })
+    })
+
+    app.delete('/api/school-holidays/:id', requireAuth, requireRoles('admin'), (req, res) => {
+        const deleted = deleteSchoolHoliday(req.params.id)
+        if (!deleted) return res.status(404).json({ error: 'Không tìm thấy ngày nghỉ.' })
+        auditFromRequest(req, {
+            action: 'holiday_deleted',
+            entityType: 'school_holiday',
+            entityId: req.params.id,
+            summary: `Xóa ngày nghỉ ${req.params.id}`,
+        })
+        res.json({ deleted: true })
+    })
+
+    // ─── Tuition Plans ────────────────────────────────────────────────────────────
+
+    app.get('/api/tuition-plans', requireAuth, (req, res) => {
+        const activeOnly = req.query.activeOnly === 'true'
+        res.json({ data: listTuitionPlans({ activeOnly }) })
+    })
+
+    app.post('/api/tuition-plans', requireAuth, requireRoles('admin'), (req, res) => {
+        if (!req.body?.name || req.body?.amount === undefined) return res.status(400).json({ error: 'Thiếu tên hoặc số tiền.' })
+        const plan = createTuitionPlan(req.body)
+        auditFromRequest(req, {
+            action: 'tuition_plan_created',
+            entityType: 'tuition_plan',
+            entityId: plan.id,
+            summary: `Tạo mức học phí ${plan.name}`,
+            metadata: { amount: plan.amount, billingCycle: plan.billing_cycle },
+        })
+        res.status(201).json({ data: plan })
+    })
+
+    app.put('/api/tuition-plans/:id', requireAuth, requireRoles('admin'), (req, res) => {
+        const existing = getTuitionPlan(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy mức học phí.' })
+        const plan = updateTuitionPlan(req.params.id, req.body)
+        auditFromRequest(req, {
+            action: 'tuition_plan_updated',
+            entityType: 'tuition_plan',
+            entityId: plan.id,
+            summary: `Cập nhật mức học phí ${plan.name}`,
+        })
+        res.json({ data: plan })
+    })
+
+    // ─── Student Consents ─────────────────────────────────────────────────────────
+
+    app.get('/api/student-consents/:studentId', requireAuth, (req, res) => {
+        const { studentId } = req.params
+        if (req.user.role === 'parent' && req.user.student_id !== studentId) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        const consent = getStudentConsent(studentId)
+        if (consent && typeof consent.contact_channels === 'string') {
+            consent.contact_channels = JSON.parse(consent.contact_channels || '["app"]')
+        }
+        res.json({ data: consent || { student_id: studentId, allow_photos: 1, allow_notifications: 1, contact_channels: ['app'], allow_photo_sharing: 0, data_retention_days: 365 } })
+    })
+
+    app.put('/api/student-consents/:studentId', requireAuth, (req, res) => {
+        const { studentId } = req.params
+        if (req.user.role === 'parent' && req.user.student_id !== studentId) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        if (req.user.role === 'teacher') return res.status(403).json({ error: 'Giáo viên không thể sửa consent.' })
+        const consent = upsertStudentConsent(studentId, req.body, req.user.id)
+        auditFromRequest(req, {
+            action: 'student_consent_updated',
+            entityType: 'student_consent',
+            entityId: studentId,
+            summary: `Cập nhật quyền riêng tư học sinh ${studentId}`,
+        })
+        res.json({ data: consent })
     })
 
     // ─── Schema info ───────────────────────────────────────────────────────────────
