@@ -35,6 +35,12 @@ describe('app routes', () => {
         expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
     })
 
+    it('renders unified login', () => {
+        renderRoute('/login')
+        expect(screen.getByText('Đăng nhập Maika')).toBeInTheDocument()
+        expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
+    })
+
     it('renders teacher login', () => {
         renderRoute('/teacher')
         expect(screen.getByText('Cổng Giáo Viên')).toBeInTheDocument()

@@ -42,7 +42,7 @@ export default function Landing() {
                     <a href="#gallery" style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Hình ảnh</a>
                     <a href="#testimonials" style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Phụ huynh</a>
                     <button onClick={() => navigate('/parent')} style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', background: 'none', border: 'none' }}>Cổng phụ huynh</button>
-                    <button onClick={() => navigate('/admin')} style={{ padding: '9px 20px', borderRadius: 50, background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 13, border: 'none', boxShadow: '0 4px 14px rgba(109,40,217,0.4)' }}>Quản lý trường</button>
+                    <button onClick={() => navigate('/login')} style={{ padding: '9px 20px', borderRadius: 50, background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 13, border: 'none', boxShadow: '0 4px 14px rgba(109,40,217,0.4)' }}>Đăng nhập</button>
                 </div>
             </nav>
 
@@ -58,7 +58,7 @@ export default function Landing() {
                     <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.7, marginBottom: 36, maxWidth: 510, fontWeight: 600 }}>Nhà trẻ tư thục chất lượng cao — môi trường an toàn, yêu thương và đầy sáng tạo cho trẻ từ 3 đến 6 tuổi tại TP.HCM.</p>
                     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                         <a href="#cta" style={{ padding: '15px 32px', borderRadius: 50, background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 900, fontSize: 15, boxShadow: '0 6px 22px rgba(245,158,11,0.48)', display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>✨ Đăng ký tham quan</a>
-                        <button onClick={() => navigate('/parent')} style={{ padding: '15px 32px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1.5px solid rgba(255,255,255,0.28)', color: '#fff', fontWeight: 700, fontSize: 15 }}>📱 Cổng phụ huynh</button>
+                        <button onClick={() => navigate('/login')} style={{ padding: '15px 32px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1.5px solid rgba(255,255,255,0.28)', color: '#fff', fontWeight: 700, fontSize: 15 }}>Đăng nhập hệ thống</button>
                     </div>
                 </div>
                 {/* Hero stats cards */}

@@ -87,13 +87,13 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                         {isSupabaseBackend() && isSupabaseConfigured && (
                             <div style={{ textAlign: 'left' }}>
-                                <label htmlFor="admin-email" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Email Supabase</label>
-                                <input id="admin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={defaultRole === 'teacher' ? 'teacher.cs1@maika.test' : 'admin@maika.test'} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
+                                <label htmlFor="admin-email" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Email</label>
+                                <input id="admin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={lockedRole && defaultRole === 'teacher' ? 'teacher.cs1@maika.test' : 'admin@maika.test'} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
                             </div>
                         )}
                         {!lockedRole && (
                             <div style={{ textAlign: 'left' }}>
-                                <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>
+                                <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>{isSupabaseBackend() && isSupabaseConfigured ? 'Vai trò demo' : 'Vai trò'}</label>
                                 <select id="admin-role" value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }}>
                                     <option value="admin">👑 Hiệu trưởng / Admin</option>
                                     <option value="teacher">👩‍🏫 Giáo viên</option>

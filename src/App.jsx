@@ -12,6 +12,7 @@ export default function App() {
     return (
         <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<AdminLogin defaultRole="admin" title="Đăng nhập Maika" subtitle="Một tài khoản cho Admin, Giáo viên và Phụ huynh" />} />
             <Route path="/parent" element={<ParentLogin />} />
             <Route path="/parent/app" element={<ParentPortal />} />
             <Route path="/parent/portal" element={<Navigate to="/parent/app" replace />} />
