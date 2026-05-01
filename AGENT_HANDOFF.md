@@ -410,3 +410,110 @@ src/
 - `npm audit --audit-level=high`
 - `npm run test:e2e` nếu có thay đổi route/UI chính
 - Smoke API bằng DB tạm cho endpoint mới, không dùng DB production/local thật.
+
+---
+
+## 8. Roadmap Refactor Supabase Theo Layer (Quyết Định Mới)
+> Quyết định mới: frontend vẫn deploy Netlify, backend/data/auth chuyển sang Supabase. Roadmap này **ưu tiên thay Phase 13/14 cũ**. Express + SQLite hiện tại giữ tạm làm fallback/migration helper, không mở rộng thêm nghiệp vụ mới trên SQLite.
+
+### Guardrails Chống Code Phình To
+- Không gọi Supabase trực tiếp trong JSX page/component. Chỉ gọi qua service/hook.
+- SQL/RLS đặt trong `supabase/migrations/*.sql`, không rải SQL trong frontend.
+- Supabase client chỉ nằm ở `src/lib/supabaseClient.js`.
+- Data access theo domain: `src/features/students/studentService.js`, `attendanceService.js`, v.v.
+- UI theo domain: `src/features/students/components/*`, hooks ở `src/features/students/useStudents.js`.
+- Mỗi file mục tiêu dưới ~250 dòng; quá 300 dòng phải tách.
+- Component chỉ render và xử lý form state nhẹ; business rule ở service/helper.
+- Không commit dữ liệu thật, file Excel, service role key, Supabase secret. Chỉ dùng anon key trong frontend.
+- Mỗi phase phải nhỏ, có test, build pass, và commit riêng.
+
+### Layer 1 — Supabase Schema + RLS MVP (🔴 First)
+**Scope:** tạo nền database chuẩn cho 2 cơ sở, user, học sinh, điểm danh.
+
+- [ ] Thêm `supabase/migrations/001_core_schema.sql`.
+- [ ] Tạo bảng `facilities`, `profiles`, `students`, `attendance`.
+- [ ] `profiles.id` FK tới `auth.users(id)`.
+- [ ] `students.facility_id` FK tới `facilities(id)`.
+- [ ] `attendance.student_id` + `facility_id` FK đúng student/cơ sở.
+- [ ] RLS: admin xem tất cả; teacher chỉ xem dữ liệu thuộc `profiles.facility_id`.
+- [ ] Seed 2 cơ sở: CS1, CS2 trong SQL seed/dev note.
+
+**Done when:** chạy SQL trong Supabase Dashboard không lỗi; teacher CS1 không đọc được student CS2.
+
+### Layer 2 — Frontend Supabase Foundation (🔴)
+**Scope:** thêm kết nối Supabase nhưng chưa refactor toàn app.
+
+- [ ] Cài `@supabase/supabase-js`.
+- [ ] Thêm env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_BACKEND=supabase|api|local`.
+- [ ] Tạo `src/lib/supabaseClient.js`.
+- [ ] Tạo `src/features/auth/authService.js`: get current user/profile, sign in/out.
+- [ ] Tạo `src/features/students/studentService.js`: `listStudentsForCurrentTeacher()`.
+- [ ] Không sửa UI lớn ở phase này, chỉ thêm service + smoke route/test nhỏ nếu cần.
+
+**Done when:** frontend lấy được profile hiện tại và danh sách học sinh theo cơ sở qua RLS.
+
+### Layer 3 — Data Adapter Cutover Cho Students/Facilities (🟠)
+**Scope:** chuyển module học sinh/lớp/cơ sở sang Supabase theo adapter, không đập toàn app.
+
+- [ ] Tạo `src/features/facilities/facilityService.js`.
+- [ ] Tạo hook `useFacilityStudents(facilityId?)`.
+- [ ] Refactor màn `Students` đọc từ service khi `VITE_DATA_BACKEND=supabase`.
+- [ ] Giữ fallback local/API cũ qua adapter, không nhân đôi component.
+- [ ] Map dữ liệu Excel hiện tại: tên học sinh/phụ huynh thật; thông tin thiếu để giả lập có nhãn rõ (`unknown`, empty phone/email).
+- [ ] Import Excel sau này đi qua script/migration riêng, không hardcode vào React.
+
+**Done when:** Admin/Teacher xem danh sách học sinh từ Supabase; build không tăng component phức tạp.
+
+### Layer 4 — Attendance Supabase Cutover (🟠)
+**Scope:** chuyển điểm danh hàng ngày sang Supabase.
+
+- [ ] Tạo `src/features/attendance/attendanceService.js`.
+- [ ] API frontend: list by date/facility, upsert attendance, upload meal photo path/url.
+- [ ] Nếu dùng ảnh bữa ăn: tạo Supabase Storage bucket `attendance-meals`.
+- [ ] RLS Storage: teacher chỉ upload/read ảnh thuộc cơ sở mình; admin all.
+- [ ] Refactor `AttendanceAdvanced` dùng service/hook, không gọi fetch/Supabase trực tiếp trong component.
+
+**Done when:** teacher điểm danh được học sinh cơ sở mình; không thấy cơ sở khác; ảnh bữa ăn lưu đúng bucket/path.
+
+### Layer 5 — Auth/Roles UX (🟠)
+**Scope:** thay login demo/JWT local bằng Supabase Auth.
+
+- [ ] Tạo luồng login Supabase cho admin/teacher.
+- [ ] Parent có thể để phase sau nếu chưa có số điện thoại/email thật.
+- [ ] Sau login, load `profiles` để điều hướng theo role.
+- [ ] Bỏ hardcoded credential khỏi luồng production.
+- [ ] Thêm màn trạng thái khi profile chưa được gán cơ sở/role.
+
+**Done when:** admin/teacher login bằng Supabase Auth và app tự lọc theo role/facility.
+
+### Layer 6 — Migration & Import Dữ Liệu Thật (🟡)
+**Scope:** chuẩn hóa đường nhập Excel đầy đủ sau này.
+
+- [ ] Viết script import Supabase cho Excel đầy đủ: facility, student, parent, phone, class.
+- [ ] Validate duplicate student/parent/phone trước import.
+- [ ] Không ghi đè dữ liệu production nếu chưa có `--confirm`.
+- [ ] Import hiện tại: giữ tên học sinh/phụ huynh thật; các trường thiếu giả lập/empty rõ ràng.
+- [ ] Ghi batch import log để rollback/soát lỗi.
+
+**Done when:** import thử vào Supabase staging được, không commit PII.
+
+### Layer 7 — Test, CI, Deploy Cutover (🟡)
+**Scope:** bảo đảm Netlify + Supabase chạy ổn trước khi bỏ SQLite khỏi production.
+
+- [ ] Unit test service mapping.
+- [ ] Integration smoke bằng Supabase test project hoặc mock Supabase client.
+- [ ] Playwright: teacher login → xem học sinh cơ sở mình → điểm danh.
+- [ ] Netlify env dùng Supabase anon key, không dùng service role.
+- [ ] Khi Supabase ổn: đặt `VITE_DATA_BACKEND=supabase` cho production.
+- [ ] Express/SQLite chuyển thành legacy/migration-only, không thêm tính năng mới.
+
+**Done when:** production Netlify dùng Supabase; test/build/audit/e2e pass.
+
+### Thứ Tự Làm Khuyến Nghị
+1. Layer 1: SQL schema + RLS.
+2. Layer 2: Supabase client + auth/profile/student service.
+3. Layer 3: cutover Students/Facilities.
+4. Layer 4: cutover Attendance.
+5. Layer 5: Supabase Auth UX.
+6. Layer 6: import Excel thật đầy đủ.
+7. Layer 7: CI/deploy cutover.
