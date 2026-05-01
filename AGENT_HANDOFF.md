@@ -290,3 +290,145 @@ src/
 - Frontend chỉ cần `VITE_API_URL=http://127.0.0.1:8787` nếu muốn bật API local. Nếu không có `VITE_API_URL`, app vẫn chạy static/localStorage trên Netlify.
 - Chạy test hiện tại không cần SMS/Zalo/email/payment/cloud key: `npm run test:run`, `npm run build`, và khi cần thì `npm run test:e2e`.
 - Chỉ cần API key thật khi sau này tích hợp dịch vụ ngoài như Zalo/SMS, email provider, payment gateway, cloud object storage, hoặc monitoring production.
+
+---
+
+## 7. Roadmap EA Phần Còn Lại Sau 01/05/2026
+> Roadmap này dành cho Claude/agent tiếp theo sau khi đã hoàn tất 8 phần production rút gọn. Mục tiêu là lấp các khoảng trống còn lại so với đánh giá EA đầy đủ, theo thứ tự ưu tiên để đưa app đến production thật.
+
+### Nguyên tắc thực hiện
+- Giữ nguyên UI/UX hiện tại, chỉ mở rộng module theo style sẵn có.
+- Backend API là nguồn dữ liệu production; localStorage chỉ là fallback demo.
+- Mỗi phase phải có migration DB idempotent, audit log cho thao tác nhạy cảm, RBAC rõ ràng, và test tương ứng.
+- Không dùng API key thật khi test. Với email/SMS/Zalo/payment, tạo adapter/mock trước; chỉ đọc key từ env khi deploy production.
+- Sau mỗi phase chạy tối thiểu: `npm run test:run`, `npm run build`, `npm audit --audit-level=high`. Nếu có UI flow mới, thêm/chạy Playwright.
+
+### Phase 8 — Cấu Hình Trường Học + Privacy/Consent (🔴 Bắt buộc)
+**Mục tiêu:** biến app từ dữ liệu demo cứng thành hệ thống có cấu hình vận hành thật cho từng trường.
+
+- [ ] DB/API `school_settings`: tên trường, logo, địa chỉ, điện thoại, email, giờ học, giờ đón/trả, timezone, năm học hiện tại.
+- [ ] DB/API `academic_years`, `school_holidays`, `tuition_plans` hoặc cấu hình phí mặc định theo lớp/khối.
+- [ ] Trang Admin `Cấu hình`: chỉnh thông tin trường, logo, năm học, ngày nghỉ, mức phí, giờ hoạt động.
+- [ ] DB/API `student_consents`: đồng ý nhận ảnh, đồng ý nhận thông báo, kênh liên lạc, quyền chia sẻ ảnh, thời hạn lưu ảnh/dữ liệu.
+- [ ] Parent portal: tab/section `Quyền riêng tư` để phụ huynh xem/cập nhật consent của con mình.
+- [ ] Áp dụng consent vào media/notification: phụ huynh không đồng ý ảnh thì không publish ảnh nhận diện bé.
+- [ ] Audit log cho mọi thay đổi settings/consent.
+
+**Acceptance criteria:**
+- Admin đổi tên/logo/thông tin trường thì landing/admin/parent header dùng dữ liệu mới.
+- Parent chỉ xem/sửa consent của đúng student.
+- Test API phủ admin write, parent own-student write, parent other-student forbidden.
+
+### Phase 9 — Notification Center + Notification Adapters (🔴 Bắt buộc)
+**Mục tiêu:** thay thông báo tĩnh bằng hệ thống notification thật, nhưng chưa cần key SMS/Zalo thật.
+
+- [ ] DB/API `notifications`: title, body, type, priority, target role/class/student, channel, status, scheduled_at, sent_at.
+- [ ] DB/API `notification_reads`: user/student đã đọc lúc nào.
+- [ ] Trang Admin `Thông báo`: tạo thông báo, chọn đối tượng nhận, lưu draft, gửi ngay/lên lịch.
+- [ ] Parent notification center: tất cả thông báo, badge chưa đọc, filter học phí/sự kiện/y tế/khẩn cấp.
+- [ ] Teacher/Admin notification center nếu cần cho vận hành nội bộ.
+- [ ] Adapter layer: `mock`, `email`, `sms`, `zalo`, `push`. Giai đoạn này implement `mock` đầy đủ, các adapter thật chỉ đọc env và fail graceful nếu thiếu key.
+- [ ] Notification template cho học phí đến hạn, nghỉ học, incident, backup lỗi.
+- [ ] Audit log khi tạo/gửi/hủy notification.
+
+**Acceptance criteria:**
+- Không cần API key thật để test.
+- Parent chỉ nhận thông báo target đúng mình/lớp/con mình.
+- E2E: admin tạo thông báo cho một lớp, parent đúng lớp thấy unread, parent khác không thấy.
+
+### Phase 10 — Điểm Danh Nâng Cao + Teacher Mobile Mode (🔴 Bắt buộc)
+**Mục tiêu:** hỗ trợ nghiệp vụ hằng ngày trên điện thoại của giáo viên.
+
+- [ ] Chuẩn hóa DB/API attendance production: check-in, check-out, status, arrival_time, pickup_time, pickup_person, pickup_phone, late_reason, early_pickup_reason, note.
+- [ ] UI Admin/Teacher `Điểm danh` nâng cao: lọc lớp, thao tác nhanh, ghi chú từng bé, lịch sử trong ngày.
+- [ ] Route/mobile layout cho teacher: màn hình dày thông tin thấp, nút lớn, thao tác một tay.
+- [ ] Thêm quyền Teacher chỉ thao tác lớp/phạm vi được phân công nếu có dữ liệu class assignment.
+- [ ] Parent portal hiển thị giờ đến/giờ đón/người đón.
+- [ ] Audit log khi sửa điểm danh, nhất là đổi người đón/giờ đón.
+
+**Acceptance criteria:**
+- Teacher có thể check-in/check-out trên mobile viewport mà không vỡ layout.
+- Parent chỉ xem attendance của con mình.
+- Dashboard hôm nay dùng dữ liệu attendance mới.
+
+### Phase 11 — Thực Đơn + Media Library Theo Quyền (🟠 Nên có sớm)
+**Mục tiêu:** hoàn thiện hai trải nghiệm phụ huynh dùng thường xuyên nhất.
+
+- [ ] DB/API `meal_menus`, `meal_items`: thực đơn tuần/tháng, bữa sáng/trưa/xế, thành phần, dị ứng liên quan.
+- [ ] Admin `Thực đơn`: tạo/copy tuần, publish/unpublish, cảnh báo món xung đột với dị ứng học sinh.
+- [ ] Parent portal `Thực đơn`: xem tuần/tháng, highlight món cần chú ý theo dị ứng của con.
+- [ ] DB/API `media_albums`, `media_assets`, `media_asset_students`, `media_asset_classes`: album, ảnh/video, tag lớp/bé, trạng thái duyệt.
+- [ ] Admin/Teacher media workflow: upload → draft/review → published.
+- [ ] Parent gallery chỉ thấy ảnh public target đúng lớp/con và đúng consent.
+- [ ] Retention policy ảnh: cấu hình số ngày/tháng lưu, cảnh báo trước khi xóa.
+
+**Acceptance criteria:**
+- Ảnh chưa published không hiện ở parent.
+- Parent khác lớp/con không xem được asset không thuộc quyền.
+- Upload vẫn validate MIME/size và không phá fallback demo.
+
+### Phase 12 — Observability + CI/E2E/RBAC Hardening (🟠 Production guardrails)
+**Mục tiêu:** có tín hiệu vận hành và test đủ tin cậy trước khi deploy thật.
+
+- [ ] Request logging có correlation/request id, status code, duration, actor id nếu có.
+- [ ] Error middleware chuẩn hóa JSON error, không leak stack ở production.
+- [ ] `/api/health` mở rộng: db ok, backup dir writable, upload dir writable, scheduler state.
+- [ ] `/api/ready` cho deploy platform.
+- [ ] Admin dashboard/system status: backup cuối, scheduler lỗi gần nhất, DB path/disk warning nếu lấy được.
+- [ ] CI cài Playwright browsers và chạy `npm run test:e2e`.
+- [ ] Thêm automated RBAC tests cho users, backups, health, incidents, invoices, notifications, media.
+- [ ] Thêm smoke script production-safe: health, login, read-only snapshot.
+
+**Acceptance criteria:**
+- CI fail nếu unit/API/build/audit/e2e fail.
+- RBAC test có case parent truy cập dữ liệu student khác bị 403.
+- Health endpoint phản ánh lỗi backup/upload dir thay vì luôn ok.
+
+### Phase 13 — Chuẩn Hóa DB Core Tables + Reports (🟠 Nâng cấp nền tảng)
+**Mục tiêu:** giảm phụ thuộc `collection_records` JSON cho dữ liệu core.
+
+- [ ] Tách bảng production cho `students`, `guardians/parents`, `classes`, `teachers`, `teacher_class_assignments`.
+- [ ] Tách bảng `daily_reports`, `messages`, `events`, `resources/uploads` thay vì collection JSON.
+- [ ] Migration từ collection JSON sang bảng mới, idempotent và có backup trước migration.
+- [ ] Soft delete/status cho dữ liệu nghiệp vụ quan trọng.
+- [ ] Index/foreign key cho truy vấn theo student/class/date/status.
+- [ ] Báo cáo tháng/quý: chuyên cần, học phí/công nợ, incident, tăng trưởng học sinh.
+- [ ] Export CSV/PDF cho báo cáo chính.
+
+**Acceptance criteria:**
+- Existing snapshot/localStorage import vẫn migrate được.
+- Không mất dữ liệu demo hiện có.
+- Dashboard và parent portal đọc từ API/schema mới khi có `VITE_API_URL`.
+
+### Phase 14 — Production Launch + Integrations Thật (🟡 Sau khi core ổn)
+**Mục tiêu:** đưa vào vận hành thật sau khi đã đủ guardrails.
+
+- [ ] Chọn và deploy backend thật theo `server/DEPLOY.md` với persistent volume.
+- [ ] Set env production: `MAIKA_JWT_SECRET`, password bootstrap, CORS domain, backup dir, upload dir, scheduler.
+- [ ] Netlify set `VITE_API_URL` trỏ backend production.
+- [ ] Custom domain + email domain.
+- [ ] Tích hợp email thật trước SMS/Zalo: SMTP/provider env, retry, failure log.
+- [ ] Tích hợp payment sau cùng: QR ngân hàng hoặc VNPay/Momo/Stripe qua adapter, webhook verify signature.
+- [ ] PWA offline teacher mode: offline queue cho attendance/daily report, sync khi online, conflict handling.
+- [ ] Multi-branch/multi-school chỉ làm khi có nhu cầu thật; chuẩn bị bằng `school_id` trong schema mới nếu refactor DB.
+
+**Acceptance criteria:**
+- Không commit secret/key thật.
+- Production smoke pass sau deploy.
+- Backup tự động chạy và restore thử nghiệm trên bản backup staging trước khi dùng thật.
+
+### Thứ Tự Giao Việc Khuyến Nghị Cho Claude
+1. Phase 8 trước: `school_settings` + `student_consents`.
+2. Phase 9 tiếp: notification center với mock adapter, chưa cần SMS/Zalo thật.
+3. Phase 10: attendance nâng cao + teacher mobile mode.
+4. Phase 11: menu + media permissions.
+5. Phase 12: observability + CI e2e + RBAC tests.
+6. Phase 13: normalize DB core tables.
+7. Phase 14: deploy thật + integrations.
+
+### Test Bắt Buộc Sau Mỗi Phase
+- `npm run test:run`
+- `npm run build`
+- `npm audit --audit-level=high`
+- `npm run test:e2e` nếu có thay đổi route/UI chính
+- Smoke API bằng DB tạm cho endpoint mới, không dùng DB production/local thật.
