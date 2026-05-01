@@ -128,12 +128,12 @@ function SupabaseUsers() {
             {editing && <SupabaseUserModal profile={editing} facilities={facilities} students={students} link={linkFor(editing.id)} onClose={() => setEditing(null)} onSave={save} />}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
                 <div>
-                    <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Tài khoản Supabase</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Quản lý profile, cơ sở giáo viên và liên kết phụ huynh - học sinh.</div>
+                    <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Quản lý tài khoản</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Quản lý vai trò, trạng thái truy cập, cơ sở giáo viên và học sinh của phụ huynh.</div>
                 </div>
             </div>
             <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', borderRadius: 12, padding: 12, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
-                Tạo user/reset mật khẩu Supabase Auth cần làm bằng Supabase Dashboard hoặc script service-role; frontend chỉ quản lý profile/link để không lộ secret.
+                Tạo tài khoản đăng nhập mới hoặc đặt lại mật khẩu hiện được thực hiện trong trang quản trị tài khoản của hệ thống. Sau khi tạo, có thể cập nhật vai trò và liên kết học sinh tại đây.
             </div>
             {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800, marginBottom: 14 }}>{err}</div>}
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm tên, email, vai trò..." style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', marginBottom: 14 }} />
@@ -175,7 +175,7 @@ function SupabaseUserModal({ profile, facilities, students, link, onClose, onSav
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
             <div style={{ width: 540, background: '#fff', borderRadius: 18, padding: 24 }}>
-                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>Sửa profile Supabase</div>
+                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>Cập nhật tài khoản</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={label}>Tên</label><input style={input} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></div>
                     <div><label style={label}>Role</label><select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Admin</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option></select></div>
@@ -252,7 +252,7 @@ export default function Users() {
             <div style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Quản lý tài khoản</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Tính năng này cần backend. Tạo `.env` từ `.env.example`, bật `VITE_API_URL`, chạy `npm run api:dev`, rồi restart frontend.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Quản lý tài khoản đang được chuẩn bị cho môi trường vận hành chính thức.</div>
                 </div>
             </div>
         )

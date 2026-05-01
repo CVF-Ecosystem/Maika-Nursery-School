@@ -193,7 +193,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
             <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo sự cố</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Tính năng này cần backend. Bật <code>VITE_API_URL</code> và chạy <code>npm run api:dev</code>.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Báo cáo sự cố đang được chuẩn bị để ghi nhận và theo dõi trực tuyến.</div>
                 </div>
             </div>
         )

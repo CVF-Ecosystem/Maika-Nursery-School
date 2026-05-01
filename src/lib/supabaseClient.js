@@ -16,7 +16,7 @@ export const supabase = isSupabaseConfigured
 
 export function requireSupabase() {
     if (!supabase) {
-        throw new Error('Supabase chưa được cấu hình. Kiểm tra VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY.')
+        throw new Error('Hệ thống dữ liệu chưa sẵn sàng.')
     }
     return supabase
 }

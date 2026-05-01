@@ -90,16 +90,16 @@ export default function SupabaseStudentsPanel() {
 
     useEffect(() => { if (isSupabaseConfigured) loadBase(); else setLoading(false) }, [])
 
-    if (!isSupabaseConfigured) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Supabase chưa được cấu hình.</div>
-    if (loading) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Đang tải dữ liệu Supabase...</div>
-    if (!profile) return <div style={{ padding: 28, color: '#DC2626', fontWeight: 800 }}>Cần đăng nhập bằng Supabase để chỉnh dữ liệu.</div>
+    if (!isSupabaseConfigured) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Hệ thống dữ liệu chưa sẵn sàng.</div>
+    if (loading) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Đang tải danh sách học sinh...</div>
+    if (!profile) return <div style={{ padding: 28, color: '#DC2626', fontWeight: 800 }}>Vui lòng đăng nhập để xem danh sách học sinh.</div>
 
     return (
         <div style={{ padding: '28px 36px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18 }}>
                 <div>
-                    <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Học sinh Supabase</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{visibleStudents.length} học sinh · {profile.role === 'admin' ? 'Admin có thể sửa trực tiếp' : 'Giáo viên chỉ xem theo cơ sở'}</div>
+                    <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Danh sách học sinh</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{visibleStudents.length} học sinh · {profile.role === 'admin' ? 'Có thể cập nhật thông tin' : 'Chỉ hiển thị học sinh tại cơ sở của giáo viên'}</div>
                 </div>
                 {canEdit && <button onClick={() => setForm({ ...emptyForm, facilityId: facilityId || facilities[0]?.id || '' })} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 900 }}>+ Thêm học sinh</button>}
             </div>

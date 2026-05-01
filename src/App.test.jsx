@@ -50,7 +50,7 @@ describe('app routes', () => {
     it('renders teacher portal for teacher role', () => {
         sessionStorage.setItem('maika_role', 'teacher')
         renderRoute('/teacher/app')
-        expect(screen.getByText('Maika Teacher')).toBeInTheDocument()
+        expect(screen.getByText('Cổng giáo viên')).toBeInTheDocument()
         expect(screen.getByText('Công cụ hằng ngày cho giáo viên')).toBeInTheDocument()
     })
 })

@@ -49,8 +49,8 @@ export default function SupabaseParentPortal() {
             <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
-                        <div style={{ fontWeight: 900, fontSize: 18 }}>Maika Parent</div>
-                        <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Thông tin của bé theo tài khoản phụ huynh</div>
+                        <div style={{ fontWeight: 900, fontSize: 18 }}>Cổng phụ huynh</div>
+                        <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Thông tin học tập và sinh hoạt của bé</div>
                     </div>
                     <button onClick={logout} style={{ border: '1px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 10, padding: '8px 10px', fontWeight: 800, fontSize: 12 }}>
                         Đăng xuất
@@ -77,7 +77,7 @@ export default function SupabaseParentPortal() {
                         <div style={{ fontWeight: 900, fontSize: 22, color: '#1E1B4B' }}>{student.name}</div>
                         <div style={{ color: '#7C6D9B', marginTop: 6 }}>{student.className || 'Chưa có lớp'} · {student.parentName || 'Phụ huynh'}</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginTop: 20 }}>
-                            {[['Ngày sinh', student.dob || '—'], ['Giới tính', student.gender === 'male' ? 'Nam' : student.gender === 'female' ? 'Nữ' : 'Chưa rõ'], ['Cơ sở', student.facilityId ? 'Đã gán' : '—'], ['Trạng thái', student.status === 'active' ? 'Đang học' : 'Nghỉ học']].map(([label, value]) => (
+                            {[['Ngày sinh', student.dob || '—'], ['Giới tính', student.gender === 'male' ? 'Nam' : student.gender === 'female' ? 'Nữ' : 'Chưa rõ'], ['Lớp', student.className || '—'], ['Trạng thái', student.status === 'active' ? 'Đang học' : 'Nghỉ học']].map(([label, value]) => (
                                 <div key={label} style={{ background: '#F8F7FF', borderRadius: 12, padding: 14 }}>
                                     <div style={{ fontSize: 11, color: '#7C6D9B', fontWeight: 900 }}>{label}</div>
                                     <div style={{ color: '#1E1B4B', fontWeight: 800, marginTop: 4 }}>{value}</div>

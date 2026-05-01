@@ -22,7 +22,7 @@ export async function loginWithBackend(credentials) {
 }
 
 export async function apiRequest(path, options = {}) {
-    if (!API_URL) throw new Error('Backend API chưa được cấu hình.')
+    if (!API_URL) throw new Error('Hệ thống dữ liệu chưa sẵn sàng.')
 
     const token = sessionStorage.getItem('maika_api_token') || ''
     const headers = {
@@ -33,6 +33,6 @@ export async function apiRequest(path, options = {}) {
 
     const response = await fetch(`${API_URL}${path}`, { ...options, headers })
     const body = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(body.error || 'API request failed.')
+    if (!response.ok) throw new Error(body.error || 'Không thực hiện được yêu cầu.')
     return body
 }

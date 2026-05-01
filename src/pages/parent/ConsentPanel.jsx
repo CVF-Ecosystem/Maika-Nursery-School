@@ -83,8 +83,8 @@ export default function ConsentPanel({ studentId, studentName }) {
         return (
             <div style={{ background: '#fff', borderRadius: 20, padding: 48, textAlign: 'center', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Cần kết nối Backend API</div>
-                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>Tính năng này yêu cầu API để lưu trữ cài đặt quyền riêng tư.</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Tính năng đang được chuẩn bị</div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>Nhà trường sẽ thông báo khi phụ huynh có thể cập nhật quyền riêng tư trực tuyến.</div>
             </div>
         )
     }

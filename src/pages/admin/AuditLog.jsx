@@ -72,7 +72,7 @@ export default function AuditLog() {
             <div style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Nhật ký kiểm toán</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Audit log cần backend. Tạo `.env` từ `.env.example`, bật `VITE_API_URL`, chạy `npm run api:dev`, rồi restart frontend.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Nhật ký hoạt động sẽ hiển thị khi hệ thống ghi nhận thay đổi dữ liệu.</div>
                 </div>
             </div>
         )

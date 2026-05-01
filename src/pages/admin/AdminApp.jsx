@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar, { TopBar } from './Sidebar'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
 import ChangePassword from './ChangePassword'
 
 // Lazy-load each admin module for code splitting
@@ -100,7 +101,7 @@ export default function AdminApp() {
     const activeStudents = db2.students.filter(s => s.status === 'active').length
     const activeTeachers = db2.teachers.filter(t => t.status === 'active').length
     const subtitle = current.subtitle ??
-        (page === 'students' ? `${activeStudents} học sinh đang học` :
+        (page === 'students' ? (isSupabaseSession() ? 'Danh sách học sinh theo cơ sở' : `${activeStudents} học sinh đang học`) :
             page === 'teachers' ? `${activeTeachers} giáo viên` : '')
 
     function handlePasswordChanged() {

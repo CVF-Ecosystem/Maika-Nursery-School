@@ -79,7 +79,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
             <div style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Hồ sơ sức khỏe học sinh</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Tính năng này cần backend. Bật <code>VITE_API_URL</code> và chạy <code>npm run api:dev</code>.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Hồ sơ sức khỏe đang được chuẩn bị để lưu trữ và cập nhật trực tuyến.</div>
                 </div>
             </div>
         )

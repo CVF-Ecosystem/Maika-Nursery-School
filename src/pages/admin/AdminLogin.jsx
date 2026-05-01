@@ -99,7 +99,7 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                         )}
                         {!lockedRole && (
                             <div style={{ textAlign: 'left' }}>
-                                <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>{isSupabaseBackend() && isSupabaseConfigured ? 'Vai trò demo' : 'Vai trò'}</label>
+                                <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>
                                 <select id="admin-role" value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }}>
                                     <option value="admin">👑 Hiệu trưởng / Admin</option>
                                     <option value="teacher">👩‍🏫 Giáo viên</option>

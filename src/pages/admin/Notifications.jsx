@@ -53,8 +53,8 @@ function NoBackend() {
     return (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Cần kết nối Backend API</div>
-            <div style={{ fontSize: 13 }}>Cấu hình <code>VITE_API_URL</code> để sử dụng tính năng này.</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Thông báo đang được chuẩn bị</div>
+            <div style={{ fontSize: 13 }}>Nhà trường sẽ có thể tạo và gửi thông báo tại đây khi chức năng được bật.</div>
         </div>
     )
 }

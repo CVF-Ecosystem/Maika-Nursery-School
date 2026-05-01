@@ -199,7 +199,7 @@ export async function hydrateFromAPI() {
     const response = await fetch(apiUrl('/api/snapshot'), {
         headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) throw new Error('Cannot load backend snapshot');
+    if (!response.ok) throw new Error('Không tải được dữ liệu.');
 
     const payload = await response.json();
     _db = payload.data;

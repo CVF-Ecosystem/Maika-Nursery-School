@@ -33,7 +33,7 @@ export default function TeacherApp() {
             <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 16px 10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
-                        <div style={{ fontWeight: 900, fontSize: 18 }}>Maika Teacher</div>
+                        <div style={{ fontWeight: 900, fontSize: 18 }}>Cổng giáo viên</div>
                         <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Công cụ hằng ngày cho giáo viên</div>
                     </div>
                     <button onClick={logout} style={{ border: '1px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 10, padding: '8px 10px', fontWeight: 800, fontSize: 12 }}>

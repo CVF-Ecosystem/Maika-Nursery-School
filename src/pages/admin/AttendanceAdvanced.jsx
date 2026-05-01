@@ -86,7 +86,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
             }, {})
             setSummary(Object.entries(counts).map(([status, count]) => ({ status, count })))
         } catch (ex) {
-            setErr(ex.message || 'Lỗi tải điểm danh Supabase')
+            setErr(ex.message || 'Không tải được dữ liệu điểm danh')
         }
     }
 

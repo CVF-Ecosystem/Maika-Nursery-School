@@ -124,7 +124,7 @@ export default function MediaLibrary({ readOnly = false, forParent = false }) {
         return (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>Cần kết nối Backend API</div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Thư viện ảnh đang được chuẩn bị</div>
             </div>
         )
     }
@@ -308,7 +308,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
             <aside>
-                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 10 }}>Albums Supabase</div>
+                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 10 }}>Album ảnh</div>
                 <button onClick={() => { setActiveAlbum(''); reload('') }} style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: !activeAlbum ? '#EDE9FE' : '#fff', color: '#6D28D9', fontWeight: 800, marginBottom: 6 }}>Tất cả ảnh</button>
                 {albums.map(album => (
                     <div key={album.id} style={{ background: activeAlbum === album.id ? '#EDE9FE' : '#fff', borderRadius: 10, padding: 10, marginBottom: 6 }}>

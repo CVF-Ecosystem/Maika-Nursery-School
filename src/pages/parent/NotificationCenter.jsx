@@ -69,8 +69,8 @@ export default function NotificationCenter({ studentId, classId }) {
         return (
             <div style={{ background: '#fff', borderRadius: 20, padding: 48, textAlign: 'center', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Chưa kết nối Backend API</div>
-                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>Thông báo realtime sẽ hiển thị tại đây khi có API.</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Chưa có thông báo mới</div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>Các thông báo mới từ nhà trường sẽ hiển thị tại đây.</div>
             </div>
         )
     }
