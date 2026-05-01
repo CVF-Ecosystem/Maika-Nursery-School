@@ -1,7 +1,16 @@
 export const DATA_BACKEND = import.meta.env.VITE_DATA_BACKEND || 'supabase'
+export const LEGACY_BACKENDS_ENABLED = Boolean(
+    import.meta.env.DEV ||
+    import.meta.env.VITE_DEMO_MODE === 'true' ||
+    import.meta.env.VITE_ENABLE_LEGACY_BACKENDS === 'true'
+)
 
 export function isSupabaseBackend() {
-    return DATA_BACKEND === 'supabase'
+    return DATA_BACKEND === 'supabase' || !LEGACY_BACKENDS_ENABLED
+}
+
+export function isLegacyBackendAllowed() {
+    return LEGACY_BACKENDS_ENABLED && DATA_BACKEND !== 'supabase'
 }
 
 export function setActiveDataBackend(mode) {

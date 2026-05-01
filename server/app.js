@@ -5,8 +5,9 @@ import helmet from 'helmet'
 import bcrypt from 'bcryptjs'
 import multer from 'multer'
 import rateLimit from 'express-rate-limit'
-import { accessSync, constants, mkdirSync } from 'node:fs'
+import { accessSync, constants, existsSync, mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
+import { createClient } from '@supabase/supabase-js'
 import { BACKUP_DIR, createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
 import {
     addAuditLog,
@@ -93,6 +94,15 @@ const COLLECTION_ROUTE_MAP = {
 const UPLOAD_DIR = resolve(process.env.MAIKA_UPLOAD_DIR || 'server/uploads')
 mkdirSync(UPLOAD_DIR, { recursive: true })
 
+function getSupabaseAdminClient() {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY
+    if (!url || !serviceKey) return null
+    return createClient(url, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+    })
+}
+
 const upload = multer({
     storage: multer.diskStorage({
         destination: UPLOAD_DIR,
@@ -155,6 +165,47 @@ function auditFromRequest(req, entry) {
         ...requestMeta(req),
         ...entry,
     })
+}
+
+function supabasePublicUser(profile) {
+    return {
+        id: profile.id,
+        role: profile.role,
+        facilityId: profile.facility_id || '',
+        fullName: profile.full_name || '',
+        phone: profile.phone || '',
+        email: profile.email || '',
+        isActive: profile.is_active,
+        status: profile.is_active ? 'active' : 'locked',
+        createdAt: profile.created_at,
+    }
+}
+
+async function requireSupabaseAdmin(req, res, next) {
+    const supabaseAdmin = getSupabaseAdminClient()
+    if (!supabaseAdmin) {
+        return res.status(503).json({ error: 'Chưa cấu hình API quản trị Supabase.' })
+    }
+
+    const header = req.get('authorization') || ''
+    const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+    if (!token) return res.status(401).json({ error: 'Missing bearer token' })
+
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token)
+    if (userError || !userData.user) return res.status(401).json({ error: 'Invalid or expired token' })
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, role, full_name, is_active')
+        .eq('id', userData.user.id)
+        .single()
+    if (profileError || profile?.role !== 'admin' || !profile.is_active) {
+        return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    req.supabaseAdmin = supabaseAdmin
+    req.supabaseActor = profile
+    next()
 }
 
 export async function createApp() {
@@ -370,6 +421,142 @@ export async function createApp() {
             metadata: { role: user.role, status: user.status },
         })
         res.json({ data: user })
+    })
+
+    app.post('/api/supabase/users', requireSupabaseAdmin, async (req, res) => {
+        const role = req.body?.role
+        const fullName = String(req.body?.fullName || '').trim()
+        const email = String(req.body?.email || '').trim().toLowerCase()
+        const password = String(req.body?.password || '')
+        const phone = String(req.body?.phone || '').trim()
+        const facilityId = req.body?.facilityId || null
+        const studentId = req.body?.studentId || null
+        const isActive = req.body?.status !== 'locked'
+
+        if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
+        if (!fullName) return res.status(400).json({ error: 'Thiếu tên hiển thị.' })
+        if (!email) return res.status(400).json({ error: 'Thiếu email đăng nhập.' })
+        if (password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải từ 6 ký tự.' })
+        if (role === 'teacher' && !facilityId) return res.status(400).json({ error: 'Giáo viên cần được gán cơ sở.' })
+        if (role === 'parent' && !studentId) return res.status(400).json({ error: 'Phụ huynh cần được liên kết học sinh.' })
+
+        const created = await req.supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: fullName, role },
+        })
+        if (created.error) return res.status(409).json({ error: created.error.message })
+
+        const userId = created.data.user.id
+        const { data: profile, error: profileError } = await req.supabaseAdmin
+            .from('profiles')
+            .upsert({
+                id: userId,
+                role,
+                facility_id: role === 'teacher' ? facilityId : null,
+                full_name: fullName,
+                phone: phone || null,
+                email,
+                is_active: isActive,
+            }, { onConflict: 'id' })
+            .select('id, role, facility_id, full_name, phone, email, is_active, created_at')
+            .single()
+        if (profileError) return res.status(400).json({ error: profileError.message })
+
+        if (role === 'parent') {
+            const { error: linkError } = await req.supabaseAdmin
+                .from('parent_student_links')
+                .upsert({
+                    parent_profile_id: userId,
+                    student_id: studentId,
+                    relationship: 'parent',
+                    is_primary: true,
+                }, { onConflict: 'parent_profile_id,student_id' })
+            if (linkError) return res.status(400).json({ error: linkError.message })
+        }
+
+        addAuditLog({
+            actorId: req.supabaseActor.id,
+            actorRole: req.supabaseActor.role,
+            actorName: req.supabaseActor.full_name,
+            action: 'supabase_user_created',
+            entityType: 'profile',
+            entityId: userId,
+            summary: `Tạo tài khoản Supabase ${fullName}`,
+            metadata: { role, email },
+            ...requestMeta(req),
+        })
+        res.status(201).json({ data: supabasePublicUser(profile) })
+    })
+
+    app.put('/api/supabase/users/:id', requireSupabaseAdmin, async (req, res) => {
+        const role = req.body?.role
+        const fullName = String(req.body?.fullName || '').trim()
+        const email = String(req.body?.email || '').trim().toLowerCase()
+        const password = String(req.body?.password || '')
+        const phone = String(req.body?.phone || '').trim()
+        const facilityId = req.body?.facilityId || null
+        const studentId = req.body?.studentId || null
+        const isActive = req.body?.status !== 'locked'
+
+        if (!['admin', 'teacher', 'parent'].includes(role)) return res.status(400).json({ error: 'Role không hợp lệ.' })
+        if (!fullName) return res.status(400).json({ error: 'Thiếu tên hiển thị.' })
+        if (!email) return res.status(400).json({ error: 'Thiếu email đăng nhập.' })
+        if (password && password.length < 6) return res.status(400).json({ error: 'Mật khẩu phải từ 6 ký tự.' })
+        if (role === 'teacher' && !facilityId) return res.status(400).json({ error: 'Giáo viên cần được gán cơ sở.' })
+
+        const authPayload = {
+            email,
+            user_metadata: { full_name: fullName, role },
+        }
+        if (password) authPayload.password = password
+        const updatedAuth = await req.supabaseAdmin.auth.admin.updateUserById(req.params.id, authPayload)
+        if (updatedAuth.error) return res.status(400).json({ error: updatedAuth.error.message })
+
+        const { data: profile, error: profileError } = await req.supabaseAdmin
+            .from('profiles')
+            .update({
+                role,
+                facility_id: role === 'teacher' ? facilityId : null,
+                full_name: fullName,
+                phone: phone || null,
+                email,
+                is_active: isActive,
+            })
+            .eq('id', req.params.id)
+            .select('id, role, facility_id, full_name, phone, email, is_active, created_at')
+            .single()
+        if (profileError) return res.status(400).json({ error: profileError.message })
+
+        await req.supabaseAdmin
+            .from('parent_student_links')
+            .delete()
+            .eq('parent_profile_id', req.params.id)
+        if (role === 'parent' && studentId) {
+            const { error: linkError } = await req.supabaseAdmin
+                .from('parent_student_links')
+                .insert({
+                    parent_profile_id: req.params.id,
+                    student_id: studentId,
+                    relationship: 'parent',
+                    is_primary: true,
+                })
+            if (linkError) return res.status(400).json({ error: linkError.message })
+        }
+
+        addAuditLog({
+            actorId: req.supabaseActor.id,
+            actorRole: req.supabaseActor.role,
+            actorName: req.supabaseActor.full_name,
+            action: 'supabase_user_updated',
+            entityType: 'profile',
+            entityId: req.params.id,
+            summary: `Cập nhật tài khoản Supabase ${fullName}`,
+            metadata: { role, email, passwordChanged: Boolean(password) },
+            ...requestMeta(req),
+        })
+        res.json({ data: supabasePublicUser(profile) })
     })
 
     // ─── Audit logs ───────────────────────────────────────────────────────────────
@@ -1032,6 +1219,15 @@ export async function createApp() {
             },
         })
     })
+
+    const distDir = resolve('dist')
+    const indexHtml = resolve(distDir, 'index.html')
+    if (existsSync(indexHtml)) {
+        app.use(express.static(distDir))
+        app.get(/^\/(?!api\/|uploads\/).*/, (_req, res) => {
+            res.sendFile(indexHtml)
+        })
+    }
 
     // Normalize unhandled errors to JSON, hide stack in production
     // eslint-disable-next-line no-unused-vars

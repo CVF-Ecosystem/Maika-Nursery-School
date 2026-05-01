@@ -7,7 +7,11 @@ if (!url || !serviceKey) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVI
 
 const [email, password, role, fullName, facilityCodeOrStudentName = ''] = process.argv.slice(2)
 if (!email || !password || !role || !fullName) {
-    throw new Error('Usage: node scripts/create-supabase-user.mjs email password admin|teacher|parent "Full name" [CS1|CS2|student name]')
+    throw new Error('Usage: node scripts/create-supabase-user.mjs email password admin|teacher|parent "Full name" [CS1|CS2|student name]\nExample admin: node scripts/create-supabase-user.mjs admin@maika.edu.vn "<password>" admin "Quản trị Maika"')
+}
+
+if (!['admin', 'teacher', 'parent'].includes(role)) {
+    throw new Error('Role must be admin, teacher, or parent')
 }
 
 const supabase = createClient(url, serviceKey, {

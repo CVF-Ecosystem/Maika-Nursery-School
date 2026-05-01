@@ -131,14 +131,12 @@ export async function saveIncident(input) {
     return data
 }
 
-export async function acknowledgeIncident(id) {
+export async function acknowledgeIncident(id, parentNote = '') {
     const client = requireSupabase()
-    const { data, error } = await client
-        .from('incidents')
-        .update({ status: 'parent_acknowledged', parent_acknowledged_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select(INCIDENT_COLUMNS)
-        .single()
+    const { data, error } = await client.rpc('acknowledge_incident', {
+        p_incident_id: id,
+        p_parent_note: parentNote || null,
+    })
     if (error) throw error
     return data
 }

@@ -3,7 +3,7 @@ import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
 import { listFacilities } from '../../features/facilities/facilityService'
-import { listParentLinks, listProfiles, replaceParentLink, saveProfile } from '../../features/profiles/profileService'
+import { createProfileAccount, listParentLinks, listProfiles, replaceParentLink, saveProfile, updateProfileAccount } from '../../features/profiles/profileService'
 import { listStudents } from '../../features/students/studentService'
 
 const ROLE_LABEL = { admin: 'Admin', teacher: 'Giáo viên', parent: 'Phụ huynh' }
@@ -109,9 +109,18 @@ function SupabaseUsers() {
 
     async function save(form) {
         try {
-            await saveProfile(form)
-            if (form.role === 'parent') {
-                await replaceParentLink({ parentProfileId: form.id, studentId: form.studentId || '' })
+            if (form.id) {
+                try {
+                    await updateProfileAccount(form)
+                } catch (apiError) {
+                    await saveProfile(form)
+                    if (form.role === 'parent') {
+                        await replaceParentLink({ parentProfileId: form.id, studentId: form.studentId || '' })
+                    }
+                    if (form.password) throw apiError
+                }
+            } else {
+                await createProfileAccount(form)
             }
             setEditing(null)
             await reload()
@@ -125,15 +134,15 @@ function SupabaseUsers() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            {editing && <SupabaseUserModal profile={editing} facilities={facilities} students={students} link={linkFor(editing.id)} onClose={() => setEditing(null)} onSave={save} />}
+            {editing && <SupabaseUserModal profile={editing === 'add' ? null : editing} facilities={facilities} students={students} link={editing === 'add' ? null : linkFor(editing.id)} onClose={() => setEditing(null)} onSave={save} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Quản lý tài khoản</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Quản lý vai trò, trạng thái truy cập, cơ sở giáo viên và học sinh của phụ huynh.</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Admin hiện tại: admin@maika.edu.vn. Tạo tài khoản giáo viên, phụ huynh và admin phụ tại đây.</div>
                 </div>
-            </div>
-            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', borderRadius: 12, padding: 12, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
-                Tạo tài khoản đăng nhập mới hoặc đặt lại mật khẩu hiện được thực hiện trong trang quản trị tài khoản của hệ thống. Sau khi tạo, có thể cập nhật vai trò và liên kết học sinh tại đây.
+                <button onClick={() => setEditing('add')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#6D28D9', color: '#fff', fontWeight: 900, fontSize: 13 }}>
+                    + Tạo tài khoản
+                </button>
             </div>
             {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800, marginBottom: 14 }}>{err}</div>}
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm tên, email, vai trò..." style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', marginBottom: 14 }} />
@@ -164,10 +173,18 @@ function SupabaseUsers() {
 }
 
 function SupabaseUserModal({ profile, facilities, students, link, onClose, onSave }) {
+    const isNew = !profile
     const [form, setForm] = useState({
-        ...profile,
+        id: profile?.id || '',
+        role: profile?.role || 'teacher',
+        facilityId: profile?.facilityId || '',
+        fullName: profile?.fullName || '',
+        phone: profile?.phone || '',
+        email: profile?.email || '',
+        isActive: profile?.isActive ?? true,
         studentId: link?.student_id || '',
-        status: profile.isActive ? 'active' : 'locked',
+        password: '',
+        status: profile?.isActive === false ? 'locked' : 'active',
     })
     const input = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE' }
     const label = { fontSize: 12, fontWeight: 800, color: '#6B6494', display: 'block', marginBottom: 4 }
@@ -175,19 +192,20 @@ function SupabaseUserModal({ profile, facilities, students, link, onClose, onSav
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
             <div style={{ width: 'min(540px, calc(100vw - 24px))', background: '#fff', borderRadius: 18, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
-                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>Cập nhật tài khoản</div>
+                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>{isNew ? 'Tạo tài khoản' : 'Cập nhật tài khoản'}</div>
                 <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={label}>Tên</label><input style={input} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></div>
                     <div><label style={label}>Role</label><select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Admin</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option></select></div>
                     <div><label style={label}>Trạng thái</label><select style={input} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">Đang hoạt động</option><option value="locked">Đã khóa</option></select></div>
                     <div><label style={label}>Email</label><input style={input} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                     <div><label style={label}>Điện thoại</label><input style={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-                    {form.role === 'teacher' && <div style={{ gridColumn: '1/-1' }}><label style={label}>Cơ sở giáo viên</label><select style={input} value={form.facilityId} onChange={e => setForm({ ...form, facilityId: e.target.value })}>{facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}</select></div>}
+                    <div style={{ gridColumn: '1/-1' }}><label style={label}>{isNew ? 'Mật khẩu tạm thời' : 'Mật khẩu mới'}</label><input type="password" style={input} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={isNew ? 'Tối thiểu 6 ký tự' : 'Để trống nếu không đổi'} /></div>
+                    {form.role === 'teacher' && <div style={{ gridColumn: '1/-1' }}><label style={label}>Cơ sở giáo viên</label><select style={input} value={form.facilityId} onChange={e => setForm({ ...form, facilityId: e.target.value })}><option value="">Chọn cơ sở</option>{facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}</select></div>}
                     {form.role === 'parent' && <div style={{ gridColumn: '1/-1' }}><label style={label}>Liên kết học sinh</label><select style={input} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}><option value="">Chưa liên kết</option>{students.map(s => <option key={s.id} value={s.id}>{s.name} · {s.className || 'chưa lớp'}</option>)}</select></div>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
                     <button onClick={onClose} style={{ border: '1.5px solid #DDD6FE', background: '#fff', borderRadius: 10, padding: '9px 16px', fontWeight: 800 }}>Hủy</button>
-                    <button onClick={() => onSave(form)} style={{ border: 'none', background: '#6D28D9', color: '#fff', borderRadius: 10, padding: '9px 18px', fontWeight: 900 }}>Lưu</button>
+                    <button onClick={() => onSave(form)} style={{ border: 'none', background: '#6D28D9', color: '#fff', borderRadius: 10, padding: '9px 18px', fontWeight: 900 }}>{isNew ? 'Tạo tài khoản' : 'Lưu'}</button>
                 </div>
             </div>
         </div>

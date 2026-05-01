@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { hasBackendAPI, loginWithBackend } from '../../data/api'
 import { clearApiSnapshot } from '../../data/store'
 import { getCurrentProfile, portalPathForRole, signInWithPassword } from '../../features/auth/authService'
-import { isSupabaseBackend, setActiveDataBackend } from '../../data/backendMode'
+import { isLegacyBackendAllowed, isSupabaseBackend, setActiveDataBackend } from '../../data/backendMode'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
 
 const DEMO_PASS = ['123456', 'maika']
@@ -16,12 +16,15 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
     const [err, setErr] = useState('')
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
+    const useSupabaseLogin = isSupabaseBackend() && isSupabaseConfigured
+    const legacyLoginAllowed = isLegacyBackendAllowed()
+    const emailPlaceholder = defaultRole === 'admin' ? 'admin@maika.edu.vn' : 'Email tài khoản'
 
     async function handleLogin(e) {
         e.preventDefault()
         setLoading(true)
         setErr('')
-        if (isSupabaseBackend() && isSupabaseConfigured && email.trim()) {
+        if (useSupabaseLogin && email.trim()) {
             try {
                 await signInWithPassword({ email: email.trim(), password: pass })
                 const profile = await getCurrentProfile()
@@ -39,13 +42,13 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
             return
         }
 
-        if (isSupabaseBackend() && isSupabaseConfigured && !email.trim() && !DEMO_MODE) {
+        if (useSupabaseLogin && !email.trim() && !DEMO_MODE) {
             setErr('Vui lòng nhập email tài khoản.')
             setLoading(false)
             return
         }
 
-        if (hasBackendAPI()) {
+        if (legacyLoginAllowed && hasBackendAPI()) {
             try {
                 const session = await loginWithBackend({ role, password: pass })
                 sessionStorage.setItem('maika_role', session.user.role)
@@ -62,6 +65,12 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                 setErr(error.message)
                 setLoading(false)
             }
+            return
+        }
+
+        if (!legacyLoginAllowed) {
+            setErr('Hệ thống đăng nhập chưa sẵn sàng. Vui lòng kiểm tra cấu hình Supabase.')
+            setLoading(false)
             return
         }
 
@@ -91,13 +100,13 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                     <div style={{ fontWeight: 800, fontSize: 20, color: '#1E1B4B', marginBottom: 8 }}>{title}</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 28 }}>{subtitle}</div>
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        {isSupabaseBackend() && isSupabaseConfigured && (
+                        {useSupabaseLogin && (
                             <div style={{ textAlign: 'left' }}>
                                 <label htmlFor="admin-email" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Email</label>
-                                <input id="admin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={lockedRole && defaultRole === 'teacher' ? 'teacher.cs1@maika.test' : 'admin@maika.test'} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
+                                <input id="admin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={emailPlaceholder} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
                             </div>
                         )}
-                        {!lockedRole && (
+                        {legacyLoginAllowed && !lockedRole && !useSupabaseLogin && (
                             <div style={{ textAlign: 'left' }}>
                                 <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>
                                 <select id="admin-role" value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }}>
@@ -115,7 +124,7 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                             {loading ? 'Đang đăng nhập...' : 'Đăng nhập →'}
                         </button>
                     </form>
-                    {DEMO_MODE && <div style={{ marginTop: 16, fontSize: 12, color: '#9B93C9', background: '#F5F3FF', borderRadius: 8, padding: '8px 12px' }}>
+                    {legacyLoginAllowed && !useSupabaseLogin && DEMO_MODE && <div style={{ marginTop: 16, fontSize: 12, color: '#9B93C9', background: '#F5F3FF', borderRadius: 8, padding: '8px 12px' }}>
                         Demo: mật khẩu <strong style={{ color: '#6D28D9' }}>123456</strong>
                     </div>}
                     <button onClick={() => navigate(backTo)} style={{ marginTop: 12, background: 'none', border: 'none', color: '#7C6D9B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>← Về trang chủ</button>

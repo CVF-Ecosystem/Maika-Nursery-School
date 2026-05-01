@@ -27,9 +27,23 @@ Remove-Item Env:\SUPABASE_SERVICE_KEY
 
 The importer supports common Vietnamese/English headers for student, parent, phone, email, date of birth, gender, class, facility, and notes. Missing fields stay empty/null so they can be edited manually in Admin.
 
-## Create Or Link Auth Users
+## Admin Account Management
 
-Frontend can manage `profiles` and parent-student links, but it cannot create/reset Supabase Auth users because that requires service role.
+Production uses Netlify for the React app and Supabase Edge Function `admin-users` for privileged account actions. Admins create teachers, parents, and other admins from the web UI. The service role key stays in Supabase function secrets and is never exposed to Netlify or browser code.
+
+Deploy the Edge Function after changing code:
+
+```powershell
+supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
+```
+
+If the function environment does not already expose `SUPABASE_SERVICE_ROLE_KEY`, set the same value as a function secret named `SUPABASE_SERVICE_KEY`:
+
+```powershell
+supabase secrets set SUPABASE_SERVICE_KEY="<service-role-key>" --project-ref czxoozwydvmjisydyims
+```
+
+The local script remains available for one-time recovery or emergency admin creation:
 
 ```powershell
 $env:SUPABASE_URL="https://czxoozwydvmjisydyims.supabase.co"

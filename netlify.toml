@@ -5,5 +5,6 @@
 [build.environment]
   NODE_VERSION = "22"
   VITE_DATA_BACKEND = "supabase"
+  VITE_ENABLE_LEGACY_BACKENDS = "false"
   VITE_SUPABASE_URL = "https://czxoozwydvmjisydyims.supabase.co"
   VITE_SUPABASE_ANON_KEY = "sb_publishable_su1zQoGPpEdoUTzvuVFc4g_k1ksLyjo"

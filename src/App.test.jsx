@@ -19,7 +19,7 @@ describe('app routes', () => {
 
     it('renders the landing page', () => {
         renderRoute('/')
-        expect(screen.getByRole('heading', { name: /Nơi mỗi đứa trẻ/i })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: /Nhà trẻ\s*Maika/i })).toBeInTheDocument()
         expect(screen.getByRole('link', { name: /Đăng ký tham quan/i })).toBeInTheDocument()
     })
 

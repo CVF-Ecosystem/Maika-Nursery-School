@@ -1,6 +1,7 @@
-import { requireSupabase } from '../../lib/supabaseClient'
+import { requireSupabase, SUPABASE_URL } from '../../lib/supabaseClient'
 
 const PROFILE_COLUMNS = 'id, role, facility_id, full_name, phone, email, is_active, created_at'
+const API = import.meta.env.VITE_API_URL || ''
 
 export function mapProfile(row) {
     return {
@@ -44,6 +45,63 @@ export async function saveProfile(input) {
         .single()
     if (error) throw error
     return mapProfile(data)
+}
+
+async function supabaseAdminRequest(path, options = {}) {
+    const client = requireSupabase()
+    const { data: sessionData, error: sessionError } = await client.auth.getSession()
+    if (sessionError) throw sessionError
+    const token = sessionData.session?.access_token
+    if (!token) throw new Error('Phiên đăng nhập đã hết hạn.')
+
+    const baseUrl = API ? API.replace(/\/$/, '') : ''
+    const functionPath = path.replace(/^\/api\/supabase\/users/, '')
+    const requestUrl = API
+        ? `${baseUrl}${path}`
+        : `${SUPABASE_URL}/functions/v1/admin-users${functionPath}`
+
+    const response = await fetch(requestUrl, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${token}`,
+            ...(options.headers || {}),
+        },
+    })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || 'Không cập nhật được tài khoản.')
+    return body.data
+}
+
+function profileAdminPayload(input) {
+    return {
+        role: input.role,
+        facilityId: input.role === 'teacher' ? input.facilityId || '' : '',
+        fullName: input.fullName?.trim(),
+        phone: input.phone || '',
+        email: input.email || '',
+        password: input.password || '',
+        studentId: input.role === 'parent' ? input.studentId || '' : '',
+        status: input.status || 'active',
+    }
+}
+
+export async function createProfileAccount(input) {
+    const data = await supabaseAdminRequest('/api/supabase/users', {
+        method: 'POST',
+        body: JSON.stringify(profileAdminPayload(input)),
+    })
+    return data
+}
+
+export async function updateProfileAccount(input) {
+    if (!input.id) throw new Error('Thiếu ID tài khoản.')
+    const data = await supabaseAdminRequest(`/api/supabase/users/${input.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(profileAdminPayload(input)),
+    })
+    return data
 }
 
 export async function listParentLinks() {

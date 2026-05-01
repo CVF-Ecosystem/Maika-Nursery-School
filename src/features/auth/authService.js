@@ -35,6 +35,23 @@ export async function signOut() {
     if (error) throw error
 }
 
+export async function changeCurrentUserPassword({ currentPassword, newPassword }) {
+    const client = requireSupabase()
+    const { data: userData, error: userError } = await client.auth.getUser()
+    if (userError) throw userError
+    const email = userData.user?.email
+    if (!email) throw new Error('Không xác định được email tài khoản.')
+
+    const { error: signInError } = await client.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+    })
+    if (signInError) throw new Error('Mật khẩu hiện tại không đúng.')
+
+    const { error } = await client.auth.updateUser({ password: newPassword })
+    if (error) throw error
+}
+
 export function portalPathForRole(role) {
     if (role === 'admin') return '/admin/app'
     if (role === 'teacher') return '/teacher/app'

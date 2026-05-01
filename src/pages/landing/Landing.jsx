@@ -22,8 +22,8 @@ export default function Landing() {
         e.preventDefault()
         const phone = document.getElementById('cta-phone').value.trim()
         const msg = document.getElementById('cta-msg')
-        if (!phone) { msg.textContent = '⚠️ Vui lòng nhập số điện thoại'; return }
-        msg.textContent = '✅ Cảm ơn! Chúng tôi sẽ liên hệ bạn trong vòng 24 giờ.'
+        if (!phone) { msg.textContent = 'Vui lòng nhập số điện thoại'; return }
+        msg.textContent = 'Cảm ơn phụ huynh. Nhà trường sẽ liên hệ lại trong giờ làm việc.'
         document.getElementById('cta-phone').value = ''
         setTimeout(() => { if (msg) msg.textContent = '' }, 5000)
     }
@@ -51,19 +51,19 @@ export default function Landing() {
                 <div style={{ position: 'absolute', width: 650, height: 650, borderRadius: '50%', background: 'rgba(167,139,250,0.1)', top: -220, right: -200, pointerEvents: 'none' }} />
                 <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'rgba(245,158,11,0.08)', bottom: -130, left: -100, pointerEvents: 'none' }} />
                 <div {...rv()} style={{ maxWidth: 580, position: 'relative', zIndex: 1 }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 50, padding: '7px 18px', color: '#C4B5FD', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>🌸 Hơn 5 năm đồng hành cùng các gia đình</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 50, padding: '7px 18px', color: '#C4B5FD', fontSize: 13, fontWeight: 700, marginBottom: 24 }}>Thông tin tuyển sinh và liên hệ</div>
                     <h1 style={{ fontSize: 'clamp(38px,5.5vw,66px)', fontWeight: 900, color: '#fff', lineHeight: 1.08, letterSpacing: -2, marginBottom: 20 }}>
-                        Nơi mỗi đứa trẻ<br />đều <span style={{ background: 'linear-gradient(90deg,#FBBF24,#F59E0B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tỏa sáng</span>
+                        Nhà trẻ<br /><span style={{ background: 'linear-gradient(90deg,#FBBF24,#F59E0B)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Maika</span>
                     </h1>
-                    <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.7, marginBottom: 36, maxWidth: 510, fontWeight: 600 }}>Nhà trẻ tư thục chất lượng cao — môi trường an toàn, yêu thương và đầy sáng tạo cho trẻ từ 3 đến 6 tuổi tại TP.HCM.</p>
+                    <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.72)', lineHeight: 1.7, marginBottom: 36, maxWidth: 510, fontWeight: 600 }}>Môi trường chăm sóc, học tập và kết nối phụ huynh dành cho trẻ mầm non.</p>
                     <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                        <a href="#cta" style={{ padding: '15px 32px', borderRadius: 50, background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 900, fontSize: 15, boxShadow: '0 6px 22px rgba(245,158,11,0.48)', display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>✨ Đăng ký tham quan</a>
+                        <a href="#cta" style={{ padding: '15px 32px', borderRadius: 50, background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 900, fontSize: 15, boxShadow: '0 6px 22px rgba(245,158,11,0.48)', display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>Đăng ký tham quan</a>
                         <button onClick={() => navigate('/login')} style={{ padding: '15px 32px', borderRadius: 50, background: 'rgba(255,255,255,0.1)', border: '1.5px solid rgba(255,255,255,0.28)', color: '#fff', fontWeight: 700, fontSize: 15 }}>Đăng nhập hệ thống</button>
                     </div>
                 </div>
                 {/* Hero stats cards */}
                 <div style={{ position: 'absolute', right: '6%', top: '50%', transform: 'translateY(-50%)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, width: 360, zIndex: 1 }} className="hide-mobile">
-                    {[['👦', '85+', 'Học sinh đang học'], ['👩‍🏫', '12', 'Giáo viên tận tâm'], ['⭐', '98%', 'Phụ huynh hài lòng'], ['🏆', '5+', 'Năm kinh nghiệm']].map(([icon, num, lbl], i) => (
+                    {[['👦', 'Học sinh', 'Hồ sơ và lớp học'], ['👩‍🏫', 'Giáo viên', 'Điểm danh hằng ngày'], ['⭐', 'Phụ huynh', 'Theo dõi trực tuyến'], ['🏆', 'Nhà trường', 'Quản lý tập trung']].map(([icon, num, lbl], i) => (
                         <div key={i} {...rv(`d${i}`)} style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 20, padding: 20, color: '#fff', textAlign: 'center', marginTop: i === 1 || i === 3 ? (i === 1 ? 26 : -18) : 0 }}>
                             <div style={{ fontSize: 28, marginBottom: 8 }}>{icon}</div>
                             <div style={{ fontSize: 28, fontWeight: 900, color: '#FBBF24', lineHeight: 1 }}>{num}</div>
@@ -75,7 +75,7 @@ export default function Landing() {
 
             {/* STATS STRIP */}
             <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', background: '#fff', boxShadow: '0 4px 28px rgba(109,40,217,0.08)' }}>
-                {[['3', 'Lớp học chuyên biệt'], ['1:8', 'Tỷ lệ GV / học sinh'], ['100%', 'GV có bằng chuyên môn'], ['24/7', 'Ứng dụng theo dõi']].map(([num, lbl], i) => (
+                {[['3', 'Nhóm lớp mầm non'], ['Hằng ngày', 'Điểm danh và nhật ký'], ['Riêng tư', 'Quyền truy cập theo vai trò'], ['Trực tuyến', 'Thông tin cho phụ huynh']].map(([num, lbl], i) => (
                     <div key={i} {...rv(`d${i}`)} style={{ textAlign: 'center', padding: '42px 20px', borderRight: i < 3 ? '1px solid #EDE9FE' : 'none', position: 'relative' }}>
                         <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 56, height: 3, background: 'linear-gradient(90deg,#6D28D9,#A78BFA)', borderRadius: '0 0 4px 4px' }} />
                         <div style={{ fontSize: 44, fontWeight: 900, color: '#6D28D9', letterSpacing: -2, lineHeight: 1 }}>{num}</div>
@@ -117,15 +117,15 @@ export default function Landing() {
             <section id="features" style={{ padding: '88px 6%' }}>
                 <div {...rv()}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EDE9FE', color: '#6D28D9', fontSize: 12, fontWeight: 800, padding: '5px 14px', borderRadius: 50, marginBottom: 14 }}>⭐ Vì sao chọn Maika</div>
-                    <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1, marginBottom: 12 }}>Môi trường tốt nhất<br />cho sự phát triển của bé</h2>
+                    <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1, marginBottom: 12 }}>Chăm sóc, học tập<br />và kết nối gia đình</h2>
                 </div>
                 <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 18, marginTop: 50 }}>
                     {[
-                        ['👩‍🏫', 'Giáo viên chuyên nghiệp', '100% có bằng Đại học/Thạc sĩ Giáo dục Mầm non, được đào tạo định kỳ và tận tâm.', ''],
+                        ['👩‍🏫', 'Giáo viên phụ trách', 'Theo dõi lớp học, điểm danh và ghi nhận tình hình của trẻ mỗi ngày.', ''],
                         ['🥗', 'Dinh dưỡng khoa học', 'Thực đơn cân bằng 4 nhóm chất. Cập nhật bữa ăn hàng ngày qua ứng dụng phụ huynh.', 'd1'],
                         ['🏃', 'Vận động phong phú', 'Sân chơi an toàn rộng rãi, hoạt động thể chất mỗi ngày phát triển thể lực toàn diện.', 'd2'],
                         ['📱', 'Ứng dụng phụ huynh', 'Nhật ký ngày, ảnh hoạt động, thông báo — tất cả trên cổng thông tin trực tuyến tiện lợi.', 'd1'],
-                        ['🔒', 'An toàn tuyệt đối', 'Kiểm soát ra vào nghiêm ngặt, camera 24/7, y tế thường trực và bảo hiểm đầy đủ.', 'd2'],
+                        ['🔒', 'Quản lý an toàn', 'Phân quyền truy cập, lưu lịch sử và bảo vệ dữ liệu nhạy cảm của trẻ.', 'd2'],
                         ['🎭', 'Nghệ thuật & Âm nhạc', 'Lớp âm nhạc, vẽ và múa mỗi tuần — khơi dậy tài năng và đam mê từ nhỏ.', 'd3'],
                     ].map(([icon, title, desc, delay], i) => (
                         <div key={i} {...rv(delay)} style={{ background: '#F8F7FF', border: '1.5px solid #EDE9FE', borderRadius: 20, padding: 26, transition: 'all .3s', cursor: 'default' }}
@@ -176,18 +176,18 @@ export default function Landing() {
             {/* TESTIMONIALS */}
             <section id="testimonials" style={{ padding: '88px 6%', background: '#F8F7FF' }}>
                 <div {...rv()}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EDE9FE', color: '#6D28D9', fontSize: 12, fontWeight: 800, padding: '5px 14px', borderRadius: 50, marginBottom: 14 }}>💬 Phụ huynh nói gì</div>
-                    <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1 }}>Niềm tin của gia đình<br />là động lực của chúng tôi</h2>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EDE9FE', color: '#6D28D9', fontSize: 12, fontWeight: 800, padding: '5px 14px', borderRadius: 50, marginBottom: 14 }}>Kết nối phụ huynh</div>
+                    <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1 }}>Thông tin rõ ràng<br />giữa nhà trường và gia đình</h2>
                 </div>
                 <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 22, marginTop: 50 }}>
                     {[
-                        { stars: '⭐⭐⭐⭐⭐', text: 'Maika thực sự là ngôi nhà thứ hai của con tôi. Bé về nhà luôn vui và kể chuyện trường. Các cô rất tận tâm và yêu thương bé!', av: 'NH', name: 'Chị Nguyễn Thị Hương', role: 'Mẹ bé Minh An — Lớp Mầm', bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', delay: '' },
-                        { stars: '⭐⭐⭐⭐⭐', text: 'Ứng dụng Maika giúp tôi biết bé ăn gì, ngủ bao lâu mỗi ngày. Thực sự yên tâm khi đi làm. Rất khuyến khích!', av: 'TM', name: 'Anh Trần Văn Minh', role: 'Bố bé Bảo Long — Lớp Chồi', bg: 'linear-gradient(135deg,#F59E0B,#FBBF24)', delay: 'd1' },
-                        { stars: '⭐⭐⭐⭐⭐', text: 'Con từ một bé nhút nhát đã trở nên tự tin sau 2 năm ở Maika. Cảm ơn các cô đã kiên nhẫn và yêu thương bé!', av: 'LP', name: 'Chị Lê Thị Phúc', role: 'Mẹ bé Thảo Nguyên — Lớp Lá', bg: 'linear-gradient(135deg,#059669,#34D399)', delay: 'd2' },
+                        { stars: '', text: 'Phụ huynh xem thông báo, thực đơn, hình ảnh và học phí trong cùng một cổng thông tin.', av: '01', name: 'Theo dõi hằng ngày', role: 'Thông tin cập nhật theo từng học sinh', bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', delay: '' },
+                        { stars: '', text: 'Nhà trường chủ động gửi thông báo quan trọng và ghi nhận trạng thái đã đọc của từng tài khoản.', av: '02', name: 'Thông báo tập trung', role: 'Sự kiện, học phí, sức khỏe và sự cố', bg: 'linear-gradient(135deg,#F59E0B,#FBBF24)', delay: 'd1' },
+                        { stars: '', text: 'Quyền riêng tư hình ảnh và kênh liên hệ được quản lý rõ ràng cho từng học sinh.', av: '03', name: 'Quyền riêng tư', role: 'Cấu hình đồng ý của phụ huynh', bg: 'linear-gradient(135deg,#059669,#34D399)', delay: 'd2' },
                     ].map((t, i) => (
                         <div key={i} {...rv(t.delay)} style={{ background: '#fff', borderRadius: 22, padding: 26, boxShadow: '0 4px 18px rgba(109,40,217,0.08)', border: '1.5px solid #EDE9FE', position: 'relative' }}>
                             <div style={{ position: 'absolute', top: 14, right: 20, fontSize: 72, color: '#EDE9FE', fontFamily: 'Georgia,serif', lineHeight: 1, pointerEvents: 'none' }}>"</div>
-                            <div style={{ marginBottom: 12, fontSize: 14, letterSpacing: 2 }}>{t.stars}</div>
+                            {t.stars && <div style={{ marginBottom: 12, fontSize: 14, letterSpacing: 2 }}>{t.stars}</div>}
                             <p style={{ fontSize: 14, color: '#4B4899', lineHeight: 1.8, marginBottom: 16, position: 'relative', zIndex: 1 }}>{t.text}</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <div style={{ width: 42, height: 42, borderRadius: 12, background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{t.av}</div>
@@ -213,7 +213,7 @@ export default function Landing() {
                 </div>
                 <p id="cta-msg" style={{ fontSize: 14, color: '#FCD34D', fontWeight: 700, minHeight: 22, marginTop: 14, position: 'relative', zIndex: 1 }} />
                 <div {...rv()} style={{ display: 'flex', justifyContent: 'center', gap: 44, flexWrap: 'wrap', marginTop: 48, position: 'relative', zIndex: 1 }}>
-                    {[['📍', '123 Đường Hoa Mai, P.5\nQuận Bình Thạnh, TP.HCM'], ['📞', '0901 234 567\n0912 345 678'], ['⏰', '6:30 – 17:30\nThứ Hai – Thứ Sáu'], ['✉️', 'info@maika.edu.vn']].map(([icon, text], i) => (
+                    {[['📍', '123 Đường Hoa Mai, P.5\nQuận Bình Thạnh, Đồng Nai'], ['📞', '0901 234 567\n0912 345 678'], ['⏰', '6:30 – 17:30\nThứ Hai – Thứ Sáu'], ['✉️', 'info@maika.edu.vn']].map(([icon, text], i) => (
                         <div key={i} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)' }}>
                             <div style={{ fontSize: 26, marginBottom: 6 }}>{icon}</div>
                             <p style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{text}</p>
@@ -230,9 +230,9 @@ export default function Landing() {
                             <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🌸</div>
                             <span style={{ fontWeight: 900, fontSize: 18, color: '#fff' }}>Maika</span>
                         </div>
-                        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 260 }}>Nhà trẻ tư thục chất lượng cao — nơi mỗi đứa trẻ được yêu thương, phát triển và tỏa sáng.</p>
+                        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8, maxWidth: 260 }}>Cổng thông tin giúp nhà trường, giáo viên và phụ huynh theo dõi hoạt động của trẻ.</p>
                     </div>
-                    {[['Chương trình', ['Lớp Mầm (3–4 tuổi)', 'Lớp Chồi (4–5 tuổi)', 'Lớp Lá (5–6 tuổi)']], ['Phụ huynh', ['Cổng phụ huynh', 'Đăng nhập quản lý', 'Quy định nhà trường']], ['Liên hệ', ['0901 234 567', 'info@maika.edu.vn', '123 Hoa Mai, Q.Bình Thạnh']]].map(([title, links], i) => (
+                    {[['Chương trình', ['Lớp Mầm (3–4 tuổi)', 'Lớp Chồi (4–5 tuổi)', 'Lớp Lá (5–6 tuổi)']], ['Phụ huynh', ['Cổng phụ huynh', 'Đăng nhập quản lý', 'Quy định nhà trường']], ['Liên hệ', ['0901 234 567', 'info@maika.edu.vn', 'Tổ 23B. KP Trần Cao Vân - Phường Dầu Giây - Đồng Nai']]].map(([title, links], i) => (
                         <div key={i}>
                             <h3 style={{ fontSize: 12, fontWeight: 800, color: '#C4B5FD', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14 }}>{title}</h3>
                             {links.map((l, j) => <a key={j} href="#" style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.74)', marginBottom: 10, fontWeight: 600 }}>{l}</a>)}
@@ -243,7 +243,7 @@ export default function Landing() {
                     <span>© 2026 Maika Nursery School.</span>
                     <span style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                         <a href="/privacy" style={{ color: 'rgba(255,255,255,0.68)', textDecoration: 'underline', fontWeight: 700 }}>Chính sách dữ liệu</a>
-                        <span>Được xây dựng với ❤️ cho các bé</span>
+                        <span>Bảo mật dữ liệu phụ huynh và trẻ</span>
                     </span>
                 </div>
             </footer>

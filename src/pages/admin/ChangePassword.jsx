@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { apiRequest } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { changeCurrentUserPassword } from '../../features/auth/authService'
 
 export default function ChangePassword({ onSuccess, forced = false }) {
     const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -17,10 +19,17 @@ export default function ChangePassword({ onSuccess, forced = false }) {
         if (form.newPassword === form.currentPassword) { setError('Mật khẩu mới phải khác mật khẩu hiện tại.'); return }
         setLoading(true)
         try {
-            await apiRequest('/api/auth/change-password', {
-                method: 'POST',
-                body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }),
-            })
+            if (isSupabaseSession()) {
+                await changeCurrentUserPassword({
+                    currentPassword: form.currentPassword,
+                    newPassword: form.newPassword,
+                })
+            } else {
+                await apiRequest('/api/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }),
+                })
+            }
             onSuccess?.()
         } catch (err) {
             setError(err.message)

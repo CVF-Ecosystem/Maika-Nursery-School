@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar, { TopBar } from './Sidebar'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
-import { isSupabaseSession } from '../../data/backendMode'
+import { isLegacyBackendAllowed, isSupabaseSession } from '../../data/backendMode'
 import ChangePassword from './ChangePassword'
 
 // Lazy-load each admin module for code splitting
@@ -66,14 +66,15 @@ function LoadingSpinner() {
 export default function AdminApp() {
     const navigate = useNavigate()
     const [page, setPage] = useState(() => localStorage.getItem('maika_page') || 'dashboard')
-    const [loadingData, setLoadingData] = useState(hasBackendAPI())
+    const [loadingData, setLoadingData] = useState(isLegacyBackendAllowed() && hasBackendAPI())
     const [mustChangePassword, setMustChangePassword] = useState(
         () => sessionStorage.getItem('maika_must_change_password') === 'true'
     )
     const [showChangePassword, setShowChangePassword] = useState(false)
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
     const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true)
-    const db = getDB()
+    const legacyMode = isLegacyBackendAllowed() && !isSupabaseSession()
+    const db = legacyMode ? getDB() : { messages: [], students: [], teachers: [] }
     const unread = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
 
     function handleNav(p) {
@@ -83,13 +84,13 @@ export default function AdminApp() {
     }
 
     useEffect(() => {
-        if (!hasBackendAPI() || !sessionStorage.getItem('maika_role')) return
+        if (!legacyMode || !hasBackendAPI() || !sessionStorage.getItem('maika_role')) return
         let mounted = true
         hydrateFromAPI()
             .catch(() => { })
             .finally(() => { if (mounted) setLoadingData(false) })
         return () => { mounted = false }
-    }, [])
+    }, [legacyMode])
 
     useEffect(() => {
         function syncLayout() {
@@ -111,7 +112,7 @@ export default function AdminApp() {
     if (loadingData) return <LoadingSpinner />
 
     const current = PAGE_MAP[page] || PAGE_MAP.dashboard
-    const db2 = getDB()
+    const db2 = legacyMode ? getDB() : { students: [], teachers: [] }
     const activeStudents = db2.students.filter(s => s.status === 'active').length
     const activeTeachers = db2.teachers.filter(t => t.status === 'active').length
     const subtitle = current.subtitle ??

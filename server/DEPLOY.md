@@ -1,98 +1,90 @@
-# Hướng dẫn Deploy Backend API
+# Hướng Dẫn Deploy Ứng Dụng Maika
 
-## Tùy chọn 1: Render.com (Khuyến nghị — free tier có persistent disk)
+Production hiện dùng:
 
-### Bước 1: Tạo account + New Web Service
-1. Đăng ký tại https://render.com
-2. **New → Web Service** → Connect GitHub repo
-3. Root Directory: `.` (không thay đổi)
-4. Build Command: `npm ci --omit=dev`
-5. Start Command: `node server/index.js`
+- Netlify: host React frontend.
+- Supabase: database, Auth, Storage, Row Level Security và Edge Function `admin-users`.
 
-### Bước 2: Thêm Persistent Disk
-- **New → Disk** → Mount Path: `/data` → Size: 1 GB
-- Render sẽ tự mount `/data` vào instance
+Express API trong thư mục `server/` chỉ còn là lựa chọn dev/legacy, không phải đường deploy production mặc định.
 
-### Bước 3: Set Secrets (Environment Variables)
-Trong Render Dashboard → Environment:
+## 1. Supabase
 
-```
-MAIKA_JWT_SECRET=<chuỗi ngẫu nhiên >=32 ký tự>
-MAIKA_ADMIN_PASSWORD=<mật khẩu admin mạnh>
-MAIKA_TEACHER_PASSWORD=<mật khẩu giáo viên mạnh>
+### Migrations
+
+Chạy đầy đủ các migration trong `supabase/migrations`, gồm cả migration security mới nhất:
+
+```powershell
+npm run supabase:migrate -- supabase/migrations/006_security_hardening.sql
 ```
 
-Các env khác đã có trong `render.yaml`.
+### Edge Function Admin Users
 
-### Bước 4: Cập nhật Netlify
-Trong Netlify → Site settings → Environment variables:
-```
-VITE_API_URL=https://maika-api.onrender.com
-```
-Redeploy Netlify frontend.
+Deploy function tạo/reset tài khoản:
 
----
-
-## Tùy chọn 2: Fly.io
-
-### Cài Fly CLI
-```bash
-# macOS/Linux
-curl -L https://fly.io/install.sh | sh
-# Windows
-iwr https://fly.io/install.ps1 -useb | iex
+```powershell
+supabase functions deploy admin-users --project-ref czxoozwydvmjisydyims
 ```
 
-### Deploy lần đầu
-```bash
-fly auth login
-fly launch --no-deploy   # Đọc fly.toml, tạo app
-fly volumes create maika_data --region sin --size 1  # Tạo volume
-fly secrets set \
-  MAIKA_JWT_SECRET="<random-32-chars>" \
-  MAIKA_ADMIN_PASSWORD="<strong-password>" \
-  MAIKA_TEACHER_PASSWORD="<strong-password>"
-fly deploy
+Function dùng service role key ở phía Supabase. Nếu môi trường function chưa có sẵn `SUPABASE_SERVICE_ROLE_KEY`, set thêm secret tương đương:
+
+```powershell
+supabase secrets set SUPABASE_SERVICE_KEY="<service-role-key>" --project-ref czxoozwydvmjisydyims
 ```
 
-### Deploy sau khi có thay đổi
-```bash
-fly deploy
+Không đặt service key trong Netlify hoặc biến frontend.
+
+### Admin Đầu Tiên
+
+Admin production:
+
+```text
+admin@maika.edu.vn
 ```
 
-### Xem logs
-```bash
-fly logs
+Profile của tài khoản này phải có:
+
+```text
+role = admin
+is_active = true
 ```
 
----
+Sau đó admin có thể tạo giáo viên, phụ huynh và admin phụ trực tiếp trong màn **Tài khoản**.
 
-## Tùy chọn 3: Railway
+## 2. Netlify
 
-1. New Project → Deploy from GitHub
-2. Add Variables: `MAIKA_JWT_SECRET`, `MAIKA_ADMIN_PASSWORD`, `MAIKA_TEACHER_PASSWORD`
-3. Add Volume → mount `/data`
-4. Start Command: `node server/index.js`
+Connect GitHub repo và dùng cấu hình có sẵn trong `netlify.toml`:
 
----
-
-## Sau khi deploy
-
-### Kiểm tra health
-```bash
-curl https://your-api-domain.com/api/health
-# Expected: {"ok":true,"collections":[...]}
+```toml
+[build]
+  command = "npm run build"
+  publish = "dist"
 ```
 
-### Đổi mật khẩu mặc định
-- Đăng nhập Admin → TopBar → "🔐 Đổi MK"
-- Hoặc trong Users management → Set `must_change_password = true` cho user mới
+Environment frontend:
 
-### Checklist production
-- [ ] `MAIKA_JWT_SECRET` ≥ 32 ký tự, không đoán được
-- [ ] `MAIKA_ADMIN_PASSWORD` + `MAIKA_TEACHER_PASSWORD` đổi khỏi mặc định
-- [ ] `MAIKA_CORS_ORIGIN` chỉ liệt kê domain Netlify thật, không có wildcard
-- [ ] Persistent disk đã mount (SQLite + uploads + backups đều ở `/data`)
-- [ ] `VITE_API_URL` trên Netlify trỏ đúng domain API
-- [ ] Lịch backup tự động bật (`MAIKA_BACKUP_SCHEDULE_ENABLED=true`)
-- [ ] Kiểm tra `/api/health` trả về `{"ok":true}`
+```env
+VITE_DATA_BACKEND=supabase
+VITE_ENABLE_LEGACY_BACKENDS=false
+VITE_SUPABASE_URL=https://czxoozwydvmjisydyims.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_su1zQoGPpEdoUTzvuVFc4g_k1ksLyjo
+```
+
+Không set `SUPABASE_SERVICE_KEY` trên Netlify.
+
+## 3. Kiểm Tra Sau Deploy
+
+- Mở web Netlify.
+- Đăng nhập admin bằng `admin@maika.edu.vn`.
+- Vào **Tài khoản** tạo thử một tài khoản giáo viên hoặc phụ huynh.
+- Đặt lại mật khẩu tạm thời cho tài khoản vừa tạo.
+- Đăng xuất và đăng nhập bằng tài khoản vừa tạo để kiểm tra role.
+
+## Checklist Production
+
+- [ ] Supabase migrations đã chạy đủ.
+- [ ] Edge Function `admin-users` đã deploy.
+- [ ] Service role key chỉ nằm trong Supabase function secret.
+- [ ] Netlify chỉ có publishable/anon key.
+- [ ] Admin `admin@maika.edu.vn` active và đổi mật khẩu thật.
+- [ ] Bucket ảnh trẻ ở trạng thái private.
+- [ ] Backup Supabase đã có lịch vận hành riêng.
