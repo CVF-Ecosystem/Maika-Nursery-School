@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
 import { isSupabaseSession } from '../../data/backendMode'
@@ -42,12 +42,104 @@ function initialsFromName(name = '') {
     return name.split(' ').filter(Boolean).slice(-2).map(word => word[0]?.toUpperCase()).join('') || '?'
 }
 
+function normalizeKey(value = '') {
+    return String(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/đ/g, 'd')
+        .replace(/[^a-z0-9]/g, '')
+}
+
+function pick(row, keys) {
+    for (const key of keys) {
+        const value = row[key]
+        if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim()
+    }
+    return ''
+}
+
+function normalizeStatus(value = '') {
+    const text = normalizeKey(value)
+    if (['inactive', 'nghi', 'nghilam', 'danghi', 'khoa', 'locked'].includes(text)) return 'inactive'
+    return 'active'
+}
+
+function normalizeDate(value) {
+    if (!value) return ''
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10)
+    const text = String(value).trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text
+    const match = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
+    if (match) return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+    return text
+}
+
+function parseCsvLine(line) {
+    const cells = []
+    let cell = ''
+    let quoted = false
+    for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i]
+        const next = line[i + 1]
+        if (ch === '"' && quoted && next === '"') {
+            cell += '"'
+            i += 1
+        } else if (ch === '"') {
+            quoted = !quoted
+        } else if (ch === ',' && !quoted) {
+            cells.push(cell)
+            cell = ''
+        } else {
+            cell += ch
+        }
+    }
+    cells.push(cell)
+    return cells
+}
+
+async function readTabularRows(file) {
+    const lowerName = file.name.toLowerCase()
+    if (lowerName.endsWith('.csv')) {
+        const text = await file.text()
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
+        return lines.map(parseCsvLine)
+    }
+    const { default: readXlsxFile } = await import('read-excel-file/browser')
+    return readXlsxFile(file)
+}
+
+async function readTeacherImportFile(file) {
+    const table = await readTabularRows(file)
+    const [headers = [], ...body] = table
+    const keys = headers.map(normalizeKey)
+    return body.map(cells => {
+        const row = {}
+        keys.forEach((key, index) => { row[key] = cells[index] ?? '' })
+        const name = pick(row, ['hoten', 'tengiaovien', 'giaovien', 'fullname', 'name'])
+        return {
+            name,
+            className: pick(row, ['lop', 'phutrachlop', 'classname', 'class']),
+            subject: pick(row, ['chuyenmon', 'mon', 'vaitro', 'chucvu', 'vitri', 'subject']) || 'Giáo viên chủ nhiệm',
+            phone: pick(row, ['dienthoai', 'sodienthoai', 'sdt', 'phone']),
+            email: pick(row, ['email', 'mail']),
+            joinDate: normalizeDate(pick(row, ['ngayvaolam', 'ngaybatdau', 'joindate', 'join'])),
+            status: normalizeStatus(pick(row, ['trangthai', 'status'])),
+            initials: pick(row, ['viettat', 'initials']) || initialsFromName(name),
+            degree: pick(row, ['trinhdo', 'bangcap', 'hocvan', 'degree']),
+            notes: pick(row, ['ghichu', 'note', 'notes']),
+        }
+    }).filter(item => item.name)
+}
+
 function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
     const [teachers, setTeachers] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [importMsg, setImportMsg] = useState('')
     const [modal, setModal] = useState(null)
     const [selected, setSelected] = useState(null)
+    const fileRef = useRef(null)
     const facility = facilities.find(f => f.id === selectedFacilityId)
 
     async function reload() {
@@ -84,13 +176,34 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
         }
     }
 
+    async function handleImport(file) {
+        if (!file || !selectedFacilityId) return
+        setError('')
+        setImportMsg('Đang import hồ sơ giáo viên...')
+        try {
+            const rows = await readTeacherImportFile(file)
+            for (const row of rows) await saveSupabaseTeacher({ ...row, facilityId: selectedFacilityId })
+            setImportMsg(`Đã import ${rows.length} hồ sơ giáo viên.`)
+            await reload()
+            setTimeout(() => setImportMsg(''), 3500)
+        } catch (err) {
+            setImportMsg('')
+            setError(err.message || 'Không import được file giáo viên.')
+        }
+    }
+
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
             {modal === 'add' && <TeacherModal db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => setModal(null)} onSave={handleSave} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => { setModal(null); setSelected(null) }} onSave={handleSave} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 800 }}>{facility ? `${facility.code} - ${facility.name}` : 'Chưa chọn cơ sở'}</div>
-                <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {importMsg && <span style={{ fontSize: 13, fontWeight: 800, color: '#059669', background: '#ECFDF5', borderRadius: 8, padding: '7px 12px' }}>{importMsg}</span>}
+                    <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>📥 Import Excel/CSV</button>
+                    <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
+                </div>
             </div>
             {error && <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: 13, fontWeight: 800 }}>{error}</div>}
             {loading ? (
@@ -136,6 +249,8 @@ export default function Teachers(props) {
     const [db, setDB] = useState(getDB())
     const [modal, setModal] = useState(null)
     const [selected, setSelected] = useState(null)
+    const [importMsg, setImportMsg] = useState('')
+    const fileRef = useRef(null)
 
     function saveTeacher(form) {
         const ndb = getDB()
@@ -144,11 +259,36 @@ export default function Teachers(props) {
         commit(); setDB({ ...ndb }); setModal(null); setSelected(null)
     }
 
+    async function handleImport(file) {
+        if (!file) return
+        try {
+            const rows = await readTeacherImportFile(file)
+            const ndb = getDB()
+            rows.forEach(row => {
+                const classMatch = ndb.classes.find(c => normalizeKey(c.name) === normalizeKey(row.className))
+                const existingIndex = row.email ? ndb.teachers.findIndex(t => normalizeKey(t.email) === normalizeKey(row.email)) : -1
+                const record = { ...row, classId: classMatch?.id || '', id: existingIndex >= 0 ? ndb.teachers[existingIndex].id : 't' + Date.now() + Math.random() }
+                if (existingIndex >= 0) ndb.teachers[existingIndex] = { ...ndb.teachers[existingIndex], ...record }
+                else ndb.teachers.push(record)
+            })
+            commit()
+            setDB({ ...ndb })
+            setImportMsg(`Đã import ${rows.length} hồ sơ giáo viên.`)
+            setTimeout(() => setImportMsg(''), 3500)
+        } catch {
+            setImportMsg('Không import được file giáo viên.')
+            setTimeout(() => setImportMsg(''), 3500)
+        }
+    }
+
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={e => { handleImport(e.target.files?.[0]); e.target.value = '' }} />
             {modal === 'add' && <TeacherModal db={db} onClose={() => setModal(null)} onSave={saveTeacher} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveTeacher} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, gap: 12 }}>
+                {importMsg && <span style={{ fontSize: 13, fontWeight: 800, color: importMsg.startsWith('Không') ? '#DC2626' : '#059669', background: importMsg.startsWith('Không') ? '#FEF2F2' : '#ECFDF5', borderRadius: 8, padding: '7px 12px' }}>{importMsg}</span>}
+                <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>📥 Import Excel/CSV</button>
                 <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))', gap: 18 }}>

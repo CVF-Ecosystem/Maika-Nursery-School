@@ -40,9 +40,21 @@ export async function listTeachers({ facilityId, status } = {}) {
 export async function saveTeacher(input) {
     const client = requireSupabase()
     const profile = await getCurrentProfile()
+    const facilityId = input.facilityId || profile?.facility_id
+    let id = input.id || ''
+    if (!id && input.email && facilityId) {
+        const { data: existing, error: findError } = await client
+            .from('teachers')
+            .select('id')
+            .eq('facility_id', facilityId)
+            .ilike('email', input.email.trim())
+            .maybeSingle()
+        if (findError) throw findError
+        id = existing?.id || ''
+    }
     const payload = {
-        ...(input.id ? { id: input.id } : {}),
-        facility_id: input.facilityId || profile?.facility_id,
+        ...(id ? { id } : {}),
+        facility_id: facilityId,
         linked_profile_id: input.linkedProfileId || null,
         full_name: input.name?.trim(),
         class_name: input.className || null,
