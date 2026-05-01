@@ -13,6 +13,7 @@ import {
     createAcademicYear,
     createIncident,
     createInvoice,
+    createNotification,
     createSchoolHoliday,
     createTuitionPlan,
     createUser,
@@ -24,9 +25,11 @@ import {
     getHealthRecord,
     getIncident,
     getInvoice,
+    getNotification,
     getSchoolSettings,
     getStudentConsent,
     getTuitionPlan,
+    getUnreadCount,
     getUser,
     listAcademicYears,
     listAuditLogs,
@@ -34,9 +37,12 @@ import {
     listIncidents,
     listInvoices,
     listMigrations,
+    listNotifications,
+    listNotificationsForUser,
     listSchoolHolidays,
     listTuitionPlans,
     listUsers,
+    markNotificationRead,
     readCollection,
     readRecord,
     readSnapshot,
@@ -45,6 +51,7 @@ import {
     updateAcademicYear,
     updateIncident,
     updateInvoice,
+    updateNotification,
     updateSchoolSettings,
     updateTuitionPlan,
     updateUser,
@@ -52,6 +59,7 @@ import {
     upsertRecord,
     upsertStudentConsent,
 } from './db.js'
+import { dispatchNotification } from './notificationAdapters.js'
 import { publicUser, requireAuth, requireRoles, signToken } from './auth.js'
 import { schedulerState } from './scheduler.js'
 
@@ -641,6 +649,101 @@ export async function createApp() {
             summary: `Cập nhật quyền riêng tư học sinh ${studentId}`,
         })
         res.json({ data: consent })
+    })
+
+    // ─── Notifications ────────────────────────────────────────────────────────────
+
+    app.get('/api/notifications', requireAuth, (req, res) => {
+        if (req.user.role === 'parent') {
+            const student = readRecord('students', req.user.student_id)
+            const items = listNotificationsForUser(req.user.id, {
+                studentId: req.user.student_id,
+                classId: student?.classId,
+            })
+            return res.json({ data: items, unreadCount: getUnreadCount(req.user.id) })
+        }
+        res.json({
+            data: listNotifications({
+                status: req.query.status,
+                type: req.query.type,
+                limit: req.query.limit,
+            }),
+        })
+    })
+
+    app.get('/api/notifications/unread-count', requireAuth, (req, res) => {
+        res.json({ count: getUnreadCount(req.user.id) })
+    })
+
+    app.get('/api/notifications/:id', requireAuth, (req, res) => {
+        const notif = getNotification(req.params.id)
+        if (!notif) return res.status(404).json({ error: 'Không tìm thấy thông báo.' })
+        if (req.user.role === 'parent' && notif.target_student_id && req.user.student_id !== notif.target_student_id) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        res.json({ data: notif })
+    })
+
+    app.post('/api/notifications', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        if (!req.body?.title || !req.body?.body) return res.status(400).json({ error: 'Thiếu tiêu đề hoặc nội dung thông báo.' })
+        const notif = createNotification(req.body, req.user.id)
+        auditFromRequest(req, {
+            action: 'notification_created',
+            entityType: 'notification',
+            entityId: notif.id,
+            summary: `Tạo thông báo: ${notif.title}`,
+            metadata: { type: notif.type, channel: notif.channel, status: notif.status },
+        })
+        res.status(201).json({ data: notif })
+    })
+
+    app.put('/api/notifications/:id', requireAuth, requireRoles('admin', 'teacher'), async (req, res) => {
+        const existing = getNotification(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy thông báo.' })
+        if (existing.status === 'sent') return res.status(400).json({ error: 'Không thể sửa thông báo đã gửi.' })
+
+        const isSending = req.body.status === 'sent' && existing.status !== 'sent'
+        const updated = updateNotification(req.params.id, {
+            ...req.body,
+            ...(isSending ? { sentAt: new Date().toISOString() } : {}),
+        })
+
+        if (isSending) {
+            const dispatchResult = await dispatchNotification(updated).catch(err => ({ ok: false, error: err.message }))
+            if (!dispatchResult.ok && dispatchResult.adapter !== 'app') {
+                updateNotification(req.params.id, { status: 'failed' })
+                auditFromRequest(req, {
+                    action: 'notification_send_failed',
+                    entityType: 'notification',
+                    entityId: existing.id,
+                    summary: `Gửi thông báo thất bại: ${existing.title}`,
+                    metadata: dispatchResult,
+                })
+                return res.status(502).json({ error: 'Gửi thông báo thất bại.', details: dispatchResult })
+            }
+            auditFromRequest(req, {
+                action: 'notification_sent',
+                entityType: 'notification',
+                entityId: existing.id,
+                summary: `Đã gửi thông báo: ${existing.title}`,
+                metadata: { channel: existing.channel },
+            })
+        } else {
+            auditFromRequest(req, {
+                action: 'notification_updated',
+                entityType: 'notification',
+                entityId: existing.id,
+                summary: `Cập nhật thông báo: ${existing.title}`,
+            })
+        }
+        res.json({ data: getNotification(req.params.id) })
+    })
+
+    app.post('/api/notifications/:id/read', requireAuth, (req, res) => {
+        const notif = getNotification(req.params.id)
+        if (!notif) return res.status(404).json({ error: 'Không tìm thấy thông báo.' })
+        markNotificationRead(req.params.id, req.user.id)
+        res.json({ ok: true })
     })
 
     // ─── Schema info ───────────────────────────────────────────────────────────────

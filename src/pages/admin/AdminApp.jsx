@@ -24,6 +24,7 @@ const HealthRecords = lazy(() => import('./HealthRecords'))
 const Incidents = lazy(() => import('./Incidents'))
 const Invoices = lazy(() => import('./Invoices'))
 const Settings = lazy(() => import('./Settings'))
+const Notifications = lazy(() => import('./Notifications'))
 
 const PAGE_MAP = {
     dashboard: { title: 'Tổng quan', subtitle: 'Maika Nursery School', component: (nav) => <Dashboard onNav={nav} /> },
@@ -44,6 +45,7 @@ const PAGE_MAP = {
     incidents: { title: 'Báo cáo sự cố', subtitle: 'Ghi nhận và theo dõi sự cố học sinh', component: () => <Incidents /> },
     invoices: { title: 'Hóa đơn & Biên lai', subtitle: 'Quản lý học phí nâng cao', component: () => <Invoices /> },
     settings: { title: 'Cấu hình trường học', subtitle: 'Thông tin trường · Năm học · Mức phí · Quyền riêng tư', component: () => <Settings /> },
+    notifications: { title: 'Thông báo', subtitle: 'Tạo và quản lý thông báo gửi cho phụ huynh', component: () => <Notifications /> },
 }
 
 function LoadingSpinner() {

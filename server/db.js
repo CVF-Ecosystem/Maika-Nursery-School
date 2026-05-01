@@ -220,6 +220,44 @@ const SCHEMA_MIGRATIONS = [
           )
         `],
     },
+    {
+        version: 4,
+        name: 'add_notifications',
+        statements: [`
+          CREATE TABLE IF NOT EXISTS notifications (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'general' CHECK (type IN ('general', 'invoice', 'event', 'health', 'incident', 'emergency', 'system')),
+            priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+            target_role TEXT,
+            target_class_id TEXT,
+            target_student_id TEXT,
+            channel TEXT NOT NULL DEFAULT 'app' CHECK (channel IN ('app', 'email', 'sms', 'zalo', 'all')),
+            status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'sent', 'failed', 'cancelled')),
+            scheduled_at TEXT,
+            sent_at TEXT,
+            created_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_notif_status ON notifications(status)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_notif_target_role ON notifications(target_role)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_notif_created ON notifications(created_at DESC)
+        `, `
+          CREATE TABLE IF NOT EXISTS notification_reads (
+            notification_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (notification_id, user_id)
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_notif_reads_user ON notification_reads(user_id)
+        `],
+    },
 ]
 
 for (const migration of SCHEMA_MIGRATIONS) {
@@ -812,6 +850,107 @@ export function upsertStudentConsent(studentId, input, actorId) {
     }
     const row = getStudentConsent(studentId)
     return { ...row, contact_channels: JSON.parse(row.contact_channels || '["app"]') }
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export function listNotifications({ status, type, targetRole, limit = 100 } = {}) {
+    const clauses = []
+    const params = {}
+    if (status) { clauses.push('status = @status'); params.status = status }
+    if (type) { clauses.push('type = @type'); params.type = type }
+    if (targetRole) { clauses.push("(target_role IS NULL OR target_role = @targetRole OR target_role = 'all')"); params.targetRole = targetRole }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500)
+    return db.prepare(`SELECT * FROM notifications ${where} ORDER BY created_at DESC LIMIT ${safeLimit}`).all(params)
+}
+
+export function getNotification(id) {
+    return db.prepare('SELECT * FROM notifications WHERE id = ?').get(id) || null
+}
+
+export function createNotification(input, actorId) {
+    const id = `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    db.prepare(`
+      INSERT INTO notifications (id, title, body, type, priority, target_role, target_class_id, target_student_id, channel, status, scheduled_at, created_by)
+      VALUES (@id, @title, @body, @type, @priority, @target_role, @target_class_id, @target_student_id, @channel, @status, @scheduled_at, @created_by)
+    `).run({
+        id,
+        title: input.title,
+        body: input.body,
+        type: input.type || 'general',
+        priority: input.priority || 'normal',
+        target_role: input.targetRole || null,
+        target_class_id: input.targetClassId || null,
+        target_student_id: input.targetStudentId || null,
+        channel: input.channel || 'app',
+        status: input.status || 'draft',
+        scheduled_at: input.scheduledAt || null,
+        created_by: actorId || null,
+    })
+    return getNotification(id)
+}
+
+export function updateNotification(id, input) {
+    const existing = getNotification(id)
+    if (!existing) return null
+    db.prepare(`
+      UPDATE notifications
+      SET title = @title, body = @body, type = @type, priority = @priority,
+          target_role = @target_role, target_class_id = @target_class_id,
+          target_student_id = @target_student_id, channel = @channel,
+          status = @status, scheduled_at = @scheduled_at, sent_at = @sent_at,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = @id
+    `).run({
+        id,
+        title: input.title ?? existing.title,
+        body: input.body ?? existing.body,
+        type: input.type ?? existing.type,
+        priority: input.priority ?? existing.priority,
+        target_role: input.targetRole !== undefined ? input.targetRole : existing.target_role,
+        target_class_id: input.targetClassId !== undefined ? input.targetClassId : existing.target_class_id,
+        target_student_id: input.targetStudentId !== undefined ? input.targetStudentId : existing.target_student_id,
+        channel: input.channel ?? existing.channel,
+        status: input.status ?? existing.status,
+        scheduled_at: input.scheduledAt !== undefined ? input.scheduledAt : existing.scheduled_at,
+        sent_at: input.sentAt !== undefined ? input.sentAt : existing.sent_at,
+    })
+    return getNotification(id)
+}
+
+export function markNotificationRead(notificationId, userId) {
+    db.prepare(`
+      INSERT OR IGNORE INTO notification_reads (notification_id, user_id)
+      VALUES (?, ?)
+    `).run(notificationId, userId)
+}
+
+export function getUnreadCount(userId) {
+    const row = db.prepare(`
+      SELECT COUNT(*) AS cnt FROM notifications n
+      WHERE n.status = 'sent'
+        AND NOT EXISTS (SELECT 1 FROM notification_reads r WHERE r.notification_id = n.id AND r.user_id = ?)
+    `).get(userId)
+    return row?.cnt || 0
+}
+
+export function listNotificationsForUser(userId, { studentId, classId } = {}) {
+    const rows = db.prepare(`
+      SELECT n.*,
+        CASE WHEN r.notification_id IS NOT NULL THEN 1 ELSE 0 END AS is_read
+      FROM notifications n
+      LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
+      WHERE n.status = 'sent'
+        AND (
+          n.target_role IS NULL
+          OR n.target_student_id = ?
+          OR n.target_class_id = ?
+        )
+      ORDER BY n.created_at DESC
+      LIMIT 100
+    `).all(userId, studentId || '', classId || '')
+    return rows
 }
 
 // ─── Schema info ───────────────────────────────────────────────────────────────
