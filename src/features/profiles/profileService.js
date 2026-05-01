@@ -104,6 +104,14 @@ export async function updateProfileAccount(input) {
     return data
 }
 
+export async function deleteProfileAccount(id) {
+    if (!id) throw new Error('Thiếu ID tài khoản.')
+    const data = await supabaseAdminRequest(`/api/supabase/users/${id}`, {
+        method: 'DELETE',
+    })
+    return data
+}
+
 export async function listParentLinks() {
     const client = requireSupabase()
     const { data, error } = await client

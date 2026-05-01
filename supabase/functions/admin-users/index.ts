@@ -127,6 +127,40 @@ async function writeAudit(
     if (error) console.warn('audit log skipped', error.message)
 }
 
+async function deleteAccount(
+    request: Request,
+    serviceClient: ReturnType<typeof createClient>,
+    actor: Record<string, unknown>,
+    userId: string,
+) {
+    if (actor.id === userId) return fail(request, 'Không thể xóa tài khoản đang đăng nhập.', 400)
+
+    const { data: target, error: targetError } = await serviceClient
+        .from('profiles')
+        .select('id, role, full_name, email')
+        .eq('id', userId)
+        .single()
+    if (targetError || !target) return fail(request, 'Không tìm thấy tài khoản.', 404)
+
+    if (target.role === 'admin') {
+        const { count, error: countError } = await serviceClient
+            .from('profiles')
+            .select('id', { count: 'exact', head: true })
+            .eq('role', 'admin')
+            .eq('is_active', true)
+            .neq('id', userId)
+        if (countError) throw countError
+        if (!count) return fail(request, 'Không thể xóa admin hoạt động cuối cùng.', 400)
+    }
+
+    await writeAudit(serviceClient, actor, 'profile_deleted', userId, `Xóa tài khoản ${target.email || target.full_name}`)
+
+    const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId)
+    if (deleteError) throw deleteError
+
+    return jsonResponse(request, { data: { id: userId, deleted: true } })
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeadersFor(request) })
@@ -156,6 +190,16 @@ Deno.serve(async (request) => {
     const url = new URL(request.url)
     const parts = url.pathname.split('/').filter(Boolean)
     const userId = parts[parts.length - 1] === 'admin-users' ? '' : parts[parts.length - 1]
+    if (request.method === 'DELETE') {
+        if (!userId) return fail(request, 'Thiếu ID tài khoản.', 400)
+        try {
+            return await deleteAccount(request, serviceClient, actor, userId)
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Không xóa được tài khoản.'
+            return fail(request, message, 400)
+        }
+    }
+
     const input = await request.json().catch(() => ({}))
     const isCreate = request.method === 'POST'
 

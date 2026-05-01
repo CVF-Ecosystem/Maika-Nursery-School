@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
+import { getCurrentProfile } from '../../features/auth/authService'
 import { listFacilities } from '../../features/facilities/facilityService'
-import { createProfileAccount, listParentLinks, listProfiles, replaceParentLink, saveProfile, updateProfileAccount } from '../../features/profiles/profileService'
+import { createProfileAccount, deleteProfileAccount, listParentLinks, listProfiles, replaceParentLink, saveProfile, updateProfileAccount } from '../../features/profiles/profileService'
 import { listStudents } from '../../features/students/studentService'
 
 const ROLE_LABEL = { admin: 'Admin', teacher: 'Giáo viên', parent: 'Phụ huynh' }
@@ -80,6 +81,7 @@ function UserModal({ user, students, onClose, onSave }) {
 
 function SupabaseUsers() {
     const [profiles, setProfiles] = useState([])
+    const [currentProfile, setCurrentProfile] = useState(null)
     const [students, setStudents] = useState([])
     const [facilities, setFacilities] = useState([])
     const [links, setLinks] = useState([])
@@ -90,12 +92,14 @@ function SupabaseUsers() {
     async function reload() {
         setErr('')
         try {
-            const [nextProfiles, nextStudents, nextFacilities, nextLinks] = await Promise.all([
+            const [me, nextProfiles, nextStudents, nextFacilities, nextLinks] = await Promise.all([
+                getCurrentProfile(),
                 listProfiles(),
                 listStudents({ status: 'active' }),
                 listFacilities(),
                 listParentLinks(),
             ])
+            setCurrentProfile(me)
             setProfiles(nextProfiles)
             setStudents(nextStudents)
             setFacilities(nextFacilities)
@@ -129,6 +133,28 @@ function SupabaseUsers() {
         }
     }
 
+    async function remove(profile) {
+        if (profile.id === currentProfile?.id) {
+            setErr('Không thể xóa tài khoản đang đăng nhập.')
+            return
+        }
+
+        const activeAdminCount = profiles.filter(item => item.role === 'admin' && item.isActive).length
+        if (profile.role === 'admin' && activeAdminCount <= 1) {
+            setErr('Không thể xóa admin hoạt động cuối cùng.')
+            return
+        }
+
+        if (!confirm(`Xóa tài khoản ${profile.fullName || profile.email}? Tài khoản đăng nhập sẽ bị xóa khỏi hệ thống.`)) return
+
+        try {
+            await deleteProfileAccount(profile.id)
+            await reload()
+        } catch (ex) {
+            setErr(ex.message)
+        }
+    }
+
     const filtered = profiles.filter(profile => `${profile.fullName} ${profile.email} ${profile.phone} ${profile.role}`.toLowerCase().includes(query.toLowerCase()))
     const linkFor = profileId => links.find(link => link.parent_profile_id === profileId)
 
@@ -138,7 +164,7 @@ function SupabaseUsers() {
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Quản lý tài khoản</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Admin hiện tại: admin@maika.edu.vn. Tạo tài khoản giáo viên, phụ huynh và admin phụ tại đây.</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Admin hiện tại: {currentProfile?.email || '—'}. Tạo, sửa, khóa hoặc xóa tài khoản tại đây.</div>
                 </div>
                 <button onClick={() => setEditing('add')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#6D28D9', color: '#fff', fontWeight: 900, fontSize: 13 }}>
                     + Tạo tài khoản
@@ -156,12 +182,22 @@ function SupabaseUsers() {
                             const student = students.find(s => s.id === link?.student_id)
                             return (
                                 <tr key={profile.id} style={{ borderTop: '1px solid #EDE9FE' }}>
-                                    <td style={{ padding: '12px 14px', fontWeight: 800 }}>{profile.fullName}</td>
+                                    <td style={{ padding: '12px 14px', fontWeight: 800 }}>
+                                        {profile.fullName}
+                                        {profile.id === currentProfile?.id && <span style={{ marginLeft: 8, fontSize: 11, color: '#059669', background: '#D1FAE5', borderRadius: 999, padding: '2px 8px', fontWeight: 900 }}>Bạn</span>}
+                                    </td>
                                     <td style={{ padding: '12px 14px' }}>{ROLE_LABEL[profile.role] || profile.role}</td>
                                     <td style={{ padding: '12px 14px', color: '#6B6494' }}>{profile.role === 'teacher' ? facility?.code || '—' : profile.role === 'parent' ? student?.name || 'Chưa liên kết' : 'Tất cả'}</td>
                                     <td style={{ padding: '12px 14px', color: '#6B6494' }}>{profile.email || profile.phone || '—'}</td>
                                     <td style={{ padding: '12px 14px' }}>{profile.isActive ? 'Đang hoạt động' : 'Đã khóa'}</td>
-                                    <td style={{ padding: '12px 14px' }}><button onClick={() => setEditing(profile)} style={{ border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', borderRadius: 8, padding: '6px 12px', fontWeight: 800 }}>Sửa</button></td>
+                                    <td style={{ padding: '12px 14px' }}>
+                                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                            <button onClick={() => setEditing(profile)} style={{ border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', borderRadius: 8, padding: '6px 12px', fontWeight: 800 }}>Sửa</button>
+                                            {profile.id !== currentProfile?.id && (
+                                                <button onClick={() => remove(profile)} style={{ border: '1.5px solid #DC2626', background: '#fff', color: '#DC2626', borderRadius: 8, padding: '6px 12px', fontWeight: 800 }}>Xóa</button>
+                                            )}
+                                        </div>
+                                    </td>
                                 </tr>
                             )
                         })}
