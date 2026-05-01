@@ -22,6 +22,8 @@ import {
     deleteSchoolHoliday,
     findUserForLogin,
     getAcademicYear,
+    getAttendanceRecord,
+    getAttendanceSummary,
     getHealthRecord,
     getIncident,
     getInvoice,
@@ -32,6 +34,7 @@ import {
     getUnreadCount,
     getUser,
     listAcademicYears,
+    listAttendanceRecords,
     listAuditLogs,
     listCollections,
     listIncidents,
@@ -55,6 +58,7 @@ import {
     updateSchoolSettings,
     updateTuitionPlan,
     updateUser,
+    upsertAttendanceRecord,
     upsertHealthRecord,
     upsertRecord,
     upsertStudentConsent,
@@ -507,6 +511,38 @@ export async function createApp() {
             metadata: { status: req.body.status, paidDate: req.body.paidDate },
         })
         res.json({ data: updated })
+    })
+
+    // ─── Attendance (Advanced) ────────────────────────────────────────────────────
+
+    app.get('/api/attendance-records', requireAuth, (req, res) => {
+        const date = req.query.date || new Date().toISOString().split('T')[0]
+        const studentId = req.user.role === 'parent' ? req.user.student_id : req.query.studentId
+        const records = listAttendanceRecords({ date, studentId, limit: req.query.limit })
+        const summary = req.user.role !== 'parent' ? getAttendanceSummary(date) : []
+        res.json({ data: records, summary, date })
+    })
+
+    app.get('/api/attendance-records/:studentId/:date', requireAuth, (req, res) => {
+        const { studentId, date } = req.params
+        if (req.user.role === 'parent' && req.user.student_id !== studentId) {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+        const record = getAttendanceRecord(studentId, date)
+        res.json({ data: record || null })
+    })
+
+    app.put('/api/attendance-records/:studentId/:date', requireAuth, requireRoles('admin', 'teacher'), (req, res) => {
+        const { studentId, date } = req.params
+        const record = upsertAttendanceRecord({ studentId, date, ...req.body }, req.user.id)
+        auditFromRequest(req, {
+            action: 'attendance_recorded',
+            entityType: 'attendance',
+            entityId: `${studentId}-${date}`,
+            summary: `Điểm danh học sinh ${studentId} ngày ${date}: ${record.status}`,
+            metadata: { status: record.status, checkInTime: record.check_in_time },
+        })
+        res.json({ data: record })
     })
 
     // ─── School Settings ──────────────────────────────────────────────────────────

@@ -20,11 +20,12 @@ const NAV_ITEMS = [
     { id: 'backups', icon: '⇩', label: 'Sao lưu' },
     { id: 'settings', icon: '🏫', label: 'Cấu hình' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo' },
+    { id: 'attendanceAdv', icon: '📲', label: 'Điểm danh+' },
 ]
 
 const GROUPS = [
     { label: 'QUẢN LÝ', ids: ['dashboard', 'students', 'teachers'] },
-    { label: 'HOẠT ĐỘNG', ids: ['attendance', 'reports', 'health', 'incidents'] },
+    { label: 'HOẠT ĐỘNG', ids: ['attendance', 'attendanceAdv', 'reports', 'health', 'incidents'] },
     { label: 'TÀI CHÍNH', ids: ['finance', 'invoices'] },
     { label: 'GIAO TIẾP', ids: ['messages', 'calendar', 'notifications'] },
     { label: 'PHÂN TÍCH', ids: ['analytics', 'resources', 'gamification'] },

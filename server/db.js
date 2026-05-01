@@ -258,6 +258,35 @@ const SCHEMA_MIGRATIONS = [
           CREATE INDEX IF NOT EXISTS idx_notif_reads_user ON notification_reads(user_id)
         `],
     },
+    {
+        version: 5,
+        name: 'add_attendance_advanced',
+        statements: [`
+          CREATE TABLE IF NOT EXISTS attendance_records (
+            id TEXT PRIMARY KEY,
+            student_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late', 'early_pickup')),
+            check_in_time TEXT,
+            check_out_time TEXT,
+            pickup_person TEXT,
+            pickup_phone TEXT,
+            late_reason TEXT,
+            early_pickup_reason TEXT,
+            note TEXT,
+            recorded_by TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(student_id, date)
+          )
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_att_student ON attendance_records(student_id)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records(date DESC)
+        `, `
+          CREATE INDEX IF NOT EXISTS idx_att_status ON attendance_records(status)
+        `],
+    },
 ]
 
 for (const migration of SCHEMA_MIGRATIONS) {
@@ -850,6 +879,67 @@ export function upsertStudentConsent(studentId, input, actorId) {
     }
     const row = getStudentConsent(studentId)
     return { ...row, contact_channels: JSON.parse(row.contact_channels || '["app"]') }
+}
+
+// ─── Attendance (Advanced) ────────────────────────────────────────────────────
+
+export function listAttendanceRecords({ date, studentId, classId, limit = 200 } = {}) {
+    const clauses = []
+    const params = {}
+    if (date) { clauses.push('date = @date'); params.date = date }
+    if (studentId) { clauses.push('student_id = @studentId'); params.studentId = studentId }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const safeLimit = Math.min(Math.max(Number(limit) || 200, 1), 1000)
+    return db.prepare(`SELECT * FROM attendance_records ${where} ORDER BY date DESC, created_at DESC LIMIT ${safeLimit}`).all(params)
+}
+
+export function getAttendanceRecord(studentId, date) {
+    return db.prepare('SELECT * FROM attendance_records WHERE student_id = ? AND date = ?').get(studentId, date) || null
+}
+
+export function upsertAttendanceRecord(input, actorId) {
+    const existing = getAttendanceRecord(input.studentId, input.date)
+    const id = existing ? existing.id : `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    db.prepare(`
+      INSERT INTO attendance_records
+        (id, student_id, date, status, check_in_time, check_out_time, pickup_person, pickup_phone, late_reason, early_pickup_reason, note, recorded_by)
+      VALUES
+        (@id, @student_id, @date, @status, @check_in_time, @check_out_time, @pickup_person, @pickup_phone, @late_reason, @early_pickup_reason, @note, @recorded_by)
+      ON CONFLICT(student_id, date) DO UPDATE SET
+        status = excluded.status,
+        check_in_time = excluded.check_in_time,
+        check_out_time = excluded.check_out_time,
+        pickup_person = excluded.pickup_person,
+        pickup_phone = excluded.pickup_phone,
+        late_reason = excluded.late_reason,
+        early_pickup_reason = excluded.early_pickup_reason,
+        note = excluded.note,
+        recorded_by = excluded.recorded_by,
+        updated_at = CURRENT_TIMESTAMP
+    `).run({
+        id,
+        student_id: input.studentId,
+        date: input.date,
+        status: input.status || 'present',
+        check_in_time: input.checkInTime || null,
+        check_out_time: input.checkOutTime || null,
+        pickup_person: input.pickupPerson || null,
+        pickup_phone: input.pickupPhone || null,
+        late_reason: input.lateReason || null,
+        early_pickup_reason: input.earlyPickupReason || null,
+        note: input.note || null,
+        recorded_by: actorId || null,
+    })
+    return getAttendanceRecord(input.studentId, input.date)
+}
+
+export function getAttendanceSummary(date) {
+    return db.prepare(`
+      SELECT status, COUNT(*) as count
+      FROM attendance_records
+      WHERE date = ?
+      GROUP BY status
+    `).all(date)
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ const Incidents = lazy(() => import('../admin/Incidents'))
 const Invoices = lazy(() => import('../admin/Invoices'))
 const ConsentPanel = lazy(() => import('./ConsentPanel'))
 const NotificationCenter = lazy(() => import('./NotificationCenter'))
+const AttendanceAdvanced = lazy(() => import('../admin/AttendanceAdvanced'))
 
 const ANNS = [
     { id: 1, title: 'Nghỉ lễ 30/4 – 1/5', body: 'Kính gửi quý phụ huynh,\n\nNhà trường thông báo các bé được nghỉ lễ từ Thứ Tư 30/4 đến hết Thứ Sáu 2/5/2026.\n\nCác bé đi học trở lại vào Thứ Hai ngày 5/5/2026.\n\nKính chúc quý phụ huynh và các bé kỳ nghỉ vui vẻ, an toàn!\n\nBan Giám hiệu Maika', date: '24/04/2026', tag: 'Nghỉ lễ', tagColor: '#D97706', tagBg: '#FEF3C7', icon: '🎉', important: true },
@@ -114,6 +115,7 @@ export default function ParentPortal() {
         ['announcements', '📢 Thông báo'],
         ['notifications', '🔔 Tin tức'],
         ['gallery', '📸 Hình ảnh'],
+        ['attendance', '✓ Chuyên cần'],
         ['reports', '📝 Nhật ký'],
         ['messages', '💬 Nhắn tin'],
         ['health', '🏥 Sức khỏe'],
@@ -143,6 +145,14 @@ export default function ParentPortal() {
             </div>
             {/* Main */}
             <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 24px' }}>
+                {/* ATTENDANCE */}
+                {tab === 'attendance' && (
+                    <div>
+                        <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>}>
+                            <AttendanceAdvanced readOnly filterStudentId={student.id} />
+                        </Suspense>
+                    </div>
+                )}
                 {/* NOTIFICATION CENTER */}
                 {tab === 'notifications' && (
                     <div>
