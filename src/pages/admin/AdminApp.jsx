@@ -5,8 +5,8 @@ import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
 import { isLegacyBackendAllowed, isSupabaseSession } from '../../data/backendMode'
 import { listFacilities } from '../../features/facilities/facilityService'
-import { listProfiles } from '../../features/profiles/profileService'
 import { listStudents } from '../../features/students/studentService'
+import { listTeachers } from '../../features/teachers/teacherService'
 import ChangePassword from './ChangePassword'
 
 // Lazy-load each admin module for code splitting
@@ -124,7 +124,7 @@ export default function AdminApp() {
         let mounted = true
         Promise.all([
             listStudents({ facilityId: selectedFacilityId, status: 'active' }),
-            listProfiles({ role: 'teacher', facilityId: selectedFacilityId, activeOnly: true }),
+            listTeachers({ facilityId: selectedFacilityId, status: 'active' }),
         ])
             .then(([students, teachers]) => {
                 if (mounted) setScopeStats({ students: students.length, teachers: teachers.length })

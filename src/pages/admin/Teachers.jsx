@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
 import { isSupabaseSession } from '../../data/backendMode'
-import { listProfiles } from '../../features/profiles/profileService'
+import { listTeachers, saveTeacher as saveSupabaseTeacher } from '../../features/teachers/teacherService'
 
 function Avatar({ initials, size = 38 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -10,8 +10,8 @@ function Avatar({ initials, size = 38 }) {
     return <div style={{ width: size, height: size, borderRadius: 999, background: `linear-gradient(135deg,${c},${c}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: size * 0.35, flexShrink: 0 }}>{initials}</div>
 }
 
-function TeacherModal({ teacher, db, onClose, onSave }) {
-    const [form, setForm] = useState(teacher || { name: '', classId: '', subject: 'Giáo viên chủ nhiệm', phone: '', email: '', joinDate: todayStr(), status: 'active', initials: '', degree: '' })
+function TeacherModal({ teacher, db, facilityId = '', onClose, onSave }) {
+    const [form, setForm] = useState(teacher || { facilityId, name: '', classId: '', className: '', subject: 'Giáo viên chủ nhiệm', phone: '', email: '', joinDate: todayStr(), status: 'active', initials: '', degree: '', notes: '' })
     const is = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
     function hc(k, v) { const u = { ...form, [k]: v }; if (k === 'name') u.initials = v.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join(''); setForm(u) }
@@ -22,7 +22,7 @@ function TeacherModal({ teacher, db, onClose, onSave }) {
                 <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={ls}>Họ và tên *</label><input style={is} value={form.name} onChange={e => hc('name', e.target.value)} /></div>
                     <div><label style={ls}>Chuyên môn</label><input style={is} value={form.subject} onChange={e => hc('subject', e.target.value)} /></div>
-                    <div><label style={ls}>Phụ trách lớp</label><select style={is} value={form.classId || ''} onChange={e => hc('classId', e.target.value)}><option value="">— Không có —</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    <div><label style={ls}>Phụ trách lớp</label>{db?.classes?.length ? <select style={is} value={form.classId || ''} onChange={e => hc('classId', e.target.value)}><option value="">— Không có —</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select> : <input style={is} value={form.className || ''} onChange={e => hc('className', e.target.value)} placeholder="VD: Lớp Mầm" />}</div>
                     <div><label style={ls}>Điện thoại</label><input style={is} value={form.phone} onChange={e => hc('phone', e.target.value)} /></div>
                     <div><label style={ls}>Email</label><input style={is} value={form.email} onChange={e => hc('email', e.target.value)} /></div>
                     <div><label style={ls}>Ngày vào làm</label><input type="date" style={is} value={form.joinDate} onChange={e => hc('joinDate', e.target.value)} /></div>
@@ -46,28 +46,51 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
     const [teachers, setTeachers] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [modal, setModal] = useState(null)
+    const [selected, setSelected] = useState(null)
     const facility = facilities.find(f => f.id === selectedFacilityId)
 
-    useEffect(() => {
+    async function reload() {
         if (!selectedFacilityId) {
             setTeachers([])
             setLoading(false)
             return
         }
-        let mounted = true
         setLoading(true)
         setError('')
-        listProfiles({ role: 'teacher', facilityId: selectedFacilityId })
-            .then(items => { if (mounted) setTeachers(items) })
-            .catch(err => { if (mounted) setError(err.message) })
-            .finally(() => { if (mounted) setLoading(false) })
+        try {
+            setTeachers(await listTeachers({ facilityId: selectedFacilityId }))
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        let mounted = true
+        if (mounted) reload()
         return () => { mounted = false }
     }, [selectedFacilityId])
 
+    async function handleSave(form) {
+        try {
+            await saveSupabaseTeacher({ ...form, id: selected?.id, facilityId: selectedFacilityId })
+            setModal(null)
+            setSelected(null)
+            await reload()
+        } catch (err) {
+            setError(err.message)
+        }
+    }
+
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+            {modal === 'add' && <TeacherModal db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => setModal(null)} onSave={handleSave} />}
+            {modal === 'edit' && <TeacherModal teacher={selected} db={{ classes: [] }} facilityId={selectedFacilityId} onClose={() => { setModal(null); setSelected(null) }} onSave={handleSave} />}
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 800 }}>{facility ? `${facility.code} - ${facility.name}` : 'Chưa chọn cơ sở'}</div>
+                <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
             </div>
             {error && <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: 13, fontWeight: 800 }}>{error}</div>}
             {loading ? (
@@ -75,25 +98,29 @@ function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
             ) : teachers.length === 0 ? (
                 <div style={{ background: '#fff', borderRadius: 16, padding: 42, textAlign: 'center', color: '#7C6D9B', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, color: '#1E1B4B', marginBottom: 6 }}>Chưa có giáo viên trong cơ sở này</div>
-                    <div style={{ fontSize: 13 }}>Tài khoản giáo viên được tạo và gán cơ sở tại tab Tài khoản.</div>
+                    <div style={{ fontSize: 13 }}>Bạn có thể thêm thủ công tại đây hoặc import hồ sơ giáo viên sau.</div>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))', gap: 18 }}>
                     {teachers.map(teacher => (
                         <div key={teacher.id} style={{ background: '#fff', borderRadius: 20, padding: '22px 24px', boxShadow: '0 2px 16px rgba(109,40,217,0.08)', border: '1.5px solid #EDE9FE' }}>
                             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
-                                <Avatar initials={initialsFromName(teacher.fullName || teacher.email)} size={50} />
+                                <Avatar initials={teacher.initials || initialsFromName(teacher.name || teacher.email)} size={50} />
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{teacher.fullName || 'Chưa đặt tên'}</div>
-                                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{teacher.email}</div>
-                                    <span style={{ fontSize: 11, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', borderRadius: 6, padding: '2px 8px', display: 'inline-block', marginTop: 6 }}>{facility?.code || 'Cơ sở'}</span>
+                                    <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{teacher.name || 'Chưa đặt tên'}</div>
+                                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{teacher.subject}</div>
+                                    {teacher.className && <span style={{ fontSize: 11, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', borderRadius: 6, padding: '2px 8px', display: 'inline-block', marginTop: 6 }}>{teacher.className}</span>}
                                 </div>
-                                <span style={{ fontSize: 11, fontWeight: 800, color: teacher.isActive ? '#16A34A' : '#DC2626', background: teacher.isActive ? '#F0FDF4' : '#FEF2F2', borderRadius: 6, padding: '3px 8px' }}>{teacher.isActive ? 'Đang làm' : 'Đã khóa'}</span>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: teacher.status === 'active' ? '#16A34A' : '#DC2626', background: teacher.status === 'active' ? '#F0FDF4' : '#FEF2F2', borderRadius: 6, padding: '3px 8px' }}>{teacher.status === 'active' ? 'Đang làm' : 'Đã nghỉ'}</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                                 <div style={{ fontSize: 13, color: '#6B6494' }}>📞 {teacher.phone || '—'}</div>
                                 <div style={{ fontSize: 13, color: '#6B6494' }}>✉️ {teacher.email || '—'}</div>
-                                <div style={{ fontSize: 13, color: '#6B6494' }}>📅 Tạo tài khoản: {teacher.createdAt ? fmtDate(teacher.createdAt.slice(0, 10)) : '—'}</div>
+                                <div style={{ fontSize: 13, color: '#6B6494' }}>🎓 {teacher.degree || '—'}</div>
+                                <div style={{ fontSize: 13, color: '#6B6494' }}>📅 Vào làm: {teacher.joinDate ? fmtDate(teacher.joinDate) : '—'}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                                <button onClick={() => { setSelected(teacher); setModal('edit') }} style={{ flex: 1, padding: '8px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>✏️ Chỉnh sửa</button>
                             </div>
                         </div>
                     ))}
