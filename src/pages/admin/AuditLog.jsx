@@ -71,8 +71,7 @@ export default function AuditLog() {
         return (
             <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Nhật ký kiểm toán</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Nhật ký hoạt động sẽ hiển thị khi hệ thống ghi nhận thay đổi dữ liệu.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Chưa có nhật ký hoạt động.</div>
                 </div>
             </div>
         )

@@ -171,8 +171,7 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && <SupabaseUserModal profile={editing === 'add' ? null : editing} facilities={facilities} students={students} link={editing === 'add' ? null : linkFor(editing.id)} defaultFacilityId={selectedFacilityId} onClose={() => setEditing(null)} onSave={save} />}
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>Quản lý tài khoản giáo viên và phụ huynh</div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 18, gap: 12 }}>
                 <button onClick={() => setEditing('add')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#6D28D9', color: '#fff', fontWeight: 900, fontSize: 13 }}>
                     + Tạo tài khoản
                 </button>
@@ -313,8 +312,7 @@ export default function Users(props) {
         return (
             <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Quản lý tài khoản</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Quản lý tài khoản đang được chuẩn bị cho môi trường vận hành chính thức.</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Chức năng tài khoản đang được chuẩn bị cho môi trường vận hành chính thức.</div>
                 </div>
             </div>
         )
@@ -323,8 +321,7 @@ export default function Users(props) {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal && <UserModal user={modal === 'add' ? null : modal} students={db.students} onClose={() => setModal(null)} onSave={saveUser} />}
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{filtered.filter(u => u.status === 'active').length} đang hoạt động · {filtered.length} tài khoản giáo viên/phụ huynh</div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <button onClick={() => setModal('add')} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Tạo tài khoản</button>
             </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>

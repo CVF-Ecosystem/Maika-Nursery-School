@@ -133,7 +133,6 @@ export default function Backups() {
         return (
             <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Sao lưu & khôi phục</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Chức năng sao lưu dữ liệu đang được chuẩn bị cho môi trường vận hành chính thức.</div>
                 </div>
             </div>
@@ -267,11 +266,7 @@ function SupabaseStorageMaintenance() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <div>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Dung lượng & dọn ảnh</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Theo dõi dung lượng ảnh và dọn ảnh đã lưu trữ.</div>
-                </div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <button onClick={loadSummary} disabled={loading || busy} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: loading || busy ? 'wait' : 'pointer' }}>Làm mới</button>
             </div>
 
