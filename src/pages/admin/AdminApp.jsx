@@ -29,6 +29,7 @@ const Notifications = lazy(() => import('./Notifications'))
 const AttendanceAdvanced = lazy(() => import('./AttendanceAdvanced'))
 const MealMenu = lazy(() => import('./MealMenu'))
 const MediaLibrary = lazy(() => import('./MediaLibrary'))
+const TourRequests = lazy(() => import('./TourRequests'))
 
 const PAGE_MAP = {
     dashboard: { title: 'Tổng quan', subtitle: 'Maika Nursery School', component: (nav) => <Dashboard onNav={nav} /> },
@@ -50,6 +51,7 @@ const PAGE_MAP = {
     invoices: { title: 'Hóa đơn & Biên lai', subtitle: 'Quản lý học phí nâng cao', component: () => <Invoices /> },
     settings: { title: 'Cấu hình trường học', subtitle: 'Thông tin trường · Năm học · Mức phí · Quyền riêng tư', component: () => <Settings /> },
     notifications: { title: 'Thông báo', subtitle: 'Tạo và quản lý thông báo gửi cho phụ huynh', component: () => <Notifications /> },
+    tourRequests: { title: 'Đăng ký tham quan', subtitle: 'Yêu cầu tuyển sinh từ landing page', component: () => <TourRequests /> },
     attendanceAdv: { title: 'Điểm danh nâng cao', subtitle: 'Check-in · Check-out · Người đón · Mobile mode', component: () => <AttendanceAdvanced /> },
     mealMenu: { title: 'Thực đơn', subtitle: 'Kế hoạch bữa ăn tuần · Xuất bản cho phụ huynh', component: () => <MealMenu /> },
     media: { title: 'Thư viện ảnh', subtitle: 'Upload · Duyệt · Đăng ảnh hoạt động', component: () => <MediaLibrary /> },

@@ -4,6 +4,20 @@ export function hasBackendAPI() {
     return Boolean(API_URL)
 }
 
+export async function publicApiRequest(path, options = {}) {
+    if (!API_URL) throw new Error('Hệ thống dữ liệu chưa sẵn sàng.')
+
+    const headers = {
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(options.headers || {}),
+    }
+
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error || 'Không thực hiện được yêu cầu.')
+    return body
+}
+
 export async function loginWithBackend(credentials) {
     if (!API_URL) return null
 

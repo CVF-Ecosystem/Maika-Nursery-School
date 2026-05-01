@@ -120,7 +120,8 @@ export const defaultData = {
         { id: 'b4', studentId: 's8', badge: 'crown', name: 'Học sinh xuất sắc', earnedDate: '2026-04-15', note: 'Kết quả học tập tốt nhất tháng' },
         { id: 'b5', studentId: 's9', badge: 'heart', name: 'Bạn tốt của mọi người', earnedDate: '2026-04-10', note: 'Hay giúp đỡ bạn bè' },
         { id: 'b6', studentId: 's3', badge: 'star', name: 'Tiến bộ vượt bậc', earnedDate: '2026-04-22', note: 'Cố gắng học tập tốt hơn nhiều' }
-    ]
+    ],
+    tourRequests: []
 };
 
 function loadData() {
@@ -210,4 +211,24 @@ export async function hydrateFromAPI() {
 export function clearApiSnapshot() {
     try { sessionStorage.removeItem('maika_api_snapshot'); } catch { }
     _db = null;
+}
+
+export function createTourRequest(input) {
+    const db = getDB();
+    if (!Array.isArray(db.tourRequests)) db.tourRequests = [];
+
+    const record = {
+        id: `tour-${Date.now()}`,
+        parentName: input.parentName || '',
+        phone: input.phone || '',
+        childAge: input.childAge || '',
+        note: input.note || '',
+        status: 'new',
+        source: 'landing',
+        createdAt: new Date().toISOString(),
+    };
+
+    db.tourRequests.unshift(record);
+    commit();
+    return record;
 }

@@ -107,5 +107,11 @@ input:focus, textarea:focus, select:focus {
 
   .landing-cta-form {
     flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-cta-form button {
+    grid-column: auto !important;
+    justify-self: stretch !important;
   }
 }

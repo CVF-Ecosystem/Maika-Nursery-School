@@ -89,6 +89,93 @@ const COLLECTION_ROUTE_MAP = {
     'daily-reports': 'dailyReports',
     resources: 'resources',
     badges: 'badges',
+    'tour-requests': 'tourRequests',
+}
+
+const PROGRAM_META = {
+    'Lớp Mầm': {
+        icon: '🌱',
+        desc: 'Làm quen môi trường học, phát triển ngôn ngữ và kỹ năng xã hội qua vui chơi.',
+        feats: ['🎨 Vẽ và tô màu sáng tạo', '🎵 Học qua bài hát & vần điệu', '🤝 Kỹ năng sống căn bản'],
+        bg: '#EDE9FE',
+        col: '#6D28D9',
+        delay: 'd1',
+    },
+    'Lớp Chồi': {
+        icon: '🌿',
+        desc: 'Phát triển tư duy logic, toán học và vốn từ vựng qua khám phá thế giới.',
+        feats: ['🔢 Làm quen với con số', '📖 Nhận biết chữ cái', '🌍 Khám phá thiên nhiên'],
+        bg: '#FEF3C7',
+        col: '#D97706',
+        delay: 'd2',
+    },
+    'Lớp Lá': {
+        icon: '🌳',
+        desc: 'Chuẩn bị toàn diện vào lớp 1 với kỹ năng đọc viết, tính toán và tư duy độc lập.',
+        feats: ['✏️ Tập viết chữ & số', '🧩 Tư duy logic & sáng tạo', '🎤 Tự tin giao tiếp'],
+        bg: '#D1FAE5',
+        col: '#059669',
+        delay: 'd3',
+    },
+}
+
+function cleanPublicText(value, max = 160) {
+    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max)
+}
+
+function plusCount(value) {
+    return value > 0 ? `${value}+` : '—'
+}
+
+function buildPublicLandingData(snapshot) {
+    const students = Array.isArray(snapshot.students) ? snapshot.students : []
+    const teachers = Array.isArray(snapshot.teachers) ? snapshot.teachers : []
+    const classes = Array.isArray(snapshot.classes) ? snapshot.classes : []
+    const events = Array.isArray(snapshot.events) ? snapshot.events : []
+    const activeStudentCount = students.filter(s => s.status !== 'inactive').length
+    const activeTeacherCount = teachers.filter(t => t.status !== 'inactive').length
+    const classCount = classes.length
+
+    return {
+        stats: { activeStudentCount, activeTeacherCount, classCount },
+        heroCards: [
+            ['👦', plusCount(activeStudentCount), 'Học sinh đang học'],
+            ['👩‍🏫', plusCount(activeTeacherCount), 'Giáo viên phụ trách'],
+            ['⭐', classCount || '—', 'Nhóm lớp mầm non'],
+            ['🔒', 'Riêng tư', 'Phân quyền bảo mật'],
+        ],
+        statStrip: [
+            [classCount || '—', 'Nhóm lớp mầm non'],
+            ['Hằng ngày', 'Điểm danh và nhật ký'],
+            [plusCount(activeTeacherCount), 'Giáo viên và nhân sự'],
+            ['Riêng tư', 'Quyền truy cập theo vai trò'],
+        ],
+        programs: classes.map((cls, index) => {
+            const meta = PROGRAM_META[cls.name] || {}
+            return {
+                id: cls.id || `class-${index}`,
+                cls: cleanPublicText(cls.name || `Nhóm lớp ${index + 1}`, 80),
+                age: cleanPublicText(cls.ageGroup, 24).replace('-', '–') || 'Mầm non',
+                icon: meta.icon || '🌼',
+                desc: meta.desc || 'Chương trình học tập và chăm sóc phù hợp với độ tuổi của trẻ.',
+                feats: meta.feats || ['🎨 Học qua vui chơi', '🤝 Kỹ năng xã hội', '🌿 Hoạt động mỗi ngày'],
+                bg: meta.bg || '#EDE9FE',
+                col: meta.col || '#6D28D9',
+                delay: meta.delay || `d${Math.min(index + 1, 3)}`,
+            }
+        }),
+        publicEvents: events
+            .filter(event => event.date && !['finance', 'private'].includes(event.type))
+            .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+            .slice(0, 3)
+            .map(event => ({
+                id: event.id,
+                title: cleanPublicText(event.title, 80),
+                date: event.date,
+                type: event.type,
+                desc: cleanPublicText(event.desc, 120),
+            })),
+    }
 }
 
 const UPLOAD_DIR = resolve(process.env.MAIKA_UPLOAD_DIR || 'server/uploads')
@@ -259,6 +346,13 @@ export async function createApp() {
         standardHeaders: true,
         legacyHeaders: false,
     })
+    const tourRequestLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 8,
+        message: { error: 'Quá nhiều yêu cầu đăng ký, vui lòng thử lại sau.' },
+        standardHeaders: true,
+        legacyHeaders: false,
+    })
 
     app.use('/api/v1', (req, res, next) => {
         const versionedUrl = req.url
@@ -291,6 +385,48 @@ export async function createApp() {
         try { db.prepare('SELECT 1').get(); dbOk = true } catch { /* ignore */ }
         if (dbOk) return res.json({ ready: true })
         res.status(503).json({ ready: false, reason: 'db not ready' })
+    })
+
+    app.get('/api/public/landing', (_req, res) => {
+        res.json({ data: buildPublicLandingData(readSnapshot()) })
+    })
+
+    app.post('/api/public/tour-requests', tourRequestLimiter, (req, res) => {
+        const parentName = cleanPublicText(req.body?.parentName, 80)
+        const phone = cleanPublicText(req.body?.phone, 24)
+        const childAge = cleanPublicText(req.body?.childAge, 24)
+        const note = cleanPublicText(req.body?.note, 240)
+        const website = cleanPublicText(req.body?.website, 120)
+
+        if (website) return res.status(202).json({ data: { status: 'received' } })
+        if (!parentName) return res.status(400).json({ error: 'Vui lòng nhập tên phụ huynh.' })
+        if (!/^(\+?84|0)[0-9\s.-]{8,13}$/.test(phone)) return res.status(400).json({ error: 'Số điện thoại chưa hợp lệ.' })
+
+        const data = upsertRecord('tourRequests', {
+            id: `tour-${Date.now()}`,
+            parentName,
+            phone,
+            childAge,
+            note,
+            status: 'new',
+            source: 'landing',
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent') || null,
+            createdAt: new Date().toISOString(),
+        })
+
+        addAuditLog({
+            actorId: null,
+            actorRole: 'public',
+            actorName: 'Landing page',
+            ...requestMeta(req),
+            action: 'tour_request_created',
+            entityType: 'tourRequests',
+            entityId: data.id,
+            summary: `Đăng ký tham quan từ ${parentName}`,
+        })
+
+        res.status(201).json({ data: { id: data.id, status: data.status, createdAt: data.createdAt } })
     })
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {

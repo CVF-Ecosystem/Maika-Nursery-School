@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs'
 import { defaultData } from '../src/data/store.js'
 
 const DB_PATH = resolve(process.env.MAIKA_DB_PATH || 'server/data/maika.sqlite')
-const COLLECTIONS = ['students', 'teachers', 'classes', 'attendance', 'finance', 'messages', 'events', 'dailyReports', 'resources', 'badges']
+const COLLECTIONS = ['students', 'teachers', 'classes', 'attendance', 'finance', 'messages', 'events', 'dailyReports', 'resources', 'badges', 'tourRequests']
 
 mkdirSync(dirname(DB_PATH), { recursive: true })
 

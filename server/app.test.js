@@ -64,6 +64,42 @@ describe('Maika API', () => {
         expect(snapshot.body.data.students.length).toBeGreaterThan(0)
     })
 
+    it('serves public landing data without exposing private records', async () => {
+        const landing = await api('/api/public/landing')
+
+        expect(landing.response.status).toBe(200)
+        expect(landing.body.data.stats.activeStudentCount).toBeGreaterThan(0)
+        expect(landing.body.data.programs.length).toBeGreaterThan(0)
+        expect(landing.body.data.students).toBeUndefined()
+        expect(landing.body.data.attendance).toBeUndefined()
+        expect(landing.body.data.finance).toBeUndefined()
+    })
+
+    it('records public tour requests for admin follow-up', async () => {
+        const created = await api('/api/public/tour-requests', {
+            method: 'POST',
+            body: JSON.stringify({
+                parentName: 'Phụ huynh Test',
+                phone: '0901234567',
+                childAge: '4-5 tuổi',
+                note: 'Muốn tham quan trong tuần này',
+            }),
+        })
+
+        expect(created.response.status).toBe(201)
+        expect(created.body.data.status).toBe('new')
+
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const requests = await api('/api/tour-requests', {
+            headers: { Authorization: `Bearer ${login.body.token}` },
+        })
+
+        expect(requests.body.data.some(item => item.phone === '0901234567')).toBe(true)
+    })
+
     it('supports authenticated CRUD for students', async () => {
         const login = await api('/api/auth/login', {
             method: 'POST',
