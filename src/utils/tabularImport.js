@@ -73,7 +73,7 @@ export async function readWorkbookTables(file) {
     if (lowerName.endsWith('.csv')) {
         return [{ name: file.name, rows: await readTabularRows(file) }]
     }
-    const XLSX = await import('xlsx')
+    const XLSX = await import('@e965/xlsx')
     const data = await file.arrayBuffer()
     const workbook = XLSX.read(data, { type: 'array', cellDates: true })
     return workbook.SheetNames.map(name => ({

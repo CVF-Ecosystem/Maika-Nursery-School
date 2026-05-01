@@ -27,3 +27,7 @@ playwright-report/
 __pycache__/
 *.pyc
 supabase/.temp/
+
+# Local AI/review handoff notes
+AGENT_HANDOFF.md
+EA_REVIEW.md

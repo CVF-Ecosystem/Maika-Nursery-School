@@ -137,7 +137,7 @@ function exportFileName(month, year, className) {
 }
 
 async function exportMaikaTuitionWorkbook({ invoices, students, db }) {
-    const XLSX = await import('xlsx')
+    const XLSX = await import('@e965/xlsx')
     const firstInvoice = invoices.find(inv => inv.due_date) || {}
     const baseDate = firstInvoice.due_date || new Date().toISOString().slice(0, 10)
     const [year, month] = baseDate.split('-').map(Number)
