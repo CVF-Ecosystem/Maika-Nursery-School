@@ -20,3 +20,8 @@ playwright-report/
 .lighthouse-report.json
 .vercel
 .netlify
+.claude/settings.local.json
+*.xlsx
+*.xls
+__pycache__/
+*.pyc

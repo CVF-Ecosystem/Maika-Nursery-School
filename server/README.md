@@ -30,6 +30,14 @@ node server/export-snapshot.js maika-snapshot.json
 node server/import-snapshot.js maika-snapshot.json
 ```
 
+Private CS1 student import:
+
+```bash
+python server/import-cs1-xlsx.py "Danh sach tre CS1.xlsx"
+```
+
+The workbook contains real student/guardian data and is ignored by Git. The import updates the local SQLite database only, creates a backup in `MAIKA_BACKUP_DIR`, and does not create parent login accounts unless the workbook contains parent phone numbers.
+
 REST collections:
 
 `students`, `teachers`, `classes`, `attendance`, `finance`, `messages`, `events`, `daily-reports`, `resources`, `badges`

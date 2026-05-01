@@ -21,7 +21,8 @@ function InfoRow({ label, value }) {
 
 function exportCSV(students, classes) {
     const headers = ['Họ tên', 'Ngày sinh', 'Lớp', 'Giới tính', 'Phụ huynh', 'Điện thoại', 'Email PH', 'Ngày nhập học', 'Trạng thái']
-    const rows = students.map(s => { const cls = classes.find(c => c.id === s.classId); return [s.name, s.dob, cls?.name || '', s.gender === 'male' ? 'Nam' : 'Nữ', s.parentName, s.parentPhone, s.parentEmail, s.enrollDate, s.status === 'active' ? 'Đang học' : 'Nghỉ học'] })
+    const genderLabel = gender => gender === 'male' ? 'Nam' : gender === 'female' ? 'Nữ' : ''
+    const rows = students.map(s => { const cls = classes.find(c => c.id === s.classId); return [s.name, s.dob, cls?.name || '', genderLabel(s.gender), s.parentName, s.parentPhone, s.parentEmail, s.enrollDate, s.status === 'active' ? 'Đang học' : 'Nghỉ học'] })
     const csv = [headers, ...rows].map(r => r.map(v => `"${(v || '').replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'maika-hoc-sinh.csv'
@@ -29,7 +30,7 @@ function exportCSV(students, classes) {
 }
 
 function StudentModal({ student, db, onClose, onSave }) {
-    const [form, setForm] = useState(student || { name: '', dob: '', classId: 'c1', gender: 'male', parentName: '', parentPhone: '', parentEmail: '', enrollDate: todayStr(), status: 'active', initials: '' })
+    const [form, setForm] = useState(student || { name: '', dob: '', classId: 'c1', gender: 'unknown', parentName: '', parentPhone: '', parentEmail: '', enrollDate: todayStr(), status: 'active', initials: '' })
     const is = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
     function hc(k, v) { const u = { ...form, [k]: v }; if (k === 'name') u.initials = v.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join(''); setForm(u) }
@@ -40,7 +41,7 @@ function StudentModal({ student, db, onClose, onSave }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={ls} htmlFor="student-name">Họ và tên *</label><input id="student-name" style={is} value={form.name} onChange={e => hc('name', e.target.value)} placeholder="VD: Nguyễn Minh An" /></div>
                     <div><label style={ls} htmlFor="student-dob">Ngày sinh *</label><input id="student-dob" type="date" style={is} value={form.dob} onChange={e => hc('dob', e.target.value)} /></div>
-                    <div><label style={ls}>Giới tính</label><select style={is} value={form.gender} onChange={e => hc('gender', e.target.value)}><option value="male">Nam</option><option value="female">Nữ</option></select></div>
+                    <div><label style={ls}>Giới tính</label><select style={is} value={form.gender} onChange={e => hc('gender', e.target.value)}><option value="unknown">Chưa rõ</option><option value="male">Nam</option><option value="female">Nữ</option></select></div>
                     <div><label style={ls}>Lớp *</label><select style={is} value={form.classId} onChange={e => hc('classId', e.target.value)}>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.ageGroup})</option>)}</select></div>
                     <div><label style={ls}>Ngày nhập học</label><input type="date" style={is} value={form.enrollDate} onChange={e => hc('enrollDate', e.target.value)} /></div>
                     <div style={{ gridColumn: '1/-1', background: '#FFF7ED', borderRadius: 10, padding: '12px 14px' }}>

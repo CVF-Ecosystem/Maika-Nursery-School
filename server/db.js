@@ -1262,7 +1262,7 @@ export async function seedDatabase() {
         status: 'active',
     })
 
-    for (const student of defaultData.students) {
+    for (const student of readCollection('students')) {
         if (!student.parentPhone) continue
         ensureUser({
             id: `parent-${student.id}`,
