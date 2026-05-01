@@ -24,6 +24,7 @@ export default function TeacherApp() {
         sessionStorage.removeItem('maika_role')
         sessionStorage.removeItem('maika_api_token')
         sessionStorage.removeItem('maika_must_change_password')
+        sessionStorage.removeItem('maika_data_backend')
         navigate('/teacher')
     }
 

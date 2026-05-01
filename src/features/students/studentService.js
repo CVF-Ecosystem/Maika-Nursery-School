@@ -50,16 +50,59 @@ export async function listStudentsForCurrentTeacher() {
 }
 
 export async function listStudentsForFacility(facilityId) {
+    return listStudents({ facilityId, status: 'active' })
+}
+
+export async function listStudents({ facilityId, status } = {}) {
     const client = requireSupabase()
     let query = client
         .from('students')
         .select(STUDENT_COLUMNS)
-        .eq('status', 'active')
         .order('full_name', { ascending: true })
 
     if (facilityId) query = query.eq('facility_id', facilityId)
+    if (status) query = query.eq('status', status)
 
     const { data, error } = await query
     if (error) throw error
     return (data || []).map(mapStudentFromSupabase)
+}
+
+export async function saveStudent(input) {
+    const client = requireSupabase()
+    const payload = {
+        ...(input.id ? { id: input.id } : {}),
+        facility_id: input.facilityId,
+        full_name: input.name?.trim(),
+        dob: input.dob || null,
+        gender: input.gender || 'unknown',
+        class_name: input.className || null,
+        parent_name: input.parentName || null,
+        parent_phone: input.parentPhone || null,
+        parent_email: input.parentEmail || null,
+        status: input.status || 'active',
+        notes: input.notes || null,
+    }
+
+    const { data, error } = await client
+        .from('students')
+        .upsert(payload, { onConflict: 'id' })
+        .select(STUDENT_COLUMNS)
+        .single()
+
+    if (error) throw error
+    return mapStudentFromSupabase(data)
+}
+
+export async function markStudentInactive(id) {
+    const client = requireSupabase()
+    const { data, error } = await client
+        .from('students')
+        .update({ status: 'inactive' })
+        .eq('id', id)
+        .select(STUDENT_COLUMNS)
+        .single()
+
+    if (error) throw error
+    return mapStudentFromSupabase(data)
 }

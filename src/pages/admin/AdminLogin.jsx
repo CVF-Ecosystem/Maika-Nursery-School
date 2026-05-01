@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasBackendAPI, loginWithBackend } from '../../data/api'
 import { clearApiSnapshot } from '../../data/store'
-import { portalPathForRole } from '../../features/auth/authService'
+import { getCurrentProfile, portalPathForRole, signInWithPassword } from '../../features/auth/authService'
+import { isSupabaseBackend, setActiveDataBackend } from '../../data/backendMode'
+import { isSupabaseConfigured } from '../../lib/supabaseClient'
 
 const DEMO_PASS = ['123456', 'maika']
 const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
 
 export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, title = 'Chào mừng trở lại', subtitle = 'Đăng nhập để quản lý trường', backTo = '/' }) {
     const [role, setRole] = useState(defaultRole)
+    const [email, setEmail] = useState('')
     const [pass, setPass] = useState('')
     const [err, setErr] = useState('')
     const [loading, setLoading] = useState(false)
@@ -18,10 +21,29 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
         e.preventDefault()
         setLoading(true)
         setErr('')
+        if (isSupabaseBackend() && isSupabaseConfigured && email.trim()) {
+            try {
+                await signInWithPassword({ email: email.trim(), password: pass })
+                const profile = await getCurrentProfile()
+                if (!profile?.is_active) throw new Error('Tài khoản chưa được kích hoạt.')
+                if (lockedRole && profile.role !== defaultRole) throw new Error('Tài khoản không đúng cổng đăng nhập.')
+                sessionStorage.setItem('maika_role', profile.role)
+                setActiveDataBackend('supabase')
+                sessionStorage.removeItem('maika_api_token')
+                clearApiSnapshot()
+                navigate(portalPathForRole(profile.role))
+            } catch (error) {
+                setErr(error.message)
+                setLoading(false)
+            }
+            return
+        }
+
         if (hasBackendAPI()) {
             try {
                 const session = await loginWithBackend({ role, password: pass })
                 sessionStorage.setItem('maika_role', session.user.role)
+                setActiveDataBackend('api')
                 sessionStorage.setItem('maika_api_token', session.token)
                 if (session.mustChangePassword) {
                     sessionStorage.setItem('maika_must_change_password', 'true')
@@ -40,6 +62,7 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
         setTimeout(() => {
             if (DEMO_PASS.includes(pass)) {
                 sessionStorage.setItem('maika_role', role)
+                setActiveDataBackend('local')
                 navigate(portalPathForRole(role))
             } else {
                 setErr(DEMO_MODE ? 'Mật khẩu không đúng. Thử: 123456' : 'Mật khẩu không đúng.')
@@ -62,6 +85,12 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
                     <div style={{ fontWeight: 800, fontSize: 20, color: '#1E1B4B', marginBottom: 8 }}>{title}</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 28 }}>{subtitle}</div>
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {isSupabaseBackend() && isSupabaseConfigured && (
+                            <div style={{ textAlign: 'left' }}>
+                                <label htmlFor="admin-email" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Email Supabase</label>
+                                <input id="admin-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={defaultRole === 'teacher' ? 'teacher.cs1@maika.test' : 'admin@maika.test'} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
+                            </div>
+                        )}
                         {!lockedRole && (
                             <div style={{ textAlign: 'left' }}>
                                 <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>

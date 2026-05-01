@@ -486,7 +486,7 @@ src/
 - [x] Chạy migration vào Supabase project `czxoozwydvmjisydyims` ngày 01/05/2026; verify 4 bảng tồn tại qua publishable key.
 - [x] Tạo Supabase Auth test users/profiles: `admin@maika.test`, `teacher.cs1@maika.test`, `teacher.cs2@maika.test`.
 - [x] Import 64 học sinh CS1 từ file Excel private vào bảng `students` Supabase; dữ liệu thiếu giữ `null`/`unknown`.
-- [x] Verify RLS bằng login thật: admin thấy CS1+CS2 và 64 học sinh; teacher CS1 thấy CS1 và 64 học sinh; teacher CS2 thấy CS2 và 0 học sinh.
+- [x] Verify RLS bằng login thật sau seed CS2: admin thấy CS1+CS2 và 76 học sinh; teacher CS1 thấy CS1 và 64 học sinh; teacher CS2 thấy CS2 và 12 học sinh demo.
 - [ ] Rotate lại Supabase secret/service key trước production vì key đã được dùng trong quá trình setup local.
 
 **Done when:** chạy SQL trong Supabase Dashboard không lỗi; teacher CS1 không đọc được student CS2.
@@ -504,15 +504,18 @@ src/
 
 **Done when:** frontend lấy được profile hiện tại và danh sách học sinh theo cơ sở qua RLS.
 
-### Layer 3 — Data Adapter Cutover Cho Students/Facilities (🟠)
+### Layer 3 — Data Adapter Cutover Cho Students/Facilities (✅ Đã làm bước nền — 01/05/2026)
 **Scope:** chuyển module học sinh/lớp/cơ sở sang Supabase theo adapter, không đập toàn app.
 
-- [ ] Tạo `src/features/facilities/facilityService.js`.
+- [x] Tạo `src/features/facilities/facilityService.js`.
 - [ ] Tạo hook `useFacilityStudents(facilityId?)`.
-- [ ] Refactor màn `Students` đọc từ service khi `VITE_DATA_BACKEND=supabase`.
+- [x] Refactor màn `Students` đọc từ Supabase panel khi user đăng nhập Supabase thật (`maika_data_backend=supabase`).
+- [x] Admin có thể thêm/sửa dữ liệu học sinh trực tiếp: cơ sở, tên, ngày sinh, giới tính, lớp, phụ huynh, điện thoại, email, trạng thái, ghi chú.
+- [x] Teacher chỉ xem dữ liệu theo cơ sở qua RLS, không có nút sửa.
 - [ ] Giữ fallback local/API cũ qua adapter, không nhân đôi component.
-- [ ] Map dữ liệu Excel hiện tại: tên học sinh/phụ huynh thật; thông tin thiếu để giả lập có nhãn rõ (`unknown`, empty phone/email).
-- [ ] Import Excel sau này đi qua script/migration riêng, không hardcode vào React.
+- [x] Giữ fallback local/API cũ cho login demo/e2e, không ép toàn app vào Supabase khi chưa đăng nhập Auth.
+- [x] Map dữ liệu Excel hiện tại: tên học sinh/phụ huynh thật; thông tin thiếu để `null`/`unknown`/empty rõ ràng.
+- [x] Import Excel đi qua script riêng, không hardcode vào React.
 
 **Done when:** Admin/Teacher xem danh sách học sinh từ Supabase; build không tăng component phức tạp.
 
@@ -538,13 +541,15 @@ src/
 
 **Done when:** admin/teacher login bằng Supabase Auth và app tự lọc theo role/facility.
 
-### Layer 6 — Migration & Import Dữ Liệu Thật (🟡)
+### Layer 6 — Migration & Import Dữ Liệu Thật (✅ Bước đầu đã làm — 01/05/2026)
 **Scope:** chuẩn hóa đường nhập Excel đầy đủ sau này.
 
-- [ ] Viết script import Supabase cho Excel đầy đủ: facility, student, parent, phone, class.
-- [ ] Validate duplicate student/parent/phone trước import.
+- [x] Viết script import Supabase linh hoạt: `scripts/import-supabase-students.py "Danh sach tre CS1.xlsx" CS1`.
+- [x] Script hỗ trợ các cột/alias phổ biến: facility, student, parent, phone, email, dob, gender, class, notes; thiếu cột thì để trống rõ ràng.
+- [x] Validate duplicate theo tên học sinh + facility ở mức import memory; cần bổ sung kiểm tra duplicate phone/parent nâng cao trước production.
 - [ ] Không ghi đè dữ liệu production nếu chưa có `--confirm`.
-- [ ] Import hiện tại: giữ tên học sinh/phụ huynh thật; các trường thiếu giả lập/empty rõ ràng.
+- [x] Import hiện tại: giữ tên học sinh/phụ huynh thật; các trường thiếu giả lập/empty rõ ràng.
+- [x] Seed demo CS2 bằng `scripts/seed-supabase-cs2-demo.mjs` để test UI/RLS: 12 học sinh demo, có marker ghi chú để seed lại sạch.
 - [ ] Ghi batch import log để rollback/soát lỗi.
 
 **Done when:** import thử vào Supabase staging được, không commit PII.

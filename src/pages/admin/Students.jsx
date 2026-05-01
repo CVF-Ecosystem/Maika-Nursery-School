@@ -2,6 +2,8 @@ import { useState, useMemo, useRef } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
 import { sanitizeText } from '../../utils/security'
+import { isSupabaseSession } from '../../data/backendMode'
+import SupabaseStudentsPanel from '../../features/students/SupabaseStudentsPanel'
 
 function Avatar({ initials, size = 38 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -64,6 +66,8 @@ function StudentModal({ student, db, onClose, onSave }) {
 }
 
 export default function Students() {
+    if (isSupabaseSession()) return <SupabaseStudentsPanel />
+
     const [db, setDB] = useState(getDB())
     const [search, setSearch] = useState('')
     const [filterClass, setFilterClass] = useState('all')

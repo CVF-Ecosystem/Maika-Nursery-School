@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasBackendAPI, loginWithBackend } from '../../data/api'
+import { setActiveDataBackend } from '../../data/backendMode'
 import { clearApiSnapshot } from '../../data/store'
 
 const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
@@ -19,6 +20,7 @@ export default function ParentLogin() {
                 const session = await loginWithBackend({ role: 'parent', phone: normalizedPhone })
                 sessionStorage.setItem('maika_parent_phone', normalizedPhone)
                 sessionStorage.setItem('maika_role', session.user.role)
+                setActiveDataBackend('api')
                 sessionStorage.setItem('maika_api_token', session.token)
                 clearApiSnapshot()
                 navigate('/parent/app')
@@ -33,6 +35,7 @@ export default function ParentLogin() {
         if (validPhones.includes(normalizedPhone)) {
             sessionStorage.setItem('maika_parent_phone', normalizedPhone)
             sessionStorage.setItem('maika_role', 'parent')
+            setActiveDataBackend('local')
             navigate('/parent/app')
         } else {
             setErr(DEMO_MODE ? 'Không tìm thấy tài khoản. Demo: 0901234567' : 'Không tìm thấy tài khoản.')
