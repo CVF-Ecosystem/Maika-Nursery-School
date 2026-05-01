@@ -185,3 +185,15 @@ export async function saveInvoice(input) {
     if (error) throw error
     return { ...data, paid_date: data.paid_at?.slice(0, 10) || '', notes: data.note || '' }
 }
+
+export async function deleteInvoices(ids = []) {
+    const invoiceIds = ids.filter(Boolean)
+    if (!invoiceIds.length) return 0
+    const client = requireSupabase()
+    const { error, count } = await client
+        .from('invoices')
+        .delete({ count: 'exact' })
+        .in('id', invoiceIds)
+    if (error) throw error
+    return count ?? invoiceIds.length
+}

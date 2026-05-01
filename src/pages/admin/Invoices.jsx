@@ -3,7 +3,7 @@ import { commit, getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents, saveStudent as saveSupabaseStudent } from '../../features/students/studentService'
-import { listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
+import { deleteInvoices as deleteSupabaseInvoices, listInvoices as listSupabaseInvoices, saveInvoice as saveSupabaseInvoice } from '../../features/sensitive/sensitiveService'
 import { buildPaymentQrUrl, getPaymentSettings, hasPaymentQrSettings } from '../../features/payments/paymentSettings'
 import { buildReceiptNumber, studentCodeFromReceiptNumber } from '../../features/payments/receiptNumbers'
 import { fmtMoney, fmtDate } from '../../utils/format'
@@ -145,6 +145,12 @@ function receiptCodeForStudent(students, db, invoices, studentId, type, dueDate)
         fallbackCode: `HS${String(Math.max(index, 0) + 1).padStart(3, '0')}`,
         existingNumbers: invoices.map(invoice => invoice.invoice_number),
     })
+}
+
+function isImportedReceipt(invoice) {
+    const number = String(invoice?.invoice_number || '').trim()
+    return /^[A-Z]{1,4}_?\d+-\d{4}-\d{2}$/i.test(number)
+        || /^(?:HP|TA|HL|HD|KT)-\d{6}-[A-Z]{1,4}_?\d+(?:-\d{2})?$/i.test(number)
 }
 
 function exportFileName(month, year, className) {
@@ -867,6 +873,39 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
     }
 
     const filtered = filterStatus === 'all' ? invoices : invoices.filter(i => i.status === filterStatus)
+    const importedVisible = filtered.filter(isImportedReceipt)
+
+    async function clearImportedInvoices() {
+        if (!importedVisible.length) {
+            setMessage('Không có dữ liệu import trong danh sách hiện tại.')
+            setTimeout(() => setMessage(''), 3000)
+            return
+        }
+        const ok = window.confirm(`Xóa ${importedVisible.length} khoản thu import trong danh sách hiện tại? Thao tác này không hoàn tác.`)
+        if (!ok) return
+        setError('')
+        setMessage('Đang xóa dữ liệu import...')
+        try {
+            const ids = importedVisible.map(invoice => invoice.id)
+            if (supabaseMode) {
+                await deleteSupabaseInvoices(ids)
+            } else if (localMode) {
+                const ndb = getDB()
+                const idSet = new Set(ids)
+                ndb.finance = (ndb.finance || []).filter(row => !idSet.has(row.id))
+                commit()
+            } else {
+                for (const id of ids) await apiRequest(`/api/invoices/${id}`, { method: 'DELETE' })
+            }
+            await load()
+            setMessage(`Đã xóa ${ids.length} khoản thu import.`)
+            setTimeout(() => setMessage(''), 3500)
+        } catch (err) {
+            setMessage('')
+            setError(err.message || 'Không xóa được dữ liệu import.')
+        }
+    }
+
     const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
     const totalPending = invoices.filter(i => i.status === 'pending').reduce((s, i) => s + i.amount, 0)
     const totalOverdue = invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0)
@@ -904,6 +943,13 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                         style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}
                     >
                         📤 Export Excel
+                    </button>
+                    <button
+                        onClick={clearImportedInvoices}
+                        disabled={!importedVisible.length}
+                        style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #FCA5A5', background: importedVisible.length ? '#fff' : '#F8F7FF', color: importedVisible.length ? '#DC2626' : '#A8A0C8', fontWeight: 800, fontSize: 13, cursor: importedVisible.length ? 'pointer' : 'not-allowed' }}
+                    >
+                        Xóa import
                     </button>
                     <button
                         onClick={() => { setSelected(null); setModal('form') }}

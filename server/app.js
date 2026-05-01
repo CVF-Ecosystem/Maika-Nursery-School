@@ -21,6 +21,7 @@ import {
     createTuitionPlan,
     createUser,
     db,
+    deleteInvoice,
     deleteRecord,
     deleteSchoolHoliday,
     findUserForLogin,
@@ -888,6 +889,21 @@ export async function createApp() {
             metadata: { status: req.body.status, paidDate: req.body.paidDate },
         })
         res.json({ data: updated })
+    })
+
+    app.delete('/api/invoices/:id', requireAuth, requireRoles('admin'), (req, res) => {
+        const existing = getInvoice(req.params.id)
+        if (!existing) return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' })
+        const deleted = deleteInvoice(req.params.id)
+        if (!deleted) return res.status(404).json({ error: 'Không tìm thấy hóa đơn.' })
+        auditFromRequest(req, {
+            action: 'invoice_deleted',
+            entityType: 'invoice',
+            entityId: existing.id,
+            summary: `Xóa hóa đơn ${existing.invoice_number}: ${existing.description}`,
+            metadata: { amount: existing.amount, studentId: existing.student_id },
+        })
+        res.json({ ok: true })
     })
 
     // ─── Meal Menus ───────────────────────────────────────────────────────────────

@@ -736,6 +736,10 @@ export function updateInvoice(id, input) {
     return getInvoice(id)
 }
 
+export function deleteInvoice(id) {
+    return db.prepare('DELETE FROM invoices WHERE id = ?').run(id).changes > 0
+}
+
 // ─── School Settings ──────────────────────────────────────────────────────────
 
 export function getSchoolSettings() {
