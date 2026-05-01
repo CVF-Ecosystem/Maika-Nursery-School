@@ -484,7 +484,10 @@ src/
 - [x] RLS: admin xem tất cả; teacher chỉ xem dữ liệu thuộc `profiles.facility_id`.
 - [x] Seed 2 cơ sở: CS1, CS2 trong SQL seed/dev note.
 - [x] Chạy migration vào Supabase project `czxoozwydvmjisydyims` ngày 01/05/2026; verify 4 bảng tồn tại qua publishable key.
-- [ ] Verify RLS bằng user thật sau khi tạo Supabase Auth users + profiles.
+- [x] Tạo Supabase Auth test users/profiles: `admin@maika.test`, `teacher.cs1@maika.test`, `teacher.cs2@maika.test`.
+- [x] Import 64 học sinh CS1 từ file Excel private vào bảng `students` Supabase; dữ liệu thiếu giữ `null`/`unknown`.
+- [x] Verify RLS bằng login thật: admin thấy CS1+CS2 và 64 học sinh; teacher CS1 thấy CS1 và 64 học sinh; teacher CS2 thấy CS2 và 0 học sinh.
+- [ ] Rotate lại Supabase secret/service key trước production vì key đã được dùng trong quá trình setup local.
 
 **Done when:** chạy SQL trong Supabase Dashboard không lỗi; teacher CS1 không đọc được student CS2.
 
