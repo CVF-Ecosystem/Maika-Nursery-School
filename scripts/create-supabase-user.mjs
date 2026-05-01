@@ -1,0 +1,68 @@
+import { createClient } from '@supabase/supabase-js'
+
+const url = process.env.SUPABASE_URL
+const serviceKey = process.env.SUPABASE_SERVICE_KEY
+
+if (!url || !serviceKey) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY')
+
+const [email, password, role, fullName, facilityCodeOrStudentName = ''] = process.argv.slice(2)
+if (!email || !password || !role || !fullName) {
+    throw new Error('Usage: node scripts/create-supabase-user.mjs email password admin|teacher|parent "Full name" [CS1|CS2|student name]')
+}
+
+const supabase = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+})
+
+let facilityId = null
+let studentId = null
+
+if (role === 'teacher' && facilityCodeOrStudentName) {
+    const { data, error } = await supabase.from('facilities').select('id').eq('code', facilityCodeOrStudentName).single()
+    if (error) throw error
+    facilityId = data.id
+}
+
+if (role === 'parent' && facilityCodeOrStudentName) {
+    const { data, error } = await supabase
+        .from('students')
+        .select('id')
+        .ilike('full_name', `%${facilityCodeOrStudentName}%`)
+        .limit(1)
+        .maybeSingle()
+    if (error) throw error
+    studentId = data?.id || null
+}
+
+const created = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, role },
+})
+if (created.error && !String(created.error.message || '').includes('already registered')) throw created.error
+
+const userId = created.data?.user?.id || (await supabase.auth.admin.listUsers()).data.users.find(u => u.email === email)?.id
+if (!userId) throw new Error(`Cannot resolve auth user for ${email}`)
+
+const { error: profileError } = await supabase.from('profiles').upsert({
+    id: userId,
+    role,
+    facility_id: facilityId,
+    full_name: fullName,
+    email,
+    is_active: true,
+}, { onConflict: 'id' })
+if (profileError) throw profileError
+
+if (role === 'parent' && studentId) {
+    const { error: linkError } = await supabase.from('parent_student_links').upsert({
+        parent_profile_id: userId,
+        student_id: studentId,
+        relationship: 'parent',
+        is_primary: true,
+    }, { onConflict: 'parent_profile_id,student_id' })
+    if (linkError) throw linkError
+}
+
+console.log(JSON.stringify({ ok: true, email, role, linkedStudent: studentId }, null, 2))

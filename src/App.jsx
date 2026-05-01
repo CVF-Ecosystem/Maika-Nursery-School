@@ -14,7 +14,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<AdminLogin defaultRole="admin" title="Đăng nhập Maika" subtitle="Một tài khoản cho Admin, Giáo viên và Phụ huynh" />} />
             <Route path="/parent" element={<ParentLogin />} />
-            <Route path="/parent/app" element={<ParentPortal />} />
+            <Route path="/parent/app" element={<RoleGate allowedRoles={['parent']} loginPath="/login"><ParentPortal /></RoleGate>} />
             <Route path="/parent/portal" element={<Navigate to="/parent/app" replace />} />
             <Route path="/teacher" element={<TeacherLogin />} />
             <Route path="/teacher/app" element={<RoleGate allowedRoles={['teacher']} loginPath="/teacher"><TeacherApp /></RoleGate>} />

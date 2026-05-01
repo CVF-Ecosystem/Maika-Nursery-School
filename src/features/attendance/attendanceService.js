@@ -9,7 +9,13 @@ const ATTENDANCE_COLUMNS = `
     note,
     meal_photo_url,
     meal_photo_path,
-    recorded_by
+    recorded_by,
+    check_in_time,
+    check_out_time,
+    pickup_person,
+    pickup_phone,
+    late_reason,
+    early_pickup_reason
 `
 
 export function mapAttendanceFromSupabase(row) {
@@ -23,6 +29,18 @@ export function mapAttendanceFromSupabase(row) {
         mealPhotoUrl: row.meal_photo_url || '',
         mealPhotoPath: row.meal_photo_path || '',
         recordedBy: row.recorded_by || '',
+        checkInTime: row.check_in_time || '',
+        checkOutTime: row.check_out_time || '',
+        pickupPerson: row.pickup_person || '',
+        pickupPhone: row.pickup_phone || '',
+        lateReason: row.late_reason || '',
+        earlyPickupReason: row.early_pickup_reason || '',
+        check_in_time: row.check_in_time || '',
+        check_out_time: row.check_out_time || '',
+        pickup_person: row.pickup_person || '',
+        pickup_phone: row.pickup_phone || '',
+        late_reason: row.late_reason || '',
+        early_pickup_reason: row.early_pickup_reason || '',
     }
 }
 
@@ -51,6 +69,12 @@ export async function upsertAttendance(record) {
         meal_photo_url: record.mealPhotoUrl || null,
         meal_photo_path: record.mealPhotoPath || null,
         recorded_by: record.recordedBy || null,
+        check_in_time: record.checkInTime || null,
+        check_out_time: record.checkOutTime || null,
+        pickup_person: record.pickupPerson || null,
+        pickup_phone: record.pickupPhone || null,
+        late_reason: record.lateReason || null,
+        early_pickup_reason: record.earlyPickupReason || null,
     }
 
     const { data, error } = await client

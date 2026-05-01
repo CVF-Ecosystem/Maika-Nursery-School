@@ -30,6 +30,11 @@ export default function ParentLogin() {
             return
         }
 
+        if (!DEMO_MODE) {
+            setErr('Vui lòng đăng nhập bằng tài khoản email tại /login.')
+            return
+        }
+
         // Demo: accept any registered parent phone or 0901234567
         const validPhones = ['0901234567', '0912345678', '0923456789', '0934567890', '0945678901', '0956789012', '0967890123', '0978901234', '0989012345', '0990123456', '0901234560', '0912345670', '0923456780', '0934567800', '0000']
         if (validPhones.includes(normalizedPhone)) {

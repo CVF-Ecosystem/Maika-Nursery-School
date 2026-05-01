@@ -2,8 +2,10 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
 import { fmtDate } from '../../utils/format'
 import { sanitizeFilename, sanitizeText, validateImageFile } from '../../utils/security'
+import SupabaseParentPortal from './SupabaseParentPortal'
 
 const HealthRecords = lazy(() => import('../admin/HealthRecords'))
 const Incidents = lazy(() => import('../admin/Incidents'))
@@ -36,6 +38,11 @@ const MOOD_EMOJI = { 'Vui vẻ': '😄', 'Hào hứng': '🤩', 'Bình thường
 const MOOD_COLOR = { 'Vui vẻ': '#16A34A', 'Hào hứng': '#7C3AED', 'Bình thường': '#6B6494', 'Mệt mỏi': '#D97706', 'Buồn ngủ': '#0891B2', 'Khó chịu': '#DC2626' }
 
 export default function ParentPortal() {
+    if (isSupabaseSession()) return <SupabaseParentPortal />
+    return <LocalParentPortal />
+}
+
+function LocalParentPortal() {
     const navigate = useNavigate()
     const [tab, setTab] = useState('announcements')
     const [openAnn, setOpenAnn] = useState(new Set([1]))

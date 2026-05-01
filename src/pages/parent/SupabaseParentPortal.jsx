@@ -1,0 +1,102 @@
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { signOut } from '../../features/auth/authService'
+import { listMyLinkedStudents } from '../../features/parents/parentService'
+
+const AttendanceAdvanced = lazy(() => import('../admin/AttendanceAdvanced'))
+const MediaLibrary = lazy(() => import('../admin/MediaLibrary'))
+
+const TABS = [
+    ['overview', 'Tổng quan'],
+    ['attendance', 'Điểm danh'],
+    ['gallery', 'Hình ảnh'],
+]
+
+function Loading() {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#7C6D9B', fontWeight: 800 }}>Đang tải...</div>
+}
+
+export default function SupabaseParentPortal() {
+    const navigate = useNavigate()
+    const [students, setStudents] = useState([])
+    const [studentId, setStudentId] = useState('')
+    const [tab, setTab] = useState('overview')
+    const [err, setErr] = useState('')
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        listMyLinkedStudents()
+            .then(items => {
+                setStudents(items)
+                setStudentId(items[0]?.id || '')
+            })
+            .catch(error => setErr(error.message))
+            .finally(() => setLoading(false))
+    }, [])
+
+    async function logout() {
+        await signOut().catch(() => {})
+        sessionStorage.clear()
+        navigate('/login')
+    }
+
+    if (loading) return <Loading />
+
+    const student = students.find(item => item.id === studentId) || students[0]
+
+    return (
+        <div style={{ minHeight: '100vh', background: '#F5F3FF' }}>
+            <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div>
+                        <div style={{ fontWeight: 900, fontSize: 18 }}>Maika Parent</div>
+                        <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Thông tin của bé theo tài khoản phụ huynh</div>
+                    </div>
+                    <button onClick={logout} style={{ border: '1px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 10, padding: '8px 10px', fontWeight: 800, fontSize: 12 }}>
+                        Đăng xuất
+                    </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+                    {students.length > 1 && (
+                        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: 'none', fontWeight: 800, color: '#1E1B4B' }}>
+                            {students.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                    )}
+                    {TABS.map(([id, label]) => (
+                        <button key={id} onClick={() => setTab(id)} style={{ border: 'none', borderRadius: 10, padding: '9px 12px', background: tab === id ? '#fff' : 'rgba(255,255,255,0.1)', color: tab === id ? '#4C1D95' : '#fff', fontWeight: 900 }}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </header>
+            <main style={{ maxWidth: 980, margin: '0 auto', padding: 20 }}>
+                {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800 }}>{err}</div>}
+                {!student && !err && <div style={{ background: '#fff', borderRadius: 16, padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Tài khoản phụ huynh chưa được liên kết học sinh.</div>}
+                {student && tab === 'overview' && (
+                    <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
+                        <div style={{ fontWeight: 900, fontSize: 22, color: '#1E1B4B' }}>{student.name}</div>
+                        <div style={{ color: '#7C6D9B', marginTop: 6 }}>{student.className || 'Chưa có lớp'} · {student.parentName || 'Phụ huynh'}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginTop: 20 }}>
+                            {[['Ngày sinh', student.dob || '—'], ['Giới tính', student.gender === 'male' ? 'Nam' : student.gender === 'female' ? 'Nữ' : 'Chưa rõ'], ['Cơ sở', student.facilityId ? 'Đã gán' : '—'], ['Trạng thái', student.status === 'active' ? 'Đang học' : 'Nghỉ học']].map(([label, value]) => (
+                                <div key={label} style={{ background: '#F8F7FF', borderRadius: 12, padding: 14 }}>
+                                    <div style={{ fontSize: 11, color: '#7C6D9B', fontWeight: 900 }}>{label}</div>
+                                    <div style={{ color: '#1E1B4B', fontWeight: 800, marginTop: 4 }}>{value}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {student && tab === 'attendance' && (
+                    <Suspense fallback={<Loading />}>
+                        <AttendanceAdvanced readOnly filterStudentId={student.id} />
+                    </Suspense>
+                )}
+                {student && tab === 'gallery' && (
+                    <Suspense fallback={<Loading />}>
+                        <MediaLibrary readOnly forParent />
+                    </Suspense>
+                )}
+            </main>
+        </div>
+    )
+}

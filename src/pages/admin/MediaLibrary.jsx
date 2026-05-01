@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
+import { getCurrentProfile } from '../../features/auth/authService'
+import { listAlbums, listAssets, saveAlbum, updateAssetStatus, uploadMediaAsset } from '../../features/media/mediaService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -36,6 +39,8 @@ const STATUS_BADGE = {
 }
 
 export default function MediaLibrary({ readOnly = false, forParent = false }) {
+    if (isSupabaseSession()) return <SupabaseMediaLibrary readOnly={readOnly} forParent={forParent} />
+
     const [albums, setAlbums] = useState([])
     const [assets, setAssets] = useState([])
     const [activeAlbum, setActiveAlbum] = useState(null)
@@ -230,6 +235,126 @@ export default function MediaLibrary({ readOnly = false, forParent = false }) {
                     )}
                 </div>
             </div>
+        </div>
+    )
+}
+
+function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
+    const [profile, setProfile] = useState(null)
+    const [albums, setAlbums] = useState([])
+    const [assets, setAssets] = useState([])
+    const [activeAlbum, setActiveAlbum] = useState('')
+    const [albumTitle, setAlbumTitle] = useState('')
+    const [err, setErr] = useState('')
+    const [uploading, setUploading] = useState(false)
+    const fileRef = useRef()
+
+    async function reload(albumId = activeAlbum) {
+        setErr('')
+        try {
+            const p = profile || await getCurrentProfile()
+            if (!profile) setProfile(p)
+            const [nextAlbums, nextAssets] = await Promise.all([
+                listAlbums({ facilityId: p?.role === 'admin' || p?.role === 'parent' ? undefined : p?.facility_id }),
+                listAssets({ albumId: albumId || undefined, facilityId: p?.role === 'admin' || p?.role === 'parent' ? undefined : p?.facility_id }),
+            ])
+            setAlbums(forParent ? nextAlbums.filter(a => a.status === 'published') : nextAlbums)
+            setAssets(forParent ? nextAssets.filter(a => a.status === 'published') : nextAssets)
+        } catch (ex) {
+            setErr(ex.message)
+        }
+    }
+
+    useEffect(() => { reload('') }, [])
+
+    async function createAlbum() {
+        if (!albumTitle.trim()) return
+        await saveAlbum({ title: albumTitle, status: 'draft', facilityId: profile?.facility_id })
+        setAlbumTitle('')
+        reload('')
+    }
+
+    async function publishAlbum(album) {
+        await saveAlbum({ ...album, status: 'published' })
+        reload(activeAlbum)
+    }
+
+    async function uploadFiles(e) {
+        const files = Array.from(e.target.files || [])
+        if (!files.length) return
+        setUploading(true)
+        setErr('')
+        try {
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) throw new Error(`${file.name}: chỉ nhận file ảnh.`)
+                if (file.size > 5 * 1024 * 1024) throw new Error(`${file.name}: vượt quá 5MB.`)
+                await uploadMediaAsset({
+                    file,
+                    albumId: activeAlbum || null,
+                    facilityId: profile?.facility_id,
+                })
+            }
+            await reload(activeAlbum)
+        } catch (ex) {
+            setErr(ex.message)
+        } finally {
+            setUploading(false)
+            e.target.value = ''
+        }
+    }
+
+    const canWrite = !readOnly && !forParent && profile?.role !== 'parent'
+
+    return (
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+            <aside>
+                <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 10 }}>Albums Supabase</div>
+                <button onClick={() => { setActiveAlbum(''); reload('') }} style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: !activeAlbum ? '#EDE9FE' : '#fff', color: '#6D28D9', fontWeight: 800, marginBottom: 6 }}>Tất cả ảnh</button>
+                {albums.map(album => (
+                    <div key={album.id} style={{ background: activeAlbum === album.id ? '#EDE9FE' : '#fff', borderRadius: 10, padding: 10, marginBottom: 6 }}>
+                        <button onClick={() => { setActiveAlbum(album.id); reload(album.id) }} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', color: '#1E1B4B', fontWeight: 800 }}>{album.title}</button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                            <span style={{ fontSize: 10, color: '#7C6D9B', fontWeight: 800 }}>{album.status}</span>
+                            {canWrite && album.status === 'draft' && <button onClick={() => publishAlbum(album)} style={{ border: 'none', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontSize: 10, fontWeight: 900 }}>Đăng</button>}
+                        </div>
+                    </div>
+                ))}
+                {canWrite && (
+                    <div style={{ marginTop: 12, background: '#fff', borderRadius: 12, padding: 10 }}>
+                        <input value={albumTitle} onChange={e => setAlbumTitle(e.target.value)} placeholder="Tên album" style={{ width: '100%', boxSizing: 'border-box', padding: 8, borderRadius: 8, border: '1.5px solid #DDD6FE', marginBottom: 8 }} />
+                        <button onClick={createAlbum} style={{ width: '100%', border: 'none', borderRadius: 8, padding: 8, background: '#6D28D9', color: '#fff', fontWeight: 900 }}>Tạo album</button>
+                    </div>
+                )}
+            </aside>
+            <section>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <div style={{ fontWeight: 900, color: '#1E1B4B' }}>{assets.length} ảnh</div>
+                    {canWrite && (
+                        <>
+                            <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={uploadFiles} />
+                            <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ border: 'none', borderRadius: 10, padding: '9px 14px', background: '#6D28D9', color: '#fff', fontWeight: 900 }}>{uploading ? 'Đang upload...' : 'Upload ảnh'}</button>
+                        </>
+                    )}
+                </div>
+                {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 10, padding: 10, marginBottom: 12, fontWeight: 800 }}>{err}</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
+                    {assets.map(asset => (
+                        <div key={asset.id} style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', border: '1px solid #EDE9FE' }}>
+                            <div style={{ aspectRatio: '1', background: '#EDE9FE' }}>
+                                <img src={asset.url} alt={asset.caption || asset.originalName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                            </div>
+                            <div style={{ padding: 10 }}>
+                                <div style={{ fontSize: 12, color: '#1E1B4B', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.caption || asset.originalName}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                                    <span style={{ fontSize: 10, color: '#7C6D9B', fontWeight: 900 }}>{asset.status}</span>
+                                    {canWrite && asset.status !== 'published' && <button onClick={() => updateAssetStatus(asset.id, 'published').then(() => reload(activeAlbum))} style={{ border: 'none', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontSize: 10, fontWeight: 900 }}>Đăng</button>}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {assets.length === 0 && <div style={{ gridColumn: '1/-1', padding: 42, textAlign: 'center', color: '#7C6D9B', fontWeight: 800 }}>Chưa có ảnh.</div>}
+                </div>
+            </section>
         </div>
     )
 }

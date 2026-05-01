@@ -522,21 +522,21 @@ src/
 ### Layer 4 — Attendance Supabase Cutover (🟠)
 **Scope:** chuyển điểm danh hàng ngày sang Supabase.
 
-- [ ] Tạo `src/features/attendance/attendanceService.js`.
-- [ ] API frontend: list by date/facility, upsert attendance, upload meal photo path/url.
-- [ ] Nếu dùng ảnh bữa ăn: tạo Supabase Storage bucket `attendance-meals`.
-- [ ] RLS Storage: teacher chỉ upload/read ảnh thuộc cơ sở mình; admin all.
-- [ ] Refactor `AttendanceAdvanced` dùng service/hook, không gọi fetch/Supabase trực tiếp trong component.
+- [x] Tạo `src/features/attendance/attendanceService.js`.
+- [x] API frontend: list by date/facility, upsert attendance, hỗ trợ check-in/out, người đón, lý do trễ/đón sớm, ghi chú.
+- [x] Migration `002_parent_attendance_media.sql` thêm cột attendance nâng cao.
+- [x] RLS: admin all, teacher theo cơ sở, parent chỉ xem con được liên kết.
+- [x] Refactor `AttendanceAdvanced` có nhánh Supabase khi login Supabase thật; fallback API/local vẫn giữ cho demo/e2e.
 
 **Done when:** teacher điểm danh được học sinh cơ sở mình; không thấy cơ sở khác; ảnh bữa ăn lưu đúng bucket/path.
 
-### Layer 5 — Auth/Roles UX (🟠)
+### Layer 5 — Auth/Roles UX (✅ Đã xong nền — 01/05/2026)
 **Scope:** thay login demo/JWT local bằng Supabase Auth.
 
-- [ ] Tạo luồng login Supabase cho admin/teacher.
-- [ ] Parent có thể để phase sau nếu chưa có số điện thoại/email thật.
-- [ ] Sau login, load `profiles` để điều hướng theo role.
-- [ ] Bỏ hardcoded credential khỏi luồng production.
+- [x] Tạo luồng login Supabase chung `/login` cho admin/teacher/parent.
+- [x] Sau login, load `profiles` để điều hướng theo role.
+- [x] Parent portal Supabase nền: parent user xem học sinh được link qua `parent_student_links`.
+- [x] Khóa demo login ở production khi không bật `VITE_DEMO_MODE=true`.
 - [ ] Thêm màn trạng thái khi profile chưa được gán cơ sở/role.
 
 **Done when:** admin/teacher login bằng Supabase Auth và app tự lọc theo role/facility.
@@ -550,6 +550,7 @@ src/
 - [ ] Không ghi đè dữ liệu production nếu chưa có `--confirm`.
 - [x] Import hiện tại: giữ tên học sinh/phụ huynh thật; các trường thiếu giả lập/empty rõ ràng.
 - [x] Seed demo CS2 bằng `scripts/seed-supabase-cs2-demo.mjs` để test UI/RLS: 12 học sinh demo, có marker ghi chú để seed lại sạch.
+- [x] Thêm `SUPABASE_OPERATIONS.md` ghi lệnh import Excel, tạo/link user bằng service-role local.
 - [ ] Ghi batch import log để rollback/soát lỗi.
 
 **Done when:** import thử vào Supabase staging được, không commit PII.
@@ -559,7 +560,8 @@ src/
 
 - [ ] Unit test service mapping.
 - [ ] Integration smoke bằng Supabase test project hoặc mock Supabase client.
-- [ ] Playwright: teacher login → xem học sinh cơ sở mình → điểm danh.
+- [x] Smoke Supabase thật ngày 01/05/2026: admin 76 students, teacher CS1 64, teacher CS2 12, parent 1 linked student; parent xem được attendance của con.
+- [ ] Playwright chính thức: `/login` teacher → xem học sinh cơ sở mình → điểm danh.
 - [ ] Netlify env dùng Supabase anon key, không dùng service role.
 - [ ] Khi Supabase ổn: đặt `VITE_DATA_BACKEND=supabase` cho production.
 - [ ] Express/SQLite chuyển thành legacy/migration-only, không thêm tính năng mới.

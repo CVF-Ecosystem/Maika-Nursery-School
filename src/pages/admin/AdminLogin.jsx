@@ -39,6 +39,12 @@ export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, 
             return
         }
 
+        if (isSupabaseBackend() && isSupabaseConfigured && !email.trim() && !DEMO_MODE) {
+            setErr('Vui lòng nhập email tài khoản.')
+            setLoading(false)
+            return
+        }
+
         if (hasBackendAPI()) {
             try {
                 const session = await loginWithBackend({ role, password: pass })

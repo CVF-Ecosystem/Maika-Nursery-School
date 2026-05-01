@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
+import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
+import { getCurrentProfile } from '../../features/auth/authService'
+import { listAttendanceByFacilityDate, upsertAttendance } from '../../features/attendance/attendanceService'
+import { listStudents } from '../../features/students/studentService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -34,14 +38,20 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
     const [editModal, setEditModal] = useState(null)
     const [saving, setSaving] = useState(false)
     const [err, setErr] = useState('')
+    const supabaseMode = isSupabaseSession()
 
     useEffect(() => {
+        if (supabaseMode) return
         const db = getDB()
         setStudents(db.students || [])
         setClasses(db.classes || [])
-    }, [])
+    }, [supabaseMode])
 
     useEffect(() => {
+        if (supabaseMode) {
+            loadSupabaseAttendance()
+            return
+        }
         if (!hasBackendAPI()) return
         const qs = new URLSearchParams({ date })
         if (filterStudentId) qs.set('studentId', filterStudentId)
@@ -53,17 +63,55 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                 setSummary(res.summary || [])
             })
             .catch(() => setErr('Lỗi tải dữ liệu'))
-    }, [date, filterStudentId])
+    }, [date, filterStudentId, supabaseMode])
+
+    async function loadSupabaseAttendance() {
+        setErr('')
+        try {
+            const profile = await getCurrentProfile()
+            const items = await listStudents({ status: 'active' })
+            const scoped = filterStudentId ? items.filter(s => s.id === filterStudentId) : items
+            setStudents(scoped)
+            setClasses([...new Set(scoped.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
+            const attendance = await listAttendanceByFacilityDate({
+                facilityId: profile?.role === 'parent' ? undefined : profile?.facility_id,
+                date,
+            })
+            const map = {}
+            for (const record of attendance) map[record.studentId] = record
+            setRecords(map)
+            const counts = Object.values(map).reduce((acc, record) => {
+                acc[record.status] = (acc[record.status] || 0) + 1
+                return acc
+            }, {})
+            setSummary(Object.entries(counts).map(([status, count]) => ({ status, count })))
+        } catch (ex) {
+            setErr(ex.message || 'Lỗi tải điểm danh Supabase')
+        }
+    }
 
     const filteredStudents = filterStudentId
         ? students.filter(s => s.id === filterStudentId)
-        : (classFilter ? students.filter(s => s.classId === classFilter) : students)
+        : (classFilter ? students.filter(s => (supabaseMode ? s.className : s.classId) === classFilter) : students)
 
     async function quickMark(studentId, status) {
         if (readOnly) return
         setSaving(true)
         try {
             const now = new Date().toTimeString().slice(0, 5)
+            if (supabaseMode) {
+                const student = students.find(s => s.id === studentId)
+                const saved = await upsertAttendance({
+                    studentId,
+                    facilityId: student?.facilityId,
+                    date,
+                    status,
+                    checkInTime: status !== 'absent' ? now : '',
+                })
+                setRecords(prev => ({ ...prev, [studentId]: saved }))
+                setSaving(false)
+                return
+            }
             const res = await apiFetch(`/api/attendance-records/${studentId}/${date}`, {
                 method: 'PUT',
                 body: JSON.stringify({ status, checkInTime: status !== 'absent' ? now : null }),
@@ -76,6 +124,26 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
     async function saveDetail(input) {
         setSaving(true)
         try {
+            if (supabaseMode) {
+                const student = students.find(s => s.id === input.studentId)
+                const saved = await upsertAttendance({
+                    studentId: input.studentId,
+                    facilityId: student?.facilityId,
+                    date,
+                    status: input.status,
+                    checkInTime: input.checkInTime,
+                    checkOutTime: input.checkOutTime,
+                    pickupPerson: input.pickupPerson,
+                    pickupPhone: input.pickupPhone,
+                    lateReason: input.lateReason,
+                    earlyPickupReason: input.earlyPickupReason,
+                    note: input.note,
+                })
+                setRecords(prev => ({ ...prev, [input.studentId]: saved }))
+                setEditModal(null)
+                setSaving(false)
+                return
+            }
             const res = await apiFetch(`/api/attendance-records/${input.studentId}/${date}`, {
                 method: 'PUT',
                 body: JSON.stringify(input),
@@ -127,7 +195,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                     const rec = records[student.id]
                     const status = rec?.status || null
                     const cfg = status ? STATUS_CONFIG[status] : null
-                    const cls = classes.find(c => c.id === student.classId)
+                    const cls = supabaseMode ? { name: student.className } : classes.find(c => c.id === student.classId)
 
                     return (
                         <div key={student.id} style={{ background: cfg ? cfg.bg : '#fff', borderRadius: 14, padding: '14px 18px', boxShadow: '0 2px 8px rgba(109,40,217,0.07)', border: `1.5px solid ${cfg ? cfg.border : '#EDE9FE'}`, display: 'flex', alignItems: 'center', gap: 14 }}>
