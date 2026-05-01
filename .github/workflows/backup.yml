@@ -37,7 +37,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          SUPABASE_POSTGRES_URL: ${{ secrets.SUPABASE_POSTGRES_URL }}
+          # SUPABASE_POSTGRES_URL không dùng trong CI — port 5432 bị block trên GitHub Actions runner.
+          # Script tự fallback sang JSON snapshot qua REST API (HTTPS).
 
       - name: Upload backup as artifact
         uses: actions/upload-artifact@v4
