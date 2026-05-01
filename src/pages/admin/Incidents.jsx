@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents } from '../../features/students/studentService'
 import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident } from '../../features/sensitive/sensitiveService'
+import { getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 
 const SEVERITY_MAP = {
     minor: ['#D97706', '#FFFBEB', 'Nhẹ'],
@@ -38,9 +39,42 @@ function IncidentModal({ incident, students, onClose, onSave }) {
         initialAction: '',
         status: 'open',
     })
+    const [existingPaths, setExistingPaths] = useState(incident?.photo_paths || [])
+    const [existingUrls, setExistingUrls] = useState([])
+    const [photoFiles, setPhotoFiles] = useState([])
+    const [photoPreviews, setPhotoPreviews] = useState([])
+    const fileRef = useRef()
 
     const is = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
+
+    useEffect(() => {
+        if (!existingPaths.length) return
+        Promise.all(existingPaths.map(p => getSignedUrl(p).catch(() => ''))).then(setExistingUrls)
+    }, [existingPaths.join(',')])
+
+    function handlePhotoSelect(e) {
+        const files = Array.from(e.target.files || [])
+        const remaining = 3 - existingPaths.length - photoFiles.length
+        const newFiles = files.slice(0, Math.max(0, remaining))
+        if (!newFiles.length) return
+        setPhotoFiles(prev => [...prev, ...newFiles])
+        setPhotoPreviews(prev => [...prev, ...newFiles.map(f => URL.createObjectURL(f))])
+        e.target.value = ''
+    }
+
+    function removeExisting(i) {
+        setExistingPaths(prev => prev.filter((_, idx) => idx !== i))
+        setExistingUrls(prev => prev.filter((_, idx) => idx !== i))
+    }
+
+    function removeNew(i) {
+        URL.revokeObjectURL(photoPreviews[i])
+        setPhotoFiles(prev => prev.filter((_, idx) => idx !== i))
+        setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i))
+    }
+
+    const totalPhotos = existingPaths.length + photoFiles.length
 
     return (
         <div
@@ -105,11 +139,34 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                             </select>
                         </div>
                     )}
+                    <div>
+                        <label style={ls}>📷 Ảnh hiện trường (tối đa 3)</label>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                            {existingUrls.map((url, i) => url ? (
+                                <div key={`e${i}`} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                                    <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1.5px solid #DDD6FE' }} />
+                                    <button onClick={() => removeExisting(i)} aria-label="Xóa ảnh" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 999, border: 'none', background: '#DC2626', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                </div>
+                            ) : null)}
+                            {photoPreviews.map((url, i) => (
+                                <div key={`n${i}`} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                                    <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1.5px solid #7C3AED' }} />
+                                    <button onClick={() => removeNew(i)} aria-label="Xóa ảnh mới" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 999, border: 'none', background: '#DC2626', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                </div>
+                            ))}
+                            {totalPhotos < 3 && (
+                                <>
+                                    <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
+                                    <button onClick={() => fileRef.current?.click()} aria-label="Chụp ảnh hiện trường" style={{ width: 72, height: 72, borderRadius: 8, border: '1.5px dashed #FCA5A5', background: '#FFF1F2', color: '#DC2626', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
                     <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6B6494', cursor: 'pointer' }}>Hủy</button>
                     <button
-                        onClick={() => onSave(form)}
+                        onClick={() => onSave({ ...form, photoFiles, existingPaths })}
                         disabled={!form.description || !form.studentId}
                         style={{ padding: '9px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#7C3AED,#A78BFA)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                     >
@@ -166,18 +223,20 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
 
     async function handleSave(form) {
         setError('')
+        const { photoFiles, existingPaths, ...incidentData } = form
         const editingIncident = selected
         const prevIncidents = incidents
 
         const optimistic = {
             ...(editingIncident || {}),
             id: editingIncident?.id || `temp_${Date.now()}`,
-            student_id: form.studentId,
-            occurred_at: form.occurredAt ? new Date(form.occurredAt).toISOString() : null,
-            severity: form.severity,
-            description: form.description,
-            initial_action: form.initialAction || '',
-            status: form.status || 'open',
+            student_id: incidentData.studentId,
+            occurred_at: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : null,
+            severity: incidentData.severity,
+            description: incidentData.description,
+            initial_action: incidentData.initialAction || '',
+            status: incidentData.status || 'open',
+            photo_paths: existingPaths || [],
         }
         if (editingIncident) {
             setIncidents(prev => prev.map(inc => inc.id === editingIncident.id ? { ...inc, ...optimistic } : inc))
@@ -189,18 +248,26 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
 
         try {
             if (supabaseMode) {
-                await saveSupabaseIncident({ ...form, id: editingIncident?.id, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined })
+                let newPaths = []
+                if (photoFiles?.length) {
+                    const facilityId = editingIncident?.facility_id || selectedFacilityId || undefined
+                    newPaths = await Promise.all(
+                        photoFiles.map(f => uploadReportPhoto({ file: f, facilityId, studentId: incidentData.studentId }))
+                    )
+                }
+                const photoPaths = [...(existingPaths || []), ...newPaths]
+                await saveSupabaseIncident({ ...incidentData, id: editingIncident?.id, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined, photoPaths })
                 setMessage(editingIncident ? 'Đã cập nhật sự cố.' : 'Đã ghi nhận sự cố.')
             } else if (editingIncident) {
                 await apiRequest(`/api/incidents/${editingIncident.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify({ ...form, occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined }),
+                    body: JSON.stringify({ ...incidentData, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined }),
                 })
                 setMessage('Đã cập nhật sự cố.')
             } else {
                 await apiRequest('/api/incidents', {
                     method: 'POST',
-                    body: JSON.stringify({ ...form, occurredAt: new Date(form.occurredAt).toISOString() }),
+                    body: JSON.stringify({ ...incidentData, occurredAt: new Date(incidentData.occurredAt).toISOString() }),
                 })
                 setMessage('Đã ghi nhận sự cố.')
             }
@@ -289,7 +356,19 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
 
             <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <tbody>
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                                    {[70, 55, 40, 80, 50, 30].map((w, j) => (
+                                        <td key={j} style={{ padding: '14px 16px' }}>
+                                            <div className="skeleton" style={{ height: 13, width: `${w}%` }} />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 ) : filtered.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>
                         <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
@@ -315,6 +394,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#4B4899', maxWidth: 260 }}>
                                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.description}</div>
                                         {inc.initial_action && <div style={{ fontSize: 11, color: '#9B93C9', marginTop: 2 }}>Xử lý: {inc.initial_action}</div>}
+                                        {inc.photo_paths?.length > 0 && <div style={{ fontSize: 11, color: '#7C3AED', marginTop: 2 }}>📷 {inc.photo_paths.length} ảnh</div>}
                                     </td>
                                     <td style={{ padding: '12px 16px' }}><StatusBadge status={inc.status} /></td>
                                     <td style={{ padding: '12px 16px' }}>

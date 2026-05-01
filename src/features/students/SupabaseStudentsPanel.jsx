@@ -208,7 +208,23 @@ export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilit
     }
 
     if (!isSupabaseConfigured) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Hệ thống dữ liệu chưa sẵn sàng.</div>
-    if (loading) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Đang tải danh sách học sinh...</div>
+    if (loading) return (
+        <div className="admin-page-pad" style={{ padding: '28px 36px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+                        <div className="skeleton" style={{ width: 40, height: 40, borderRadius: 999, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                            <div className="skeleton" style={{ height: 13, width: '70%', marginBottom: 6 }} />
+                            <div className="skeleton" style={{ height: 11, width: '45%' }} />
+                        </div>
+                    </div>
+                    <div className="skeleton" style={{ height: 11, width: '60%', marginBottom: 6 }} />
+                    <div className="skeleton" style={{ height: 11, width: '40%' }} />
+                </div>
+            ))}
+        </div>
+    )
     if (!profile) return <div style={{ padding: 28, color: '#DC2626', fontWeight: 800 }}>Vui lòng đăng nhập để xem danh sách học sinh.</div>
 
     return (

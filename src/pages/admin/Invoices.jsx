@@ -1022,7 +1022,19 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
 
             <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <tbody>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                                    {[60, 90, 70, 80, 60, 50, 60].map((w, j) => (
+                                        <td key={j} style={{ padding: '14px 16px' }}>
+                                            <div className="skeleton" style={{ height: 13, width: `${w}%` }} />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 ) : filtered.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>
                         <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
