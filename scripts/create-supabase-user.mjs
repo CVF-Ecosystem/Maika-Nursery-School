@@ -44,10 +44,24 @@ const created = await supabase.auth.admin.createUser({
     email_confirm: true,
     user_metadata: { full_name: fullName, role },
 })
-if (created.error && !String(created.error.message || '').includes('already registered')) throw created.error
+const emailAlreadyExists = created.error && (
+    created.error.code === 'email_exists' ||
+    String(created.error.message || '').includes('already registered') ||
+    String(created.error.message || '').includes('already been registered')
+)
+if (created.error && !emailAlreadyExists) throw created.error
 
 const userId = created.data?.user?.id || (await supabase.auth.admin.listUsers()).data.users.find(u => u.email === email)?.id
 if (!userId) throw new Error(`Cannot resolve auth user for ${email}`)
+
+if (!created.data?.user) {
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName, role },
+    })
+    if (updateError) throw updateError
+}
 
 const { error: profileError } = await supabase.from('profiles').upsert({
     id: userId,
