@@ -80,3 +80,27 @@ export async function upsertAttendance(record) {
     if (error) throw error
     return mapAttendanceFromSupabase(data)
 }
+
+export function subscribeAttendanceByFacilityDate({ facilityId, date, onChange }) {
+    const client = requireSupabase()
+    const channel = client
+        .channel(`attendance:${facilityId || 'all'}:${date}`)
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'attendance', filter: `attendance_date=eq.${date}` },
+            payload => {
+                const nextRow = payload.new?.id ? payload.new : null
+                const oldRow = payload.old?.id ? payload.old : null
+                const rowFacilityId = nextRow?.facility_id || oldRow?.facility_id || ''
+                if (facilityId && rowFacilityId !== facilityId) return
+                onChange({
+                    eventType: payload.eventType,
+                    record: nextRow ? mapAttendanceFromSupabase(nextRow) : null,
+                    oldRecord: oldRow ? mapAttendanceFromSupabase(oldRow) : null,
+                })
+            },
+        )
+        .subscribe()
+
+    return () => client.removeChannel(channel)
+}

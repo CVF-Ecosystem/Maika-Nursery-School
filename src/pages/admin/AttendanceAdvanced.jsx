@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
 import { getCurrentProfile } from '../../features/auth/authService'
-import { listAttendanceByFacilityDate, upsertAttendance } from '../../features/attendance/attendanceService'
+import { listAttendanceByFacilityDate, subscribeAttendanceByFacilityDate, upsertAttendance } from '../../features/attendance/attendanceService'
 import { listStudents } from '../../features/students/studentService'
 import { cacheTeacherData, enqueueOfflineAction, isOnline, readCachedTeacherData, syncOfflineQueue } from '../../features/offline/offlineSyncService'
 
@@ -33,7 +33,6 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
     const [date, setDate] = useState(today)
     const [students, setStudents] = useState([])
     const [records, setRecords] = useState({})
-    const [summary, setSummary] = useState([])
     const [classes, setClasses] = useState([])
     const [classFilter, setClassFilter] = useState('')
     const [editModal, setEditModal] = useState(null)
@@ -61,7 +60,6 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 const map = {}
                 for (const r of (res.data || [])) map[r.student_id] = r
                 setRecords(map)
-                setSummary(res.summary || [])
             })
             .catch(() => setErr('Lỗi tải dữ liệu'))
     }, [date, filterStudentId, supabaseMode, selectedFacilityId])
@@ -93,11 +91,6 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             for (const record of attendance) map[record.studentId] = record
             setRecords(map)
             cacheTeacherData(`attendance:${facilityId || 'all'}:${date}`, map)
-            const counts = Object.values(map).reduce((acc, record) => {
-                acc[record.status] = (acc[record.status] || 0) + 1
-                return acc
-            }, {})
-            setSummary(Object.entries(counts).map(([status, count]) => ({ status, count })))
         } catch (ex) {
             const facilityId = readCachedTeacherData('last-facility-id', selectedFacilityId || 'all')
             const cachedStudents = readCachedTeacherData(`students:${facilityId}`, [])
@@ -106,16 +99,32 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 setStudents(filterStudentId ? cachedStudents.filter(s => s.id === filterStudentId) : cachedStudents)
                 setClasses([...new Set(cachedStudents.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
                 setRecords(cachedRecords)
-                setSummary(Object.entries(Object.values(cachedRecords).reduce((acc, record) => {
-                    acc[record.status] = (acc[record.status] || 0) + 1
-                    return acc
-                }, {})).map(([status, count]) => ({ status, count })))
                 setErr('Đang dùng dữ liệu offline. Thao tác sẽ tự đồng bộ khi có mạng.')
             } else {
                 setErr(ex.message || 'Không tải được dữ liệu điểm danh')
             }
         }
     }
+
+    useEffect(() => {
+        if (!supabaseMode || !date || !students.length) return undefined
+        const facilityId = selectedFacilityId || students.find(student => student.facilityId)?.facilityId || ''
+        return subscribeAttendanceByFacilityDate({
+            facilityId,
+            date,
+            onChange: ({ eventType, record, oldRecord }) => {
+                const changed = record || oldRecord
+                if (!changed?.studentId) return
+                setRecords(prev => {
+                    const next = { ...prev }
+                    if (eventType === 'DELETE') delete next[changed.studentId]
+                    else next[changed.studentId] = record
+                    cacheTeacherData(`attendance:${facilityId || 'all'}:${date}`, next)
+                    return next
+                })
+            },
+        })
+    }, [supabaseMode, date, selectedFacilityId, students])
 
     const filteredStudents = filterStudentId
         ? students.filter(s => s.id === filterStudentId)
@@ -213,9 +222,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         setSaving(false)
     }
 
-    const totalPresent = summary.find(s => s.status === 'present')?.count || 0
-    const totalAbsent = summary.find(s => s.status === 'absent')?.count || 0
-    const totalLate = summary.find(s => s.status === 'late')?.count || 0
+    const visibleRecords = useMemo(() => filteredStudents.map(student => records[student.id]).filter(Boolean), [filteredStudents, records])
+    const totalPresent = visibleRecords.filter(record => record.status === 'present').length
+    const totalAbsent = visibleRecords.filter(record => record.status === 'absent').length
+    const totalLate = visibleRecords.filter(record => record.status === 'late').length
 
     return (
         <div>
@@ -232,7 +242,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             </div>
 
             {/* Summary */}
-            {!readOnly && summary.length > 0 && (
+            {!readOnly && (
                 <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                     {[
                         { label: 'Có mặt', count: totalPresent, color: '#059669', bg: '#ECFDF5' },
