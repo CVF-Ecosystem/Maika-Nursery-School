@@ -213,7 +213,7 @@ export default function Landing() {
                 </div>
                 <p id="cta-msg" style={{ fontSize: 14, color: '#FCD34D', fontWeight: 700, minHeight: 22, marginTop: 14, position: 'relative', zIndex: 1 }} />
                 <div {...rv()} style={{ display: 'flex', justifyContent: 'center', gap: 44, flexWrap: 'wrap', marginTop: 48, position: 'relative', zIndex: 1 }}>
-                    {[['📍', '123 Đường Hoa Mai, P.5\nQuận Bình Thạnh, Đồng Nai'], ['📞', '0901 234 567\n0912 345 678'], ['⏰', '6:30 – 17:30\nThứ Hai – Thứ Sáu'], ['✉️', 'info@maika.edu.vn']].map(([icon, text], i) => (
+                    {[['📍', 'Tổ 23B, KP Trần Cao Vân\nPhường Dầu Giây, Đồng Nai'], ['📞', '0901 234 567\n0912 345 678'], ['⏰', '6:30 – 17:30\nThứ Hai – Thứ Sáu'], ['✉️', 'info@maika.edu.vn']].map(([icon, text], i) => (
                         <div key={i} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)' }}>
                             <div style={{ fontSize: 26, marginBottom: 6 }}>{icon}</div>
                             <p style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{text}</p>
