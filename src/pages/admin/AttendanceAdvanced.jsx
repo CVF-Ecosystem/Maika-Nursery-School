@@ -198,7 +198,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                     const cls = supabaseMode ? { name: student.className } : classes.find(c => c.id === student.classId)
 
                     return (
-                        <div key={student.id} style={{ background: cfg ? cfg.bg : '#fff', borderRadius: 14, padding: '14px 18px', boxShadow: '0 2px 8px rgba(109,40,217,0.07)', border: `1.5px solid ${cfg ? cfg.border : '#EDE9FE'}`, display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div className="mobile-stack" key={student.id} style={{ background: cfg ? cfg.bg : '#fff', borderRadius: 14, padding: '14px 18px', boxShadow: '0 2px 8px rgba(109,40,217,0.07)', border: `1.5px solid ${cfg ? cfg.border : '#EDE9FE'}`, display: 'flex', alignItems: 'center', gap: 14 }}>
                             {/* Avatar */}
                             <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
                                 {student.name?.charAt(0)}
@@ -215,7 +215,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                             </div>
                             {/* Quick actions */}
                             {!readOnly && (
-                                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                                     {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
                                         <button
                                             key={key}
@@ -301,11 +301,11 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                     ))}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <LabelInput label="Giờ vào" type="time" value={form.checkInTime} onChange={v => setForm(f => ({ ...f, checkInTime: v }))} />
                     <LabelInput label="Giờ ra" type="time" value={form.checkOutTime} onChange={v => setForm(f => ({ ...f, checkOutTime: v }))} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <LabelInput label="Người đón" value={form.pickupPerson} onChange={v => setForm(f => ({ ...f, pickupPerson: v }))} placeholder="Tên người đón" />
                     <LabelInput label="Điện thoại người đón" value={form.pickupPhone} onChange={v => setForm(f => ({ ...f, pickupPhone: v }))} placeholder="0901..." />
                 </div>

@@ -86,7 +86,7 @@ function SchoolInfoTab() {
 
     return (
         <form onSubmit={handleSave}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
                 <div>
                     {inp('Tên trường', 'schoolName', 'text', 'Nhà Trẻ Maika')}
                     {inp('Địa chỉ', 'address', 'text', '123 Đường ABC, Quận 1, TP.HCM')}
@@ -97,7 +97,7 @@ function SchoolInfoTab() {
                     {inp('URL Logo', 'logoUrl', 'url', 'https://...')}
                     {inp('Giờ mở cửa', 'hoursOpen', 'time')}
                     {inp('Giờ đóng cửa', 'hoursClose', 'time')}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                         <div>
                             {inp('Giờ đón - Bắt đầu', 'pickupStart', 'time')}
                         </div>
@@ -170,13 +170,13 @@ function AcademicTab() {
     }
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             {/* Năm học */}
             <div>
                 <div style={sectionTitle}>📅 Năm học</div>
                 <form onSubmit={addYear} style={{ marginBottom: 16, background: '#F8F7FF', borderRadius: 10, padding: 12 }}>
                     <input placeholder="VD: 2025–2026" value={yearForm.name} onChange={e => setYearForm(f => ({ ...f, name: e.target.value }))} style={{ ...inpStyle, marginBottom: 8 }} required />
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                         <input type="date" value={yearForm.startDate} onChange={e => setYearForm(f => ({ ...f, startDate: e.target.value }))} style={inpStyle} required />
                         <input type="date" value={yearForm.endDate} onChange={e => setYearForm(f => ({ ...f, endDate: e.target.value }))} style={inpStyle} required />
                     </div>
@@ -277,7 +277,7 @@ function TuitionTab() {
         <div>
             <form onSubmit={handleSubmit} style={{ background: '#F8F7FF', borderRadius: 12, padding: 16, marginBottom: 20 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 12 }}>{editing ? '✏️ Chỉnh sửa mức phí' : '➕ Thêm mức học phí'}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <div>
                         <label style={lblStyle}>Tên mức phí</label>
                         <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="VD: Học phí tháng Mầm" style={inpStyle} required />
@@ -379,6 +379,7 @@ function ConsentsTab() {
                 Quản lý quyền riêng tư & đồng ý sử dụng dữ liệu cho từng học sinh. Phụ huynh có thể tự cập nhật trong cổng thông tin của họ.
             </div>
             {err && <div style={{ color: '#DC2626', fontSize: 13, marginBottom: 12 }}>{err}</div>}
+            <div className="mobile-scroll-table">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                     <tr style={{ background: '#F5F3FF' }}>
@@ -415,6 +416,7 @@ function ConsentsTab() {
                     })}
                 </tbody>
             </table>
+            </div>
             {students.length === 0 && <div style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', padding: 32 }}>Chưa có học sinh nào.</div>}
         </div>
     )
@@ -470,7 +472,7 @@ export default function Settings() {
                 <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 4 }}>Thông tin trường, năm học, mức học phí và quyền riêng tư dữ liệu</div>
             </div>
 
-            <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #EDE9FE', paddingBottom: 0 }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #EDE9FE', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {TABS.map(t => (
                     <button
                         key={t.id}
@@ -481,6 +483,8 @@ export default function Settings() {
                             color: tab === t.id ? '#6D28D9' : '#7C6D9B',
                             borderBottom: tab === t.id ? '2px solid #6D28D9' : '2px solid transparent',
                             marginBottom: -2,
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         {t.label}
@@ -488,7 +492,7 @@ export default function Settings() {
                 ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(109,40,217,0.06)' }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: 'clamp(14px, 4vw, 24px)', boxShadow: '0 2px 12px rgba(109,40,217,0.06)' }}>
                 {tabContent[tab]}
             </div>
         </div>

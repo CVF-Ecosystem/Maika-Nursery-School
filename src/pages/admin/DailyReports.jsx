@@ -21,10 +21,10 @@ function EditModal({ student, report, onClose, onSave }) {
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 20, width: 480, padding: 28, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(480px, calc(100vw - 24px))', padding: 28, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 4 }}>Nhật ký: {student?.name}</div>
                 <div style={{ fontSize: 12, color: '#7C6D9B', marginBottom: 18 }}>Ngày {fmtDate(todayStr())}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {[['breakfast', '🍳 Bữa sáng'], ['lunch', '🍱 Bữa trưa'], ['snack', '🍎 Bữa xế']].map(([key, lbl]) => (
                         <div key={key}><label style={ls}>{lbl}</label><select style={is} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}>{mealOpts.map(o => <option key={o}>{o}</option>)}</select></div>
                     ))}
@@ -64,16 +64,16 @@ export default function DailyReports() {
         commit(); setDB({ ...ndb }); setEditing(null)
     }
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && <EditModal student={db.students.find(s => s.id === editing)} report={reportMap[editing]} onClose={() => setEditing(null)} onSave={data => saveReport(editing, data)} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Nhật ký ngày</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Bữa ăn · Giấc ngủ · Tâm trạng</div></div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={sel}><option value="all">Tất cả lớp</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                     <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)} style={sel} />
                 </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,320px),1fr))', gap: 14 }}>
                 {students.map(s => {
                     const r = reportMap[s.id]; const cls = db.classes.find(c => c.id === s.classId)
                     return (
@@ -85,7 +85,7 @@ export default function DailyReports() {
                                 </div>
                                 <button onClick={() => setEditing(s.id)} style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{r ? 'Sửa' : 'Ghi nhật ký'}</button>
                             </div>
-                            {r ? <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            {r ? <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 <ReportChip icon="🍳" label="Sáng" value={r.breakfast} />
                                 <ReportChip icon="🍱" label="Trưa" value={r.lunch} />
                                 <ReportChip icon="🍎" label="Xế" value={r.snack} />

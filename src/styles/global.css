@@ -43,4 +43,69 @@ input:focus, textarea:focus, select:focus {
 
 @media (max-width: 900px) {
   .hide-mobile { display: none !important; }
+
+  html { font-size: 15px; }
+
+  body { overflow-x: hidden; }
+
+  button:hover { transform: none; }
+
+  .admin-page-pad {
+    padding: 16px !important;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-scroll-table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-scroll-table table {
+    min-width: 760px;
+  }
+
+  .mobile-two-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-nav-links a {
+    display: none !important;
+  }
+
+  .landing-nav-links {
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-page-pad {
+    padding: 12px !important;
+  }
+
+  .mobile-scroll-table table {
+    min-width: 680px;
+  }
+
+  .landing-section-grid,
+  .landing-gallery-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .landing-gallery-grid {
+    grid-template-rows: none !important;
+  }
+
+  .landing-gallery-grid > div {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    min-height: 180px;
+  }
+
+  .landing-cta-form {
+    flex-direction: column !important;
+  }
 }

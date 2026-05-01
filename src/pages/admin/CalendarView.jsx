@@ -46,10 +46,10 @@ export default function CalendarView() {
     }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModal(false)}>
-                    <div style={{ background: '#fff', borderRadius: 20, width: 440, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                    <div style={{ background: '#fff', borderRadius: 20, width: 'min(440px, calc(100vw - 24px))', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                         <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>Thêm sự kiện</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <div><label style={ls}>Tên sự kiện *</label><input style={is} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
@@ -64,7 +64,7 @@ export default function CalendarView() {
                     </div>
                 </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Lịch sự kiện</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{upcoming.length} sự kiện sắp tới</div></div>
                 <button onClick={() => setModal(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>+ Thêm sự kiện</button>
             </div>

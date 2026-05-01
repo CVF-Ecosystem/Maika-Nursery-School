@@ -36,7 +36,7 @@ export default function ChangePassword({ onSuccess, forced = false }) {
             aria-modal="true"
             aria-label="Đổi mật khẩu"
         >
-            <div style={{ background: '#fff', borderRadius: 20, width: 420, padding: 32, boxShadow: '0 24px 80px rgba(0,0,0,0.25)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(420px, calc(100vw - 24px))', padding: 32, boxShadow: '0 24px 80px rgba(0,0,0,0.25)' }}>
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
                     <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 12px' }}>🔐</div>
                     <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Đổi mật khẩu</div>

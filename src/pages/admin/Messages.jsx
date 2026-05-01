@@ -34,8 +34,8 @@ export default function Messages() {
     const sorted = [...db.messages].sort((a, b) => new Date(b.date) - new Date(a.date))
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Tin nhắn</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{unread.length} tin nhắn chưa đọc</div></div>
                 <button onClick={() => setShowCompose(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>📣 Thông báo toàn trường</button>
             </div>
@@ -50,7 +50,7 @@ export default function Messages() {
                     </div>
                 </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, minHeight: 400 }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 16, minHeight: 400 }}>
                 <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     {sorted.map(m => (
                         <div key={m.id} onClick={() => { setSelected(m); markRead(m.id) }} style={{ padding: '14px 16px', borderBottom: '1px solid #EDE9FE', cursor: 'pointer', background: selected?.id === m.id ? '#F5F3FF' : m.read ? '#fff' : '#F8F7FF', borderLeft: `3px solid ${selected?.id === m.id ? '#7C3AED' : m.read ? 'transparent' : '#A78BFA'}` }}>
@@ -83,7 +83,7 @@ export default function Messages() {
                                 </div>
                             ))}
                         </div>
-                        {selected.fromRole === 'parent' && <div style={{ padding: '16px 24px', borderTop: '1px solid #EDE9FE', display: 'flex', gap: 10 }}>
+                        {selected.fromRole === 'parent' && <div className="mobile-stack" style={{ padding: '16px 24px', borderTop: '1px solid #EDE9FE', display: 'flex', gap: 10 }}>
                             <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Nhập phản hồi..." style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 14 }} onKeyDown={e => e.key === 'Enter' && sendReply()} />
                             <button onClick={sendReply} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Gửi</button>
                         </div>}

@@ -142,8 +142,8 @@ export default function Notifications({ readOnly = false }) {
     return (
         <div>
             {!readOnly && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {['', 'draft', 'sent', 'scheduled', 'failed'].map(s => (
                             <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${filterStatus === s ? '#6D28D9' : '#DDD6FE'}`, background: filterStatus === s ? '#6D28D9' : '#fff', color: filterStatus === s ? '#fff' : '#7C6D9B', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                                 {s ? (STATUS_BADGE[s]?.label || s) : 'Tất cả'}
@@ -165,7 +165,7 @@ export default function Notifications({ readOnly = false }) {
                     const priority = PRIORITY_OPTIONS.find(p => p.value === item.priority)
                     return (
                         <div key={item.id} style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', boxShadow: '0 2px 10px rgba(109,40,217,0.06)', borderLeft: `4px solid ${priority?.color || '#6D28D9'}` }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                                         <span style={{ fontSize: 16 }}>{typeInfo.icon}</span>
@@ -183,7 +183,7 @@ export default function Notifications({ readOnly = false }) {
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                                         {['draft', 'scheduled'].includes(item.status) && (
                                             <>
                                                 <button onClick={() => openEdit(item)} style={actBtn('#DDD6FE', '#6D28D9')}>✏️</button>
@@ -219,7 +219,7 @@ export default function Notifications({ readOnly = false }) {
                             <Field label="Nội dung *">
                                 <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={4} placeholder="Nội dung thông báo..." style={{ ...INP, resize: 'vertical' }} required />
                             </Field>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                 <Field label="Loại thông báo">
                                     <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={INP}>
                                         {TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
@@ -248,7 +248,7 @@ export default function Notifications({ readOnly = false }) {
                                 <input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value, status: e.target.value ? 'scheduled' : 'draft' }))} style={INP} />
                             </Field>
                             {err && <div style={{ color: '#DC2626', fontSize: 13, background: '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>{err}</div>}
-                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                            <div className="mobile-stack" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
                                 <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 20px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#6D28D9', fontWeight: 700, cursor: 'pointer' }}>Hủy</button>
                                 <button type="submit" disabled={saving} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, cursor: saving ? 'wait' : 'pointer' }}>
                                     {saving ? 'Đang lưu...' : editing ? 'Cập nhật' : 'Lưu nháp'}

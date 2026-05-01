@@ -49,7 +49,7 @@ export default function ParentLogin() {
 
     return (
         <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#1E1B4B,#2D2870,#4C1D95)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ background: '#fff', borderRadius: 24, padding: '40px 36px', width: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}>
+            <div style={{ background: '#fff', borderRadius: 24, padding: '40px 36px', width: 'min(400px, calc(100vw - 24px))', boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}>
                 <div style={{ textAlign: 'center', marginBottom: 28 }}>
                     <div style={{ width: 62, height: 62, borderRadius: 18, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, boxShadow: '0 6px 20px rgba(109,40,217,0.4)', marginBottom: 12 }}>🌸</div>
                     <div style={{ fontWeight: 900, fontSize: 20, color: '#1E1B4B' }}>Cổng Phụ Huynh</div>

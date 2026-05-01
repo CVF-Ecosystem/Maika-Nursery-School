@@ -96,11 +96,11 @@ function InvoiceModal({ invoice, students, onClose, onSave }) {
             aria-modal="true"
             aria-label={isNew ? 'Tạo hóa đơn mới' : 'Chỉnh sửa hóa đơn'}
         >
-            <div style={{ background: '#fff', borderRadius: 20, width: 520, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(520px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
                     {isNew ? 'Tạo hóa đơn mới' : `Cập nhật hóa đơn`}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={ls} htmlFor="inv-student">Học sinh *</label>
                         <select id="inv-student" style={is} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}>
@@ -248,7 +248,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
 
     if (!hasBackendAPI()) {
         return (
-            <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+            <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Hóa đơn & Biên lai</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14 }}>Quản lý hóa đơn đang được chuẩn bị để lưu trữ và tra cứu trực tuyến.</div>
@@ -260,7 +260,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
     const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
 
     return (
-        <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+        <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
             {modal === 'form' && (
                 <InvoiceModal
                     invoice={selected}
@@ -271,7 +271,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
             )}
 
             {!readOnly && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Hóa đơn & Biên lai</div>
                         <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{invoices.length} hóa đơn · Quản lý nâng cao</div>
@@ -294,7 +294,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
             {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{error}</div>}
 
             {!readOnly && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 20 }}>
+                <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginBottom: 20 }}>
                     {[['💚', 'Đã thu', totalPaid, '#16A34A', '#F0FDF4'], ['🟡', 'Chưa đóng', totalPending, '#D97706', '#FFFBEB'], ['🔴', 'Quá hạn', totalOverdue, '#DC2626', '#FEF2F2']].map(([icon, lbl, amt, col, bg]) => (
                         <div key={lbl} style={{ background: bg, borderRadius: 14, padding: '16px 18px', display: 'flex', gap: 14, alignItems: 'center' }}>
                             <span style={{ fontSize: 28 }}>{icon}</span>
@@ -315,7 +315,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
                 ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
                 ) : filtered.length === 0 ? (

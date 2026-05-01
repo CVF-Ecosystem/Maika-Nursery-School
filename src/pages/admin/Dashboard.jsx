@@ -138,22 +138,22 @@ export default function Dashboard({ onNav }) {
     const today = todayStr()
     const todayReports = db.dailyReports.filter(r => r.date === today).length
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             <div style={{ marginBottom: 24 }}>
                 <div style={{ fontWeight: 800, fontSize: 22, color: '#1E1B4B' }}>Xin chào, Hiệu trưởng! 👋</div>
                 <div style={{ fontSize: 14, color: '#7C6D9B', marginTop: 4 }}>Đây là tổng quan hoạt động của trường hôm nay.</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+            <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 24 }}>
                 <StatCard icon="👦" label="Học sinh đang học" value={activeStudents} sub="Đang học" color="#7C3AED" onClick={() => onNav('students')} />
                 <StatCard icon="👩‍🏫" label="Giáo viên" value={activeTeachers} sub="Hoạt động" color="#A78BFA" onClick={() => onNav('teachers')} />
                 <StatCard icon="💬" label="Tin nhắn mới" value={unreadMsg} sub="Chưa đọc" color="#7C3AED" onClick={() => onNav('messages')} />
                 <StatCard icon="📝" label="Nhật ký hôm nay" value={todayReports} sub="Đã ghi" color="#16A34A" onClick={() => onNav('reports')} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <QuickAttendance db={db} />
                 <FinanceSummary db={db} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <RecentMessages db={db} onNav={onNav} />
                 <UpcomingEvents db={db} onNav={onNav} />
             </div>

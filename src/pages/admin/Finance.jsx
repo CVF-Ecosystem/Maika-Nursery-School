@@ -36,12 +36,12 @@ export default function Finance() {
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModal(null)}>
-                    <div style={{ background: '#fff', borderRadius: 20, width: 480, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                    <div style={{ background: '#fff', borderRadius: 20, width: 'min(480px, calc(100vw - 24px))', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                         <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>Thêm giao dịch</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                        <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                             <div style={{ gridColumn: '1/-1' }}>
                                 <label style={ls}>Học sinh</label>
                                 <select style={is} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}>
@@ -62,11 +62,11 @@ export default function Finance() {
                     </div>
                 </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý học phí</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Thu chi và tài chính</div></div>
                 <button onClick={() => setModal('add')} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>+ Thêm giao dịch</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
+            <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginBottom: 24 }}>
                 {[['💚', 'Đã thu', paid, '#16A34A', '#F0FDF4'], ['🟡', 'Chưa đóng', pending, '#D97706', '#FFFBEB'], ['🔴', 'Quá hạn', overdue, '#DC2626', '#FEF2F2']].map(([icon, lbl, amt, col, bg]) => (
                     <div key={lbl} style={{ background: bg, borderRadius: 14, padding: '16px 18px', display: 'flex', gap: 14, alignItems: 'center' }}>
                         <span style={{ fontSize: 28 }}>{icon}</span>
@@ -74,11 +74,11 @@ export default function Finance() {
                     </div>
                 ))}
             </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Tìm theo học sinh..." style={{ ...sel, flex: 1 }} />
                 <select value={filter} onChange={e => setFilter(e.target.value)} style={sel}><option value="all">Tất cả</option><option value="paid">Đã đóng</option><option value="pending">Chưa đóng</option><option value="overdue">Quá hạn</option></select>
             </div>
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>{['Học sinh', 'Mô tả', 'Số tiền', 'Ngày', 'Trạng thái', ''].map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>)}</tr></thead>
                     <tbody>

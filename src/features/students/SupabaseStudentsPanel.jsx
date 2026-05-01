@@ -25,7 +25,7 @@ function StudentEditor({ form, facilities, canEdit, onChange, onCancel, onSave }
     return (
         <div style={{ background: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 14px rgba(109,40,217,0.08)', marginBottom: 16 }}>
             <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 14 }}>{form.id ? 'Sửa học sinh' : 'Thêm học sinh'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                 <div><label style={ls}>Cơ sở</label><select disabled={!canEdit} style={is} value={form.facilityId} onChange={e => set('facilityId', e.target.value)}>{facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}</select></div>
                 <div><label style={ls}>Họ tên *</label><input disabled={!canEdit} style={is} value={form.name} onChange={e => set('name', e.target.value)} /></div>
                 <div><label style={ls}>Lớp</label><input disabled={!canEdit} style={is} value={form.className} onChange={e => set('className', e.target.value)} /></div>
@@ -95,8 +95,8 @@ export default function SupabaseStudentsPanel() {
     if (!profile) return <div style={{ padding: 28, color: '#DC2626', fontWeight: 800 }}>Vui lòng đăng nhập để xem danh sách học sinh.</div>
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18 }}>
                 <div>
                     <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Danh sách học sinh</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{visibleStudents.length} học sinh · {profile.role === 'admin' ? 'Có thể cập nhật thông tin' : 'Chỉ hiển thị học sinh tại cơ sở của giáo viên'}</div>
@@ -110,7 +110,7 @@ export default function SupabaseStudentsPanel() {
                 <select value={facilityId} disabled={profile.role === 'teacher'} onChange={e => { setFacilityId(e.target.value); reload(e.target.value, status) }} style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }}>{facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}</select>
                 <select value={status} onChange={e => { setStatus(e.target.value); reload(facilityId, e.target.value) }} style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }}><option value="active">Đang học</option><option value="inactive">Nghỉ học</option><option value="all">Tất cả</option></select>
             </div>
-            <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>{['Học sinh', 'Lớp', 'Ngày sinh', 'Phụ huynh', 'Liên hệ', 'Trạng thái', ''].map(h => <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, color: '#7C6D9B' }}>{h}</th>)}</tr></thead>
                     <tbody>{visibleStudents.map(student => (

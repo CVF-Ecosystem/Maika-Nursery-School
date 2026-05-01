@@ -76,7 +76,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
 
     if (!hasBackendAPI() && !readOnly) {
         return (
-            <div style={{ padding: '28px 36px' }}>
+            <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Hồ sơ sức khỏe học sinh</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14 }}>Hồ sơ sức khỏe đang được chuẩn bị để lưu trữ và cập nhật trực tuyến.</div>
@@ -86,9 +86,9 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
     }
 
     return (
-        <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+        <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
             {!readOnly && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Hồ sơ sức khỏe học sinh</div>
                         <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Dị ứng · Thuốc · Liên hệ khẩn cấp · Bác sĩ</div>
@@ -118,7 +118,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
                         <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
                     ) : (
                         <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1.5px solid #EDE9FE' }}>
+                            <div className="mobile-stack" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1.5px solid #EDE9FE' }}>
                                 <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16 }}>
                                     {(student.initials || '?')}
                                 </div>
@@ -131,11 +131,11 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                                 {/* Medical info */}
                                 <div style={{ gridColumn: '1/-1', background: '#FEF2F2', borderRadius: 12, padding: '14px 16px' }}>
                                     <div style={{ fontWeight: 800, fontSize: 13, color: '#DC2626', marginBottom: 12 }}>🏥 Thông tin y tế</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                         <Field label="Nhóm máu" value={record.blood_type} options={BLOOD_TYPES} onChange={v => update('blood_type', v)} readOnly={readOnly} />
                                         <Field label="Dị ứng" value={record.allergies} onChange={v => update('allergies', v)} readOnly={readOnly} />
                                         <div style={{ gridColumn: '1/-1' }}>
@@ -150,7 +150,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
                                 {/* Emergency contact */}
                                 <div style={{ gridColumn: '1/-1', background: '#FFF7ED', borderRadius: 12, padding: '14px 16px' }}>
                                     <div style={{ fontWeight: 800, fontSize: 13, color: '#D97706', marginBottom: 12 }}>🚨 Liên hệ khẩn cấp</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                         <Field label="Họ tên" value={record.emergency_contact_name} onChange={v => update('emergency_contact_name', v)} readOnly={readOnly} />
                                         <Field label="Quan hệ" value={record.emergency_contact_relation} options={RELATIONS} onChange={v => update('emergency_contact_relation', v)} readOnly={readOnly} />
                                         <div style={{ gridColumn: '1/-1' }}>
@@ -162,7 +162,7 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
                                 {/* Doctor */}
                                 <div style={{ gridColumn: '1/-1', background: '#EDE9FE', borderRadius: 12, padding: '14px 16px' }}>
                                     <div style={{ fontWeight: 800, fontSize: 13, color: '#7C3AED', marginBottom: 12 }}>👨‍⚕️ Bác sĩ / Cơ sở y tế</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                                         <Field label="Tên bác sĩ / Cơ sở" value={record.doctor_name} onChange={v => update('doctor_name', v)} readOnly={readOnly} />
                                         <Field label="Điện thoại" type="tel" value={record.doctor_phone} onChange={v => update('doctor_phone', v)} readOnly={readOnly} />
                                     </div>

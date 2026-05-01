@@ -15,9 +15,9 @@ function TeacherModal({ teacher, db, onClose, onSave }) {
     function hc(k, v) { const u = { ...form, [k]: v }; if (k === 'name') u.initials = v.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join(''); setForm(u) }
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 20, width: 480, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(480px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>{teacher ? 'Chỉnh sửa giáo viên' : 'Thêm giáo viên mới'}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={ls}>Họ và tên *</label><input style={is} value={form.name} onChange={e => hc('name', e.target.value)} /></div>
                     <div><label style={ls}>Chuyên môn</label><input style={is} value={form.subject} onChange={e => hc('subject', e.target.value)} /></div>
                     <div><label style={ls}>Phụ trách lớp</label><select style={is} value={form.classId || ''} onChange={e => hc('classId', e.target.value)}><option value="">— Không có —</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
@@ -49,14 +49,14 @@ export default function Teachers() {
     }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && <TeacherModal db={db} onClose={() => setModal(null)} onSave={saveTeacher} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveTeacher} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý giáo viên</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.teachers.filter(t => t.status === 'active').length} giáo viên đang làm việc</div></div>
                 <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))', gap: 18 }}>
                 {db.teachers.map(t => {
                     const cls = db.classes.find(c => c.id === t.classId)
                     return (

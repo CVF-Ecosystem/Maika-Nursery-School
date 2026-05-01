@@ -24,10 +24,10 @@ export default function Analytics() {
     })).filter(m => m.count > 0).sort((a, b) => b.count - a.count)
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo & Phân tích</div>
             <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 24 }}>Thống kê tổng hợp hoạt động nhà trường</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+            <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 24 }}>
                 {[
                     ['👦', 'Học sinh đang học', activeStudents, '#7C3AED'],
                     ['📈', 'Tỷ lệ chuyên cần hôm nay', `${pct}%`, '#16A34A'],
@@ -43,7 +43,7 @@ export default function Analytics() {
                     </div>
                 ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: '22px 24px', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B', marginBottom: 16 }}>Phân bổ học sinh theo lớp</div>
                     {classDist.map(c => (

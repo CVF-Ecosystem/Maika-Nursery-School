@@ -27,10 +27,10 @@ export default function Gamification() {
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setModal(false)}>
-                    <div style={{ background: '#fff', borderRadius: 20, width: 420, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                    <div style={{ background: '#fff', borderRadius: 20, width: 'min(420px, calc(100vw - 24px))', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                         <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>🏆 Trao thành tích</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <div><label style={ls}>Học sinh</label><select style={is} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}><option value="">— Chọn học sinh —</option>{db.students.filter(s => s.status === 'active').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
@@ -44,11 +44,11 @@ export default function Gamification() {
                     </div>
                 </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Thành tích & Khen thưởng</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Tạo động lực cho bé phấn đấu</div></div>
                 <button onClick={() => setModal(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>🏆 Trao thành tích</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,260px),1fr))', gap: 16 }}>
                 {db.students.filter(s => s.status === 'active').map(s => {
                     const badges = db.badges.filter(b => b.studentId === s.id)
                     if (badges.length === 0) return null

@@ -47,7 +47,7 @@ function IncidentModal({ incident, students, onClose, onSave }) {
             aria-modal="true"
             aria-label={isNew ? 'Tạo sự cố mới' : 'Chỉnh sửa sự cố'}
         >
-            <div style={{ background: '#fff', borderRadius: 20, width: 560, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(560px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
                     {isNew ? 'Ghi nhận sự cố mới' : 'Cập nhật sự cố'}
                 </div>
@@ -58,7 +58,7 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                             {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div>
                             <label style={ls} htmlFor="inc-time">Thời gian xảy ra *</label>
                             <input id="inc-time" type="datetime-local" style={is} value={(form.occurredAt || '').slice(0, 16)} onChange={e => setForm({ ...form, occurredAt: e.target.value })} />
@@ -190,7 +190,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
 
     if (!hasBackendAPI()) {
         return (
-            <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+            <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo sự cố</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14 }}>Báo cáo sự cố đang được chuẩn bị để ghi nhận và theo dõi trực tuyến.</div>
@@ -203,7 +203,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
     const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
 
     return (
-        <div style={{ padding: readOnly ? 0 : '28px 36px' }}>
+        <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
             {modal === 'form' && (
                 <IncidentModal
                     incident={selected}
@@ -214,7 +214,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
             )}
 
             {!readOnly && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Báo cáo sự cố</div>
                         <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{incidents.length} sự cố được ghi nhận</div>
@@ -244,7 +244,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
                 ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: 40, color: '#7C6D9B' }}>Đang tải...</div>
                 ) : filtered.length === 0 ? (

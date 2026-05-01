@@ -137,24 +137,24 @@ function LocalParentPortal() {
     return (
         <div style={{ background: '#F5F3FF', minHeight: '100vh' }}>
             {/* Header */}
-            <div style={{ background: 'linear-gradient(135deg,#1E1B4B,#2D2870,#4C1D95)', padding: '0 28px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+            <div style={{ background: 'linear-gradient(135deg,#1E1B4B,#2D2870,#4C1D95)', padding: '0 clamp(12px, 4vw, 28px)', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, position: 'sticky', top: 0, zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => navigate('/')}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🌸</div>
                     <span style={{ fontWeight: 900, fontSize: 16, color: '#fff' }}>Maika</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <div style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 50, padding: '6px 14px', color: '#C4B5FD', fontSize: 13, fontWeight: 700 }}>🧒 {student.name} · {cls?.name || ''}</div>
-                    <button onClick={() => navigate('/')} style={{ fontSize: 13, color: '#8B83C3', fontWeight: 700, background: 'none', border: 'none' }}>← Trang chủ</button>
+                    <button className="hide-mobile" onClick={() => navigate('/')} style={{ fontSize: 13, color: '#8B83C3', fontWeight: 700, background: 'none', border: 'none' }}>← Trang chủ</button>
                 </div>
             </div>
             {/* Tabs */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #EDE9FE', padding: '0 28px', display: 'flex', position: 'sticky', top: 64, zIndex: 90 }}>
+            <div style={{ background: '#fff', borderBottom: '1px solid #EDE9FE', padding: '0 clamp(8px, 3vw, 28px)', display: 'flex', position: 'sticky', top: 64, zIndex: 90, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {TABS.map(([id, label]) => (
-                    <button key={id} onClick={() => setTab(id)} style={{ padding: '16px 24px', border: 'none', background: 'none', fontWeight: 700, fontSize: 14, color: tab === id ? '#6D28D9' : '#7C6D9B', borderBottom: `2.5px solid ${tab === id ? '#6D28D9' : 'transparent'}`, cursor: 'pointer' }}>{label}</button>
+                    <button key={id} onClick={() => setTab(id)} style={{ padding: '16px clamp(12px, 4vw, 24px)', border: 'none', background: 'none', fontWeight: 700, fontSize: 14, color: tab === id ? '#6D28D9' : '#7C6D9B', borderBottom: `2.5px solid ${tab === id ? '#6D28D9' : 'transparent'}`, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>{label}</button>
                 ))}
             </div>
             {/* Main */}
-            <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 24px' }}>
+            <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(14px, 4vw, 28px) clamp(12px, 4vw, 24px)' }}>
                 {/* MEAL MENU */}
                 {tab === 'mealMenu' && (
                     <div>
@@ -214,7 +214,7 @@ function LocalParentPortal() {
                 {/* REPORT */}
                 {tab === 'reports' && (
                     <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+                        <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, gap: 10 }}>
                             <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1E1B4B' }}>Nhật ký hàng ngày</h2>
                             <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} style={{ padding: '8px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13 }} />
                         </div>
@@ -225,14 +225,14 @@ function LocalParentPortal() {
                             </div>
                         ) : (
                             <div>
-                                <div style={{ background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', borderRadius: 20, padding: '24px 28px', color: '#fff', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div className="mobile-stack" style={{ background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', borderRadius: 20, padding: '24px 28px', color: '#fff', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                         <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🧒</div>
                                         <div><div style={{ fontWeight: 900, fontSize: 18 }}>{student.name}</div><div style={{ fontSize: 13, opacity: .8 }}>{cls?.name || ''} · {fmtDate(reportDate)}</div></div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}><div style={{ fontSize: 12, opacity: .7 }}>Đi học</div><div style={{ fontWeight: 800, fontSize: 15 }}>{attLabel}</div></div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                                     {[['🍳 Bữa sáng', report.breakfast], ['🍱 Bữa trưa', report.lunch], ['🍎 Bữa xế', report.snack], ['😴 Ngủ trưa', report.napDuration > 0 ? report.napDuration + ' phút' : 'Không ngủ']].map(([lbl, val]) => (
                                         <div key={lbl} style={{ background: '#F5F3FF', borderRadius: 14, padding: '14px 16px' }}>
                                             <div style={{ fontSize: 10, fontWeight: 800, color: '#7C6D9B', textTransform: 'uppercase', marginBottom: 4 }}>{lbl}</div>

@@ -69,7 +69,7 @@ export default function AuditLog() {
 
     if (!hasBackendAPI()) {
         return (
-            <div style={{ padding: '28px 36px' }}>
+            <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Nhật ký kiểm toán</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Nhật ký hoạt động sẽ hiển thị khi hệ thống ghi nhận thay đổi dữ liệu.</div>
@@ -79,8 +79,8 @@ export default function AuditLog() {
     }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Nhật ký kiểm toán</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{logs.length} sự kiện gần nhất</div>
@@ -99,7 +99,7 @@ export default function AuditLog() {
 
             {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{error}</div>}
 
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#F8F7FF' }}>

@@ -38,9 +38,9 @@ function StudentModal({ student, db, onClose, onSave }) {
     function hc(k, v) { const u = { ...form, [k]: v }; if (k === 'name') u.initials = v.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join(''); setForm(u) }
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 20, width: 540, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(540px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>{student ? 'Chỉnh sửa học sinh' : 'Thêm học sinh mới'}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={ls} htmlFor="student-name">Họ và tên *</label><input id="student-name" style={is} value={form.name} onChange={e => hc('name', e.target.value)} placeholder="VD: Nguyễn Minh An" /></div>
                     <div><label style={ls} htmlFor="student-dob">Ngày sinh *</label><input id="student-dob" type="date" style={is} value={form.dob} onChange={e => hc('dob', e.target.value)} /></div>
                     <div><label style={ls}>Giới tính</label><select style={is} value={form.gender} onChange={e => hc('gender', e.target.value)}><option value="unknown">Chưa rõ</option><option value="male">Nam</option><option value="female">Nữ</option></select></div>
@@ -48,7 +48,7 @@ function StudentModal({ student, db, onClose, onSave }) {
                     <div><label style={ls}>Ngày nhập học</label><input type="date" style={is} value={form.enrollDate} onChange={e => hc('enrollDate', e.target.value)} /></div>
                     <div style={{ gridColumn: '1/-1', background: '#FFF7ED', borderRadius: 10, padding: '12px 14px' }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: '#7C3AED', marginBottom: 10 }}>Thông tin phụ huynh</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                             <div style={{ gridColumn: '1/-1' }}><label style={ls} htmlFor="student-parent-name">Tên phụ huynh *</label><input id="student-parent-name" style={is} value={form.parentName} onChange={e => hc('parentName', e.target.value)} /></div>
                             <div><label style={ls} htmlFor="student-parent-phone">Số điện thoại</label><input id="student-parent-phone" style={is} value={form.parentPhone} onChange={e => hc('parentPhone', e.target.value)} /></div>
                             <div><label style={ls} htmlFor="student-parent-email">Email</label><input id="student-parent-email" style={is} value={form.parentEmail} onChange={e => hc('parentEmail', e.target.value)} /></div>
@@ -99,7 +99,7 @@ export default function Students() {
     const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && <StudentModal db={db} onClose={() => setModal(null)} onSave={saveStudent} />}
             {modal === 'edit' && <StudentModal student={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveStudent} />}
             <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
@@ -122,9 +122,9 @@ export default function Students() {
                 reader.readAsText(file, 'UTF-8'); e.target.value = ''
             }} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý học sinh</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.students.filter(s => s.status === 'active').length} đang học · {db.students.length} tổng cộng</div></div>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     {importMsg && <span style={{ fontSize: 13, fontWeight: 700, color: '#059669', background: '#ECFDF5', borderRadius: 8, padding: '6px 12px' }}>{importMsg}</span>}
                     <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Import CSV</button>
                     <button onClick={() => exportCSV(filtered, db.classes)} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📤 Export CSV</button>
@@ -136,7 +136,7 @@ export default function Students() {
                 <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={sel}><option value="all">Tất cả lớp</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={sel}><option value="all">Tất cả</option><option value="active">Đang học</option><option value="inactive">Nghỉ học</option></select>
             </div>
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>{['Học sinh', 'Lớp', 'Ngày sinh', 'Phụ huynh', 'Điện thoại', 'Trạng thái', ''].map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>)}</tr></thead>
                     <tbody>

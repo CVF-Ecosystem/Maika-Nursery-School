@@ -71,12 +71,15 @@ export default function AdminApp() {
         () => sessionStorage.getItem('maika_must_change_password') === 'true'
     )
     const [showChangePassword, setShowChangePassword] = useState(false)
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
+    const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true)
     const db = getDB()
     const unread = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
 
     function handleNav(p) {
         setPage(p)
         localStorage.setItem('maika_page', p)
+        if (isMobile) setSidebarOpen(false)
     }
 
     useEffect(() => {
@@ -86,6 +89,17 @@ export default function AdminApp() {
             .catch(() => { })
             .finally(() => { if (mounted) setLoadingData(false) })
         return () => { mounted = false }
+    }, [])
+
+    useEffect(() => {
+        function syncLayout() {
+            const nextMobile = window.innerWidth <= 900
+            setIsMobile(nextMobile)
+            setSidebarOpen(!nextMobile)
+        }
+        syncLayout()
+        window.addEventListener('resize', syncLayout)
+        return () => window.removeEventListener('resize', syncLayout)
     }, [])
 
     // Guard: must be logged in
@@ -111,7 +125,7 @@ export default function AdminApp() {
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100vw' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', overflowX: 'hidden' }}>
             {/* Force change password overlay — blocks app until changed */}
             {mustChangePassword && (
                 <ChangePassword forced onSuccess={handlePasswordChanged} />
@@ -121,20 +135,29 @@ export default function AdminApp() {
                 <ChangePassword onSuccess={handlePasswordChanged} />
             )}
 
-            <Sidebar active={page} onNav={handleNav} unreadCount={unread} />
-            <div style={{ marginLeft: 248, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
+            {isMobile && sidebarOpen && (
+                <button
+                    onClick={() => setSidebarOpen(false)}
+                    aria-label="Đóng menu"
+                    style={{ position: 'fixed', inset: 0, zIndex: 1100, border: 'none', background: 'rgba(15,13,46,0.46)' }}
+                />
+            )}
+            <Sidebar active={page} onNav={handleNav} unreadCount={unread} isMobile={isMobile} isOpen={!isMobile || sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <div style={{ marginLeft: isMobile ? 0 : 248, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
                 <TopBar
                     title={current.title}
                     subtitle={subtitle}
                     onChangePassword={() => setShowChangePassword(true)}
+                    isMobile={isMobile}
+                    onMenuClick={() => setSidebarOpen(true)}
                 />
-                <main style={{ flex: 1, overflowY: 'auto', background: '#F5F3FF' }}>
+                <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#F5F3FF' }}>
                     <Suspense fallback={<LoadingSpinner />}>
                         {current.component(handleNav)}
                     </Suspense>
                 </main>
-                <button onClick={() => navigate('/')} style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, padding: '10px 20px', borderRadius: 50, background: 'linear-gradient(135deg,#1E1B4B,#2D2870)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', boxShadow: '0 4px 16px rgba(30,27,75,0.4)' }}>
-                    🌸 Trang chủ
+                <button onClick={() => navigate('/')} style={{ position: 'fixed', bottom: isMobile ? 12 : 20, right: isMobile ? 12 : 20, zIndex: 999, padding: isMobile ? '10px 12px' : '10px 20px', borderRadius: 50, background: 'linear-gradient(135deg,#1E1B4B,#2D2870)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', boxShadow: '0 4px 16px rgba(30,27,75,0.4)' }}>
+                    {isMobile ? '🌸' : '🌸 Trang chủ'}
                 </button>
             </div>
         </div>

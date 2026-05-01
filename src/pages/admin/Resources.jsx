@@ -24,18 +24,18 @@ export default function Resources() {
     const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Thư viện tài nguyên</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.resources.length} tài liệu</div></div>
             </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Tìm tài nguyên..." style={{ ...sel, flex: 1 }} />
                 <select value={filter} onChange={e => setFilter(e.target.value)} style={sel}>
                     <option value="all">Tất cả loại</option>
                     {['audio', 'pdf', 'video', 'doc', 'image'].map(t => <option key={t} value={t}>{TYPE_ICON[t]} {t.toUpperCase()}</option>)}
                 </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,260px),1fr))', gap: 16 }}>
                 {filtered.map(r => {
                     const col = TYPE_COLOR[r.type] || '#6B6494'; const icon = TYPE_ICON[r.type] || '📦'
                     return (

@@ -36,7 +36,7 @@ export default function Landing() {
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🌸</div>
                     <span style={{ fontWeight: 900, fontSize: 18, color: '#fff' }}>Maika</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+                <div className="landing-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
                     <a href="#programs" style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Chương trình</a>
                     <a href="#features" style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Tiện ích</a>
                     <a href="#gallery" style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.82)', textDecoration: 'none' }}>Hình ảnh</a>
@@ -74,7 +74,7 @@ export default function Landing() {
             </section>
 
             {/* STATS STRIP */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', background: '#fff', boxShadow: '0 4px 28px rgba(109,40,217,0.08)' }}>
+            <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', background: '#fff', boxShadow: '0 4px 28px rgba(109,40,217,0.08)' }}>
                 {[['3', 'Lớp học chuyên biệt'], ['1:8', 'Tỷ lệ GV / học sinh'], ['100%', 'GV có bằng chuyên môn'], ['24/7', 'Ứng dụng theo dõi']].map(([num, lbl], i) => (
                     <div key={i} {...rv(`d${i}`)} style={{ textAlign: 'center', padding: '42px 20px', borderRight: i < 3 ? '1px solid #EDE9FE' : 'none', position: 'relative' }}>
                         <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 56, height: 3, background: 'linear-gradient(90deg,#6D28D9,#A78BFA)', borderRadius: '0 0 4px 4px' }} />
@@ -91,7 +91,7 @@ export default function Landing() {
                     <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1, marginBottom: 12 }}>Ba cấp độ học tập<br />phù hợp từng lứa tuổi</h2>
                     <p style={{ fontSize: 16, color: '#7C6D9B', lineHeight: 1.7, maxWidth: 540, fontWeight: 600 }}>Mỗi chương trình thiết kế riêng, phù hợp sự phát triển của trẻ.</p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22, marginTop: 50 }}>
+                <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 22, marginTop: 50 }}>
                     {[
                         { icon: '🌱', age: '3–4 tuổi', cls: 'Lớp Mầm', desc: 'Làm quen môi trường học, phát triển ngôn ngữ và kỹ năng xã hội qua vui chơi.', feats: ['🎨 Vẽ và tô màu sáng tạo', '🎵 Học qua bài hát & vần điệu', '🤝 Kỹ năng sống căn bản'], bg: '#EDE9FE', col: '#6D28D9', delay: 'd1' },
                         { icon: '🌿', age: '4–5 tuổi', cls: 'Lớp Chồi', desc: 'Phát triển tư duy logic, tiền toán học và vốn từ vựng qua khám phá thế giới.', feats: ['🔢 Làm quen với con số', '📖 Nhận biết chữ cái', '🌍 Khám phá thiên nhiên'], bg: '#FEF3C7', col: '#D97706', delay: 'd2' },
@@ -119,7 +119,7 @@ export default function Landing() {
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EDE9FE', color: '#6D28D9', fontSize: 12, fontWeight: 800, padding: '5px 14px', borderRadius: 50, marginBottom: 14 }}>⭐ Vì sao chọn Maika</div>
                     <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1, marginBottom: 12 }}>Môi trường tốt nhất<br />cho sự phát triển của bé</h2>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, marginTop: 50 }}>
+                <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 18, marginTop: 50 }}>
                     {[
                         ['👩‍🏫', 'Giáo viên chuyên nghiệp', '100% có bằng Đại học/Thạc sĩ Giáo dục Mầm non, được đào tạo định kỳ và tận tâm.', ''],
                         ['🥗', 'Dinh dưỡng khoa học', 'Thực đơn cân bằng 4 nhóm chất. Cập nhật bữa ăn hàng ngày qua ứng dụng phụ huynh.', 'd1'],
@@ -146,7 +146,7 @@ export default function Landing() {
                     <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#fff', lineHeight: 1.12, letterSpacing: -1, marginBottom: 12 }}>Một ngày ở Maika</h2>
                     <p style={{ fontSize: 16, color: '#8B83C3', lineHeight: 1.7, maxWidth: 540, fontWeight: 600 }}>Các bé vui chơi, học tập và phát triển trong môi trường đầy màu sắc.</p>
                 </div>
-                <div {...rv()} style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gridTemplateRows: '200px 200px', gap: 14, marginTop: 46 }}>
+                <div {...rv()} className="landing-gallery-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gridTemplateRows: '200px 200px', gap: 14, marginTop: 46 }}>
                     {[
                         { bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', emoji: '🎨', label: 'Giờ vẽ sáng tạo', ov: 'Hoạt động mỹ thuật — Lớp Chồi', span: 'span 2', rspan: 'span 2', fs: 72 },
                         { bg: 'linear-gradient(135deg,#059669,#34D399)', emoji: '🏃', label: 'Thể dục ngoài trời', ov: 'Vận động sáng — toàn trường' },
@@ -179,7 +179,7 @@ export default function Landing() {
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EDE9FE', color: '#6D28D9', fontSize: 12, fontWeight: 800, padding: '5px 14px', borderRadius: 50, marginBottom: 14 }}>💬 Phụ huynh nói gì</div>
                     <h2 style={{ fontSize: 'clamp(28px,3.8vw,44px)', fontWeight: 900, color: '#1E1B4B', lineHeight: 1.12, letterSpacing: -1 }}>Niềm tin của gia đình<br />là động lực của chúng tôi</h2>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 22, marginTop: 50 }}>
+                <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 22, marginTop: 50 }}>
                     {[
                         { stars: '⭐⭐⭐⭐⭐', text: 'Maika thực sự là ngôi nhà thứ hai của con tôi. Bé về nhà luôn vui và kể chuyện trường. Các cô rất tận tâm và yêu thương bé!', av: 'NH', name: 'Chị Nguyễn Thị Hương', role: 'Mẹ bé Minh An — Lớp Mầm', bg: 'linear-gradient(135deg,#6D28D9,#A78BFA)', delay: '' },
                         { stars: '⭐⭐⭐⭐⭐', text: 'Ứng dụng Maika giúp tôi biết bé ăn gì, ngủ bao lâu mỗi ngày. Thực sự yên tâm khi đi làm. Rất khuyến khích!', av: 'TM', name: 'Anh Trần Văn Minh', role: 'Bố bé Bảo Long — Lớp Chồi', bg: 'linear-gradient(135deg,#F59E0B,#FBBF24)', delay: 'd1' },
@@ -207,8 +207,8 @@ export default function Landing() {
                 <div style={{ position: 'absolute', width: 320, height: 320, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', bottom: -90, right: -70, pointerEvents: 'none' }} />
                 <h2 {...rv()} style={{ fontSize: 'clamp(28px,4.5vw,50px)', fontWeight: 900, color: '#fff', letterSpacing: -1, marginBottom: 14, position: 'relative', zIndex: 1 }}>Sẵn sàng cho bé<br />khởi đầu tốt đẹp?</h2>
                 <p {...rv()} style={{ fontSize: 17, color: 'rgba(255,255,255,0.75)', marginBottom: 40, fontWeight: 600, position: 'relative', zIndex: 1 }}>Đăng ký tham quan hoàn toàn miễn phí. Chúng tôi sẽ liên hệ trong vòng 24 giờ.</p>
-                <div {...rv()} style={{ display: 'flex', gap: 12, maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-                    <input id="cta-phone" type="text" placeholder="Số điện thoại phụ huynh" style={{ flex: 1, padding: '14px 20px', borderRadius: 50, border: 'none', fontSize: 14, color: '#1E1B4B' }} />
+                <div {...rv()} className="landing-cta-form" style={{ display: 'flex', gap: 12, maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+                    <input id="cta-phone" type="text" placeholder="Số điện thoại phụ huynh" style={{ flex: 1, minWidth: 0, padding: '14px 20px', borderRadius: 50, border: 'none', fontSize: 14, color: '#1E1B4B' }} />
                     <button onClick={handleCTA} style={{ padding: '14px 24px', borderRadius: 50, background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 900, fontSize: 14, border: 'none', whiteSpace: 'nowrap' }}>Đăng ký ngay</button>
                 </div>
                 <p id="cta-msg" style={{ fontSize: 14, color: '#FCD34D', fontWeight: 700, minHeight: 22, marginTop: 14, position: 'relative', zIndex: 1 }} />

@@ -132,7 +132,7 @@ export default function MediaLibrary({ readOnly = false, forParent = false }) {
     const displayAssets = forParent ? assets.filter(a => a.status === 'published') : assets
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+        <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: 20 }}>
             {/* Album sidebar */}
             <div>
                 <div style={{ fontWeight: 800, fontSize: 14, color: '#1E1B4B', marginBottom: 10 }}>📁 Albums</div>
@@ -168,7 +168,7 @@ export default function MediaLibrary({ readOnly = false, forParent = false }) {
 
             {/* Asset grid */}
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 10 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B' }}>
                         {activeAlbum ? `📁 ${activeAlbum.title}` : '🖼️ Tất cả ảnh'} ({displayAssets.length})
                     </div>
@@ -306,7 +306,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
     const canWrite = !readOnly && !forParent && profile?.role !== 'parent'
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+        <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: 20 }}>
             <aside>
                 <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 10 }}>Album ảnh</div>
                 <button onClick={() => { setActiveAlbum(''); reload('') }} style={{ width: '100%', padding: '9px 12px', borderRadius: 10, border: 'none', background: !activeAlbum ? '#EDE9FE' : '#fff', color: '#6D28D9', fontWeight: 800, marginBottom: 6 }}>Tất cả ảnh</button>
@@ -327,7 +327,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
                 )}
             </aside>
             <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 10 }}>
                     <div style={{ fontWeight: 900, color: '#1E1B4B' }}>{assets.length} ảnh</div>
                     {canWrite && (
                         <>

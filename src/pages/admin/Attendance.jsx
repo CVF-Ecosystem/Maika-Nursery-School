@@ -48,15 +48,15 @@ export default function Attendance() {
     const sel = { padding: '8px 12px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Điểm danh</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Ghi chép chuyên cần hàng ngày</div></div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={sel}><option value="all">Tất cả lớp</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                     <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)} style={sel} />
                 </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+            <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginBottom: 20 }}>
                 {[['✅', 'Có mặt', present, '#16A34A', '#F0FDF4'], ['⏰', 'Đi trễ', late, '#7C3AED', '#F5F3FF'], ['❌', 'Vắng mặt', absent, '#DC2626', '#FEF2F2'], ['⬜', 'Chưa điểm danh', unmarked, '#6B6494', '#F5F5F4']].map(([icon, lbl, cnt, col, bg]) => (
                     <div key={lbl} style={{ background: bg, borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span style={{ fontSize: 24 }}>{icon}</span>
@@ -64,12 +64,12 @@ export default function Attendance() {
                     </div>
                 ))}
             </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, color: '#6B6494', fontWeight: 700 }}>Điểm danh nhanh:</span>
                 <button onClick={() => markAll('present')} style={{ ...btn(false, '#16A34A'), background: '#F0FDF4', color: '#16A34A', border: '1.5px solid #16A34A' }}>✅ Điểm danh tất cả</button>
                 <button onClick={() => markAll('absent')} style={{ ...btn(false, '#DC2626'), background: '#FEF2F2', color: '#DC2626', border: '1.5px solid #DC2626' }}>❌ Vắng hết</button>
             </div>
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>
                         {['Học sinh', 'Lớp', 'Trạng thái'].map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>)}

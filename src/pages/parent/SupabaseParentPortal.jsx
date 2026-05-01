@@ -46,7 +46,7 @@ export default function SupabaseParentPortal() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F3FF' }}>
-            <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 20px' }}>
+            <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px clamp(12px, 4vw, 20px)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 900, fontSize: 18 }}>Cổng phụ huynh</div>
@@ -56,20 +56,20 @@ export default function SupabaseParentPortal() {
                         Đăng xuất
                     </button>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
                     {students.length > 1 && (
-                        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: 'none', fontWeight: 800, color: '#1E1B4B' }}>
+                        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ padding: '9px 12px', borderRadius: 10, border: 'none', fontWeight: 800, color: '#1E1B4B', flexShrink: 0 }}>
                             {students.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
                         </select>
                     )}
                     {TABS.map(([id, label]) => (
-                        <button key={id} onClick={() => setTab(id)} style={{ border: 'none', borderRadius: 10, padding: '9px 12px', background: tab === id ? '#fff' : 'rgba(255,255,255,0.1)', color: tab === id ? '#4C1D95' : '#fff', fontWeight: 900 }}>
+                        <button key={id} onClick={() => setTab(id)} style={{ border: 'none', borderRadius: 10, padding: '9px 12px', background: tab === id ? '#fff' : 'rgba(255,255,255,0.1)', color: tab === id ? '#4C1D95' : '#fff', fontWeight: 900, flexShrink: 0 }}>
                             {label}
                         </button>
                     ))}
                 </div>
             </header>
-            <main style={{ maxWidth: 980, margin: '0 auto', padding: 20 }}>
+            <main style={{ maxWidth: 980, margin: '0 auto', padding: 'clamp(12px, 4vw, 20px)' }}>
                 {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800 }}>{err}</div>}
                 {!student && !err && <div style={{ background: '#fff', borderRadius: 16, padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Tài khoản phụ huynh chưa được liên kết học sinh.</div>}
                 {student && tab === 'overview' && (

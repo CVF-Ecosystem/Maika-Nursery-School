@@ -44,8 +44,7 @@ function SchedulerStatus({ scheduler }) {
             )}
             {!enabled && (
                 <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 4 }}>
-                    Đặt <code style={{ background: '#EDE9FE', padding: '1px 6px', borderRadius: 4 }}>MAIKA_BACKUP_SCHEDULE_ENABLED=true</code> và
-                    <code style={{ background: '#EDE9FE', padding: '1px 6px', borderRadius: 4, marginLeft: 4 }}>MAIKA_BACKUP_CRON=0 2 * * *</code> để bật.
+                    Lịch sao lưu tự động chưa bật. Vui lòng kiểm tra cấu hình vận hành trước khi dùng chính thức.
                 </div>
             )}
         </div>
@@ -128,7 +127,7 @@ export default function Backups() {
 
     if (!hasBackendAPI()) {
         return (
-            <div style={{ padding: '28px 36px' }}>
+            <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Sao lưu & khôi phục</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Chức năng sao lưu dữ liệu đang được chuẩn bị cho môi trường vận hành chính thức.</div>
@@ -138,13 +137,13 @@ export default function Backups() {
     }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Sao lưu & khôi phục</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{backups.length} bản sao lưu</div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button onClick={loadBackups} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }} aria-label="Làm mới danh sách backup">Làm mới</button>
                     <button onClick={createNewBackup} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }} aria-label="Tạo backup mới">+ Tạo backup</button>
                 </div>
@@ -155,7 +154,7 @@ export default function Backups() {
             {message && <div style={{ color: '#059669', background: '#ECFDF5', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }} role="alert">{message}</div>}
             {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }} role="alert">{error}</div>}
 
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }} role="table" aria-label="Danh sách backup">
                     <thead>
                         <tr style={{ background: '#F8F7FF' }}>

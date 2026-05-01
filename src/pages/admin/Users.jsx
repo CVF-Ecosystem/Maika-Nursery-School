@@ -25,9 +25,9 @@ function UserModal({ user, students, onClose, onSave }) {
 
     return (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ background: '#fff', borderRadius: 20, width: 520, maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#fff', borderRadius: 20, width: 'min(520px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 18 }}>{user ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
                         <label htmlFor={`user-role-${id}`} style={ls}>Vai trò</label>
                         <select id={`user-role-${id}`} style={is} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, studentId: e.target.value === 'parent' ? form.studentId : '' })}>
@@ -124,9 +124,9 @@ function SupabaseUsers() {
     const linkFor = profileId => links.find(link => link.parent_profile_id === profileId)
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && <SupabaseUserModal profile={editing} facilities={facilities} students={students} link={linkFor(editing.id)} onClose={() => setEditing(null)} onSave={save} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Quản lý tài khoản</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Quản lý vai trò, trạng thái truy cập, cơ sở giáo viên và học sinh của phụ huynh.</div>
@@ -137,7 +137,7 @@ function SupabaseUsers() {
             </div>
             {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800, marginBottom: 14 }}>{err}</div>}
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm tên, email, vai trò..." style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', marginBottom: 14 }} />
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>{['Tên', 'Role', 'Cơ sở/Con', 'Liên hệ', 'Trạng thái', ''].map(h => <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 11, color: '#7C6D9B' }}>{h}</th>)}</tr></thead>
                     <tbody>
@@ -174,9 +174,9 @@ function SupabaseUserModal({ profile, facilities, students, link, onClose, onSav
 
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div style={{ width: 540, background: '#fff', borderRadius: 18, padding: 24 }}>
+            <div style={{ width: 'min(540px, calc(100vw - 24px))', background: '#fff', borderRadius: 18, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
                 <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>Cập nhật tài khoản</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div style={{ gridColumn: '1/-1' }}><label style={label}>Tên</label><input style={input} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></div>
                     <div><label style={label}>Role</label><select style={input} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="admin">Admin</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option></select></div>
                     <div><label style={label}>Trạng thái</label><select style={input} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="active">Đang hoạt động</option><option value="locked">Đã khóa</option></select></div>
@@ -249,7 +249,7 @@ export default function Users() {
 
     if (!hasBackendAPI()) {
         return (
-            <div style={{ padding: '28px 36px' }}>
+            <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
                 <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Quản lý tài khoản</div>
                     <div style={{ color: '#7C6D9B', fontSize: 14, lineHeight: 1.7 }}>Quản lý tài khoản đang được chuẩn bị cho môi trường vận hành chính thức.</div>
@@ -259,9 +259,9 @@ export default function Users() {
     }
 
     return (
-        <div style={{ padding: '28px 36px' }}>
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal && <UserModal user={modal === 'add' ? null : modal} students={db.students} onClose={() => setModal(null)} onSave={saveUser} />}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý tài khoản</div>
                     <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{users.filter(u => u.status === 'active').length} đang hoạt động · {users.length} tổng cộng</div>
@@ -272,7 +272,7 @@ export default function Users() {
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên, SĐT, email, vai trò..." style={{ ...sel, flex: 1 }} />
             </div>
             {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{error}</div>}
-            <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ background: '#F8F7FF' }}>{['Tài khoản', 'Vai trò', 'Liên hệ', 'Liên kết', 'Trạng thái', ''].map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>)}</tr></thead>
                     <tbody>
