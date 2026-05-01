@@ -483,7 +483,8 @@ src/
 - [x] `attendance.student_id` + `facility_id` FK đúng student/cơ sở.
 - [x] RLS: admin xem tất cả; teacher chỉ xem dữ liệu thuộc `profiles.facility_id`.
 - [x] Seed 2 cơ sở: CS1, CS2 trong SQL seed/dev note.
-- [ ] Chạy migration trong Supabase Dashboard/project thật và verify RLS bằng user thật.
+- [x] Chạy migration vào Supabase project `czxoozwydvmjisydyims` ngày 01/05/2026; verify 4 bảng tồn tại qua publishable key.
+- [ ] Verify RLS bằng user thật sau khi tạo Supabase Auth users + profiles.
 
 **Done when:** chạy SQL trong Supabase Dashboard không lỗi; teacher CS1 không đọc được student CS2.
 

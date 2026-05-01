@@ -25,3 +25,4 @@ playwright-report/
 *.xls
 __pycache__/
 *.pyc
+supabase/.temp/
