@@ -1,5 +1,6 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getOfflineQueueCount, isOnline, syncOfflineQueue } from '../../features/offline/offlineSyncService'
 
 const AttendanceAdvanced = lazy(() => import('../../pages/admin/AttendanceAdvanced'))
 const DailyReports = lazy(() => import('../../pages/admin/DailyReports'))
@@ -17,6 +18,8 @@ function Loading() {
 
 export default function TeacherApp() {
     const [tab, setTab] = useState('attendance')
+    const [online, setOnline] = useState(isOnline())
+    const [pending, setPending] = useState(getOfflineQueueCount())
     const navigate = useNavigate()
     const current = TABS.find(item => item.id === tab) || TABS[0]
 
@@ -28,6 +31,26 @@ export default function TeacherApp() {
         navigate('/teacher')
     }
 
+    useEffect(() => {
+        function refreshStatus() {
+            setOnline(isOnline())
+            setPending(getOfflineQueueCount())
+        }
+        function handleOnline() {
+            refreshStatus()
+            syncOfflineQueue().finally(refreshStatus)
+        }
+        window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', refreshStatus)
+        window.addEventListener('maika-offline-queue-changed', refreshStatus)
+        handleOnline()
+        return () => {
+            window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', refreshStatus)
+            window.removeEventListener('maika-offline-queue-changed', refreshStatus)
+        }
+    }, [])
+
     return (
         <div style={{ minHeight: '100vh', background: '#F5F3FF' }}>
             <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 16px 10px' }}>
@@ -35,6 +58,9 @@ export default function TeacherApp() {
                     <div>
                         <div style={{ fontWeight: 900, fontSize: 18 }}>Cổng giáo viên</div>
                         <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Công cụ hằng ngày cho giáo viên</div>
+                        <div style={{ color: '#DDD6FE', fontSize: 11, fontWeight: 800, marginTop: 2 }}>
+                            {online ? 'Online' : 'Offline'}{pending > 0 ? ` · ${pending} mục chờ đồng bộ` : ' · Đã đồng bộ'}
+                        </div>
                     </div>
                     <button onClick={logout} style={{ border: '1px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 10, padding: '8px 10px', fontWeight: 800, fontSize: 12 }}>
                         Đăng xuất

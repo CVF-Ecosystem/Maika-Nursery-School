@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
+import { initialsFromName, normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable } from '../../utils/tabularImport'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listTeachers, saveTeacher as saveSupabaseTeacher } from '../../features/teachers/teacherService'
 
@@ -38,96 +39,27 @@ function TeacherModal({ teacher, db, facilityId = '', onClose, onSave }) {
     )
 }
 
-function initialsFromName(name = '') {
-    return name.split(' ').filter(Boolean).slice(-2).map(word => word[0]?.toUpperCase()).join('') || '?'
-}
-
-function normalizeKey(value = '') {
-    return String(value)
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/đ/g, 'd')
-        .replace(/[^a-z0-9]/g, '')
-}
-
-function pick(row, keys) {
-    for (const key of keys) {
-        const value = row[key]
-        if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim()
-    }
-    return ''
-}
-
 function normalizeStatus(value = '') {
-    const text = normalizeKey(value)
+    const text = normalizeImportKey(value)
     if (['inactive', 'nghi', 'nghilam', 'danghi', 'khoa', 'locked'].includes(text)) return 'inactive'
     return 'active'
 }
 
-function normalizeDate(value) {
-    if (!value) return ''
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10)
-    const text = String(value).trim()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text
-    const match = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
-    if (match) return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
-    return text
-}
-
-function parseCsvLine(line) {
-    const cells = []
-    let cell = ''
-    let quoted = false
-    for (let i = 0; i < line.length; i += 1) {
-        const ch = line[i]
-        const next = line[i + 1]
-        if (ch === '"' && quoted && next === '"') {
-            cell += '"'
-            i += 1
-        } else if (ch === '"') {
-            quoted = !quoted
-        } else if (ch === ',' && !quoted) {
-            cells.push(cell)
-            cell = ''
-        } else {
-            cell += ch
-        }
-    }
-    cells.push(cell)
-    return cells
-}
-
-async function readTabularRows(file) {
-    const lowerName = file.name.toLowerCase()
-    if (lowerName.endsWith('.csv')) {
-        const text = await file.text()
-        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
-        return lines.map(parseCsvLine)
-    }
-    const { default: readXlsxFile } = await import('read-excel-file/browser')
-    return readXlsxFile(file)
-}
-
 async function readTeacherImportFile(file) {
-    const table = await readTabularRows(file)
-    const [headers = [], ...body] = table
-    const keys = headers.map(normalizeKey)
-    return body.map(cells => {
-        const row = {}
-        keys.forEach((key, index) => { row[key] = cells[index] ?? '' })
-        const name = pick(row, ['hoten', 'tengiaovien', 'giaovien', 'fullname', 'name'])
+    const rows = await readObjectsFromTable(file)
+    return rows.map(row => {
+        const name = pickImportValue(row, ['hoten', 'tengiaovien', 'giaovien', 'fullname', 'name'])
         return {
             name,
-            className: pick(row, ['lop', 'phutrachlop', 'classname', 'class']),
-            subject: pick(row, ['chuyenmon', 'mon', 'vaitro', 'chucvu', 'vitri', 'subject']) || 'Giáo viên chủ nhiệm',
-            phone: pick(row, ['dienthoai', 'sodienthoai', 'sdt', 'phone']),
-            email: pick(row, ['email', 'mail']),
-            joinDate: normalizeDate(pick(row, ['ngayvaolam', 'ngaybatdau', 'joindate', 'join'])),
-            status: normalizeStatus(pick(row, ['trangthai', 'status'])),
-            initials: pick(row, ['viettat', 'initials']) || initialsFromName(name),
-            degree: pick(row, ['trinhdo', 'bangcap', 'hocvan', 'degree']),
-            notes: pick(row, ['ghichu', 'note', 'notes']),
+            className: pickImportValue(row, ['lop', 'phutrachlop', 'classname', 'class']),
+            subject: pickImportValue(row, ['chuyenmon', 'mon', 'vaitro', 'chucvu', 'vitri', 'subject']) || 'Giáo viên chủ nhiệm',
+            phone: pickImportValue(row, ['dienthoai', 'sodienthoai', 'sdt', 'phone']),
+            email: pickImportValue(row, ['email', 'mail']),
+            joinDate: normalizeImportDate(pickImportValue(row, ['ngayvaolam', 'ngaybatdau', 'joindate', 'join'])),
+            status: normalizeStatus(pickImportValue(row, ['trangthai', 'status'])),
+            initials: pickImportValue(row, ['viettat', 'initials']) || initialsFromName(name),
+            degree: pickImportValue(row, ['trinhdo', 'bangcap', 'hocvan', 'degree']),
+            notes: pickImportValue(row, ['ghichu', 'note', 'notes']),
         }
     }).filter(item => item.name)
 }
@@ -265,8 +197,8 @@ export default function Teachers(props) {
             const rows = await readTeacherImportFile(file)
             const ndb = getDB()
             rows.forEach(row => {
-                const classMatch = ndb.classes.find(c => normalizeKey(c.name) === normalizeKey(row.className))
-                const existingIndex = row.email ? ndb.teachers.findIndex(t => normalizeKey(t.email) === normalizeKey(row.email)) : -1
+                const classMatch = ndb.classes.find(c => normalizeImportKey(c.name) === normalizeImportKey(row.className))
+                const existingIndex = row.email ? ndb.teachers.findIndex(t => normalizeImportKey(t.email) === normalizeImportKey(row.email)) : -1
                 const record = { ...row, classId: classMatch?.id || '', id: existingIndex >= 0 ? ndb.teachers[existingIndex].id : 't' + Date.now() + Math.random() }
                 if (existingIndex >= 0) ndb.teachers[existingIndex] = { ...ndb.teachers[existingIndex], ...record }
                 else ndb.teachers.push(record)

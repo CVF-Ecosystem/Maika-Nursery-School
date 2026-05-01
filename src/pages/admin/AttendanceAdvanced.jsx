@@ -5,6 +5,7 @@ import { getDB } from '../../data/store'
 import { getCurrentProfile } from '../../features/auth/authService'
 import { listAttendanceByFacilityDate, upsertAttendance } from '../../features/attendance/attendanceService'
 import { listStudents } from '../../features/students/studentService'
+import { cacheTeacherData, enqueueOfflineAction, isOnline, readCachedTeacherData, syncOfflineQueue } from '../../features/offline/offlineSyncService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -65,6 +66,14 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             .catch(() => setErr('Lỗi tải dữ liệu'))
     }, [date, filterStudentId, supabaseMode, selectedFacilityId])
 
+    useEffect(() => {
+        if (!supabaseMode) return
+        const sync = () => syncOfflineQueue().then(() => loadSupabaseAttendance()).catch(() => { })
+        window.addEventListener('online', sync)
+        sync()
+        return () => window.removeEventListener('online', sync)
+    }, [supabaseMode, date, selectedFacilityId])
+
     async function loadSupabaseAttendance() {
         setErr('')
         try {
@@ -74,6 +83,8 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const scoped = filterStudentId ? items.filter(s => s.id === filterStudentId) : items
             setStudents(scoped)
             setClasses([...new Set(scoped.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
+            cacheTeacherData('last-facility-id', facilityId || 'all')
+            cacheTeacherData(`students:${facilityId || 'all'}`, scoped)
             const attendance = await listAttendanceByFacilityDate({
                 facilityId: profile?.role === 'parent' ? undefined : facilityId,
                 date,
@@ -81,13 +92,28 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const map = {}
             for (const record of attendance) map[record.studentId] = record
             setRecords(map)
+            cacheTeacherData(`attendance:${facilityId || 'all'}:${date}`, map)
             const counts = Object.values(map).reduce((acc, record) => {
                 acc[record.status] = (acc[record.status] || 0) + 1
                 return acc
             }, {})
             setSummary(Object.entries(counts).map(([status, count]) => ({ status, count })))
         } catch (ex) {
-            setErr(ex.message || 'Không tải được dữ liệu điểm danh')
+            const facilityId = readCachedTeacherData('last-facility-id', selectedFacilityId || 'all')
+            const cachedStudents = readCachedTeacherData(`students:${facilityId}`, [])
+            const cachedRecords = readCachedTeacherData(`attendance:${facilityId}:${date}`, {})
+            if (cachedStudents.length) {
+                setStudents(filterStudentId ? cachedStudents.filter(s => s.id === filterStudentId) : cachedStudents)
+                setClasses([...new Set(cachedStudents.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
+                setRecords(cachedRecords)
+                setSummary(Object.entries(Object.values(cachedRecords).reduce((acc, record) => {
+                    acc[record.status] = (acc[record.status] || 0) + 1
+                    return acc
+                }, {})).map(([status, count]) => ({ status, count })))
+                setErr('Đang dùng dữ liệu offline. Thao tác sẽ tự đồng bộ khi có mạng.')
+            } else {
+                setErr(ex.message || 'Không tải được dữ liệu điểm danh')
+            }
         }
     }
 
@@ -102,14 +128,30 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const now = new Date().toTimeString().slice(0, 5)
             if (supabaseMode) {
                 const student = students.find(s => s.id === studentId)
-                const saved = await upsertAttendance({
+                const optimistic = {
                     studentId,
                     facilityId: student?.facilityId,
                     date,
                     status,
                     checkInTime: status !== 'absent' ? now : '',
+                }
+                setRecords(prev => {
+                    const next = { ...prev, [studentId]: { ...(prev[studentId] || {}), ...optimistic } }
+                    cacheTeacherData(`attendance:${student?.facilityId || selectedFacilityId || 'all'}:${date}`, next)
+                    return next
                 })
-                setRecords(prev => ({ ...prev, [studentId]: saved }))
+                if (isOnline()) {
+                    try {
+                        const saved = await upsertAttendance(optimistic)
+                        setRecords(prev => ({ ...prev, [studentId]: saved }))
+                    } catch {
+                        enqueueOfflineAction('attendance', optimistic)
+                        setErr('Mất kết nối. Điểm danh đã lưu offline và sẽ tự đồng bộ.')
+                    }
+                } else {
+                    enqueueOfflineAction('attendance', optimistic)
+                    setErr('Đang offline. Điểm danh đã lưu tạm trên máy.')
+                }
                 setSaving(false)
                 return
             }
@@ -127,7 +169,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         try {
             if (supabaseMode) {
                 const student = students.find(s => s.id === input.studentId)
-                const saved = await upsertAttendance({
+                const optimistic = {
                     studentId: input.studentId,
                     facilityId: student?.facilityId,
                     date,
@@ -139,8 +181,24 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     lateReason: input.lateReason,
                     earlyPickupReason: input.earlyPickupReason,
                     note: input.note,
+                }
+                setRecords(prev => {
+                    const next = { ...prev, [input.studentId]: { ...(prev[input.studentId] || {}), ...optimistic } }
+                    cacheTeacherData(`attendance:${student?.facilityId || selectedFacilityId || 'all'}:${date}`, next)
+                    return next
                 })
-                setRecords(prev => ({ ...prev, [input.studentId]: saved }))
+                if (isOnline()) {
+                    try {
+                        const saved = await upsertAttendance(optimistic)
+                        setRecords(prev => ({ ...prev, [input.studentId]: saved }))
+                    } catch {
+                        enqueueOfflineAction('attendance', optimistic)
+                        setErr('Mất kết nối. Chi tiết điểm danh đã lưu offline và sẽ tự đồng bộ.')
+                    }
+                } else {
+                    enqueueOfflineAction('attendance', optimistic)
+                    setErr('Đang offline. Chi tiết điểm danh đã lưu tạm trên máy.')
+                }
                 setEditModal(null)
                 setSaving(false)
                 return

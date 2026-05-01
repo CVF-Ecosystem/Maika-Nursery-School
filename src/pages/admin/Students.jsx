@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
 import { sanitizeText } from '../../utils/security'
+import { initialsFromName, normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable } from '../../utils/tabularImport'
 import { isSupabaseSession } from '../../data/backendMode'
 import SupabaseStudentsPanel from '../../features/students/SupabaseStudentsPanel'
 
@@ -65,6 +66,38 @@ function StudentModal({ student, db, onClose, onSave }) {
     )
 }
 
+function normalizeGender(value = '') {
+    const text = normalizeImportKey(value)
+    if (['nam', 'male', 'm', 'boy', 'trai'].includes(text)) return 'male'
+    if (['nu', 'female', 'f', 'girl', 'gai'].includes(text)) return 'female'
+    return 'unknown'
+}
+
+function normalizeStatus(value = '') {
+    const text = normalizeImportKey(value)
+    if (['inactive', 'nghi', 'nghihoc', 'danghi', 'thoi', 'thoihoc'].includes(text)) return 'inactive'
+    return 'active'
+}
+
+async function readStudentImportFile(file) {
+    const rows = await readObjectsFromTable(file)
+    return rows.map(row => {
+        const name = sanitizeText(pickImportValue(row, ['hoten', 'hotentre', 'tenhocsinh', 'tenhocvien', 'tenbe', 'hocsinh', 'fullname', 'name']))
+        return {
+            name,
+            dob: sanitizeText(normalizeImportDate(pickImportValue(row, ['ngaysinh', 'dob', 'birthday', 'dateofbirth']))),
+            gender: normalizeGender(pickImportValue(row, ['gioitinh', 'gender', 'sex'])),
+            className: sanitizeText(pickImportValue(row, ['lop', 'tenlop', 'class', 'classname'])),
+            parentName: sanitizeText(pickImportValue(row, ['phuhuynh', 'tenphuhuynh', 'hotenphuhuynh', 'cha', 'me', 'bo', 'parent', 'parentname'])),
+            parentPhone: sanitizeText(pickImportValue(row, ['sdt', 'sodienthoai', 'dienthoai', 'sdtphuhuynh', 'phone', 'parentphone'])),
+            parentEmail: sanitizeText(pickImportValue(row, ['email', 'emailphuhuynh', 'parentemail'])),
+            status: normalizeStatus(pickImportValue(row, ['trangthai', 'status'])),
+            notes: sanitizeText(pickImportValue(row, ['ghichu', 'note', 'notes'])),
+            initials: initialsFromName(name),
+        }
+    }).filter(item => item.name)
+}
+
 export default function Students(props) {
     if (isSupabaseSession()) return <SupabaseStudentsPanel {...props} />
 
@@ -102,30 +135,34 @@ export default function Students(props) {
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && <StudentModal db={db} onClose={() => setModal(null)} onSave={saveStudent} />}
             {modal === 'edit' && <StudentModal student={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveStudent} />}
-            <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
+            <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={async e => {
                 const file = e.target.files[0]; if (!file) return
-                const reader = new FileReader()
-                reader.onload = ev => {
-                    try {
-                        const lines = ev.target.result.trim().split('\n').slice(1)
-                        const imported = lines.map(line => {
-                            const cols = line.split(',').map(v => v.replace(/^"|"$/g, '').trim())
-                            const [name, dob, , gender, parentName, parentPhone, parentEmail, enrollDate] = cols
-                            const safeName = sanitizeText(name)
-                            const initials = safeName.split(' ').filter(Boolean).slice(-2).map(w => w[0].toUpperCase()).join('')
-                            return { id: 's' + Date.now() + Math.random(), name: safeName, dob: sanitizeText(dob), classId: 'c1', gender: gender === 'Nam' ? 'male' : 'female', parentName: sanitizeText(parentName), parentPhone: sanitizeText(parentPhone), parentEmail: sanitizeText(parentEmail), enrollDate: sanitizeText(enrollDate) || todayStr(), status: 'active', initials }
-                        }).filter(s => s.name)
-                        const ndb = getDB(); ndb.students = [...ndb.students, ...imported]; commit(); setDB({ ...ndb })
-                        setImportMsg(`✅ Đã import ${imported.length} học sinh!`); setTimeout(() => setImportMsg(''), 3000)
-                    } catch { setImportMsg('❌ File không đúng định dạng'); setTimeout(() => setImportMsg(''), 3000) }
+                try {
+                    const imported = await readStudentImportFile(file)
+                    const ndb = getDB()
+                    imported.forEach(student => {
+                        const classMatch = ndb.classes.find(c => normalizeImportKey(c.name) === normalizeImportKey(student.className))
+                        const existingIndex = ndb.students.findIndex(s =>
+                            normalizeImportKey(s.name) === normalizeImportKey(student.name)
+                            && (!student.dob || !s.dob || s.dob === student.dob)
+                            && (!student.parentPhone || !s.parentPhone || s.parentPhone === student.parentPhone)
+                        )
+                        const record = { ...student, id: existingIndex >= 0 ? ndb.students[existingIndex].id : 's' + Date.now() + Math.random(), classId: classMatch?.id || 'c1', enrollDate: todayStr() }
+                        if (existingIndex >= 0) ndb.students[existingIndex] = { ...ndb.students[existingIndex], ...record }
+                        else ndb.students.push(record)
+                    })
+                    commit(); setDB({ ...ndb })
+                    setImportMsg(`✅ Đã import ${imported.length} học sinh!`); setTimeout(() => setImportMsg(''), 3000)
+                } catch {
+                    setImportMsg('❌ File không đúng định dạng'); setTimeout(() => setImportMsg(''), 3000)
                 }
-                reader.readAsText(file, 'UTF-8'); e.target.value = ''
+                e.target.value = ''
             }} />
 
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     {importMsg && <span style={{ fontSize: 13, fontWeight: 700, color: '#059669', background: '#ECFDF5', borderRadius: 8, padding: '6px 12px' }}>{importMsg}</span>}
-                    <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Import CSV</button>
+                    <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Import Excel/CSV</button>
                     <button onClick={() => exportCSV(filtered, db.classes)} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📤 Export CSV</button>
                     <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm học sinh</button>
                 </div>
