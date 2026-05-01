@@ -25,8 +25,6 @@ export default function Analytics() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo & Phân tích</div>
-            <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 24 }}>Thống kê tổng hợp hoạt động nhà trường</div>
             <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 24 }}>
                 {[
                     ['👦', 'Học sinh đang học', activeStudents, '#7C3AED'],

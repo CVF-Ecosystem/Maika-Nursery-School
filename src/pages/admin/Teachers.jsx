@@ -52,8 +52,7 @@ export default function Teachers() {
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {modal === 'add' && <TeacherModal db={db} onClose={() => setModal(null)} onSave={saveTeacher} />}
             {modal === 'edit' && <TeacherModal teacher={selected} db={db} onClose={() => { setModal(null); setSelected(null) }} onSave={saveTeacher} />}
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý giáo viên</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.teachers.filter(t => t.status === 'active').length} giáo viên đang làm việc</div></div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <button onClick={() => { setSelected(null); setModal('add') }} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>+ Thêm giáo viên</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))', gap: 18 }}>

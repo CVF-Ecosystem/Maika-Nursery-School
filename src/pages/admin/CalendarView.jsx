@@ -65,7 +65,7 @@ export default function CalendarView() {
                 </div>
             )}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Lịch sự kiện</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{upcoming.length} sự kiện sắp tới</div></div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{upcoming.length} sự kiện sắp tới</div>
                 <button onClick={() => setModal(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>+ Thêm sự kiện</button>
             </div>
             <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', marginBottom: 16 }}>

@@ -81,10 +81,7 @@ export default function AuditLog() {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Nhật ký kiểm toán</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{logs.length} sự kiện gần nhất</div>
-                </div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{logs.length} sự kiện gần nhất</div>
                 <button onClick={loadLogs} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Làm mới</button>
             </div>
 

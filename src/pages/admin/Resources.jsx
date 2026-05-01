@@ -25,9 +25,6 @@ export default function Resources() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Thư viện tài nguyên</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.resources.length} tài liệu</div></div>
-            </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Tìm tài nguyên..." style={{ ...sel, flex: 1 }} />
                 <select value={filter} onChange={e => setFilter(e.target.value)} style={sel}>

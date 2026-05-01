@@ -529,11 +529,6 @@ export default function Settings() {
 
     return (
         <div style={{ padding: '0 0 32px' }}>
-            <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 900, fontSize: 22, color: '#1E1B4B' }}>⚙️ Cấu hình trường học</div>
-                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 4 }}>Thông tin trường, năm học, mức học phí và quyền riêng tư dữ liệu</div>
-            </div>
-
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #EDE9FE', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {TABS.map(t => (
                     <button

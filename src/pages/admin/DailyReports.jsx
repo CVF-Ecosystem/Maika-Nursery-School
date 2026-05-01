@@ -66,8 +66,7 @@ export default function DailyReports() {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && <EditModal student={db.students.find(s => s.id === editing)} report={reportMap[editing]} onClose={() => setEditing(null)} onSave={data => saveReport(editing, data)} />}
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Nhật ký ngày</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Bữa ăn · Giấc ngủ · Tâm trạng</div></div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={sel}><option value="all">Tất cả lớp</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                     <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)} style={sel} />

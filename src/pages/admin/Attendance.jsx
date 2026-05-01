@@ -49,8 +49,7 @@ export default function Attendance() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Điểm danh</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Ghi chép chuyên cần hàng ngày</div></div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={sel}><option value="all">Tất cả lớp</option>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                     <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)} style={sel} />

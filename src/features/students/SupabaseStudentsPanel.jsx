@@ -96,11 +96,7 @@ export default function SupabaseStudentsPanel() {
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18 }}>
-                <div>
-                    <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B' }}>Danh sách học sinh</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{visibleStudents.length} học sinh · {profile.role === 'admin' ? 'Có thể cập nhật thông tin' : 'Chỉ hiển thị học sinh tại cơ sở của giáo viên'}</div>
-                </div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center', marginBottom: 18 }}>
                 {canEdit && <button onClick={() => setForm({ ...emptyForm, facilityId: facilityId || facilities[0]?.id || '' })} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 900 }}>+ Thêm học sinh</button>}
             </div>
             {err && <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontWeight: 800, fontSize: 13 }}>{err}</div>}

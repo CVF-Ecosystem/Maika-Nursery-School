@@ -303,11 +303,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
             )}
 
             {!readOnly && (
-                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                    <div>
-                        <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Hóa đơn & Biên lai</div>
-                        <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{invoices.length} hóa đơn · Quản lý nâng cao</div>
-                    </div>
+                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                     <button
                         onClick={() => { setSelected(null); setModal('form') }}
                         style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}

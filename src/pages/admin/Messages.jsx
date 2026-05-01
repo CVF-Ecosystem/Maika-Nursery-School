@@ -36,7 +36,7 @@ export default function Messages() {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Tin nhắn</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{unread.length} tin nhắn chưa đọc</div></div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{unread.length} tin nhắn chưa đọc</div>
                 <button onClick={() => setShowCompose(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>📣 Thông báo toàn trường</button>
             </div>
             {showCompose && (

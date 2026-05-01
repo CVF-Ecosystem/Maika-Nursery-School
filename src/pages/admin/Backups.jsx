@@ -143,10 +143,7 @@ export default function Backups() {
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Sao lưu & khôi phục</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{backups.length} bản sao lưu</div>
-                </div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>{backups.length} bản sao lưu</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <button onClick={loadBackups} style={{ padding: '9px 18px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 800, fontSize: 13, cursor: 'pointer' }} aria-label="Làm mới danh sách backup">Làm mới</button>
                     <button onClick={createNewBackup} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }} aria-label="Tạo backup mới">+ Tạo backup</button>

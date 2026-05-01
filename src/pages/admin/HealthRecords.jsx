@@ -112,15 +112,6 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
 
     return (
         <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
-            {!readOnly && (
-                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                    <div>
-                        <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Hồ sơ sức khỏe học sinh</div>
-                        <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Dị ứng · Thuốc · Liên hệ khẩn cấp · Bác sĩ</div>
-                    </div>
-                </div>
-            )}
-
             {!filterStudentId && (
                 <div style={{ marginBottom: 16 }}>
                     <select

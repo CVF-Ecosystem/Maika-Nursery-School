@@ -44,8 +44,7 @@ export default function Gamification() {
                     </div>
                 </div>
             )}
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Thành tích & Khen thưởng</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>Tạo động lực cho bé phấn đấu</div></div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24, gap: 12 }}>
                 <button onClick={() => setModal(true)} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#F59E0B,#FBBF24)', color: '#1E1B4B', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>🏆 Trao thành tích</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,260px),1fr))', gap: 16 }}>

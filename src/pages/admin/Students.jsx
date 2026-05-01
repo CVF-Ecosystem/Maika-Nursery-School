@@ -122,8 +122,7 @@ export default function Students() {
                 reader.readAsText(file, 'UTF-8'); e.target.value = ''
             }} />
 
-            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
-                <div><div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B' }}>Quản lý học sinh</div><div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{db.students.filter(s => s.status === 'active').length} đang học · {db.students.length} tổng cộng</div></div>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     {importMsg && <span style={{ fontSize: 13, fontWeight: 700, color: '#059669', background: '#ECFDF5', borderRadius: 8, padding: '6px 12px' }}>{importMsg}</span>}
                     <button onClick={() => fileRef.current?.click()} style={{ padding: '10px 18px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Import CSV</button>
