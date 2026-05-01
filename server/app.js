@@ -5,9 +5,9 @@ import helmet from 'helmet'
 import bcrypt from 'bcryptjs'
 import multer from 'multer'
 import rateLimit from 'express-rate-limit'
-import { mkdirSync } from 'node:fs'
+import { accessSync, constants, mkdirSync } from 'node:fs'
 import { extname, resolve } from 'node:path'
-import { createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
+import { BACKUP_DIR, createBackup, getBackupPath, listBackups, restoreBackup } from './backup.js'
 import {
     addAuditLog,
     createAcademicYear,
@@ -169,6 +169,23 @@ export async function createApp() {
     app.use(express.json({ limit: '10mb' }))
     app.use('/uploads', express.static(UPLOAD_DIR))
 
+    // Request logging with correlation id and duration
+    app.use((req, _res, next) => {
+        req.requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        req.startTime = Date.now()
+        next()
+    })
+    app.use((req, res, next) => {
+        res.on('finish', () => {
+            const duration = Date.now() - req.startTime
+            const actor = req.user ? `${req.user.role}:${req.user.id}` : 'anon'
+            if (res.statusCode >= 400 || duration > 2000) {
+                console.log(`[${req.requestId}] ${req.method} ${req.path} ${res.statusCode} ${duration}ms actor=${actor}`)
+            }
+        })
+        next()
+    })
+
     // Rate limiting
     const loginLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
@@ -195,7 +212,28 @@ export async function createApp() {
     app.use('/api/', apiLimiter)
 
     app.get('/api/health', (_req, res) => {
-        res.json({ ok: true, collections: listCollections() })
+        function dirWritable(dir) {
+            try { accessSync(dir, constants.W_OK); return true } catch { return false }
+        }
+        let dbOk = false
+        try { db.prepare('SELECT 1').get(); dbOk = true } catch { /* ignore */ }
+
+        const checks = {
+            db: dbOk,
+            uploadDir: dirWritable(UPLOAD_DIR),
+            backupDir: dirWritable(BACKUP_DIR),
+            scheduler: schedulerState,
+            collections: listCollections(),
+        }
+        const ok = checks.db && checks.uploadDir
+        res.status(ok ? 200 : 503).json({ ok, ...checks })
+    })
+
+    app.get('/api/ready', (_req, res) => {
+        let dbOk = false
+        try { db.prepare('SELECT 1').get(); dbOk = true } catch { /* ignore */ }
+        if (dbOk) return res.json({ ready: true })
+        res.status(503).json({ ready: false, reason: 'db not ready' })
     })
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -988,6 +1026,17 @@ export async function createApp() {
                 url: `/uploads/${req.file.filename}`,
             },
         })
+    })
+
+    // Normalize unhandled errors to JSON, hide stack in production
+    // eslint-disable-next-line no-unused-vars
+    app.use((err, req, res, _next) => {
+        const status = err.status || err.statusCode || 500
+        const isProd = process.env.NODE_ENV === 'production'
+        const message = isProd && status === 500 ? 'Lỗi máy chủ nội bộ.' : (err.message || 'Lỗi không xác định.')
+        console.error(`[${req.requestId || '-'}] ERROR ${status}: ${err.message}`)
+        if (!isProd && err.stack) console.error(err.stack)
+        res.status(status).json({ error: message })
     })
 
     return app

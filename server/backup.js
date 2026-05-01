@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSy
 import { basename, join, resolve } from 'node:path'
 import { readSnapshot, replaceSnapshot } from './db.js'
 
-const BACKUP_DIR = resolve(process.env.MAIKA_BACKUP_DIR || 'server/backups')
+export const BACKUP_DIR = resolve(process.env.MAIKA_BACKUP_DIR || 'server/backups')
 mkdirSync(BACKUP_DIR, { recursive: true })
 
 function backupName() {

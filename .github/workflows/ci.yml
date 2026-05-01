@@ -49,6 +49,21 @@ jobs:
           test -d dist && echo "dist/ exists" || (echo "dist/ NOT found" && exit 1)
           test -f dist/index.html && echo "index.html exists" || (echo "index.html NOT found" && exit 1)
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        continue-on-error: true
+
+      - name: Run E2E tests (Playwright)
+        run: npm run test:e2e
+        continue-on-error: true
+        env:
+          VITE_DEMO_MODE: 'true'
+          MAIKA_JWT_SECRET: ci-test-secret-not-production
+          MAIKA_ADMIN_PASSWORD: test-admin-ci
+          MAIKA_TEACHER_PASSWORD: test-teacher-ci
+          MAIKA_DB_PATH: /tmp/maika-ci-e2e.sqlite
+          CI: true
+
   lint-check:
     name: Audit Check
     runs-on: ubuntu-latest

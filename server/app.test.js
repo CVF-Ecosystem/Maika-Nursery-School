@@ -178,4 +178,140 @@ describe('Maika API', () => {
         expect(snapshot.body.data.students).toHaveLength(1)
         expect(snapshot.body.data.students[0].parentPhone).toBe('0901234567')
     })
+
+    it('/api/health returns db, dirs, scheduler status without auth', async () => {
+        const { response, body } = await api('/api/health')
+        expect(response.status).toBe(200)
+        expect(body.ok).toBe(true)
+        expect(typeof body.db).toBe('boolean')
+        expect(typeof body.uploadDir).toBe('boolean')
+        expect(typeof body.backupDir).toBe('boolean')
+        expect(body.scheduler).toBeDefined()
+    })
+
+    it('/api/ready returns 200 when db is ok', async () => {
+        const { response, body } = await api('/api/ready')
+        expect(response.status).toBe(200)
+        expect(body.ready).toBe(true)
+    })
+
+    it('parent cannot access another student consent (RBAC)', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'parent', phone: '0901234567' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+        const parentStudentId = login.body.user?.studentId
+
+        // Can read own student
+        const ownConsent = await api(`/api/student-consents/${parentStudentId}`, { headers })
+        expect(ownConsent.response.status).toBe(200)
+
+        // Cannot read another student's consent
+        const otherConsent = await api('/api/student-consents/nonexistent-other-student', { headers })
+        expect(otherConsent.response.status).toBe(403)
+    })
+
+    it('parent cannot create notifications (RBAC)', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'parent', phone: '0901234567' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const { response } = await api('/api/notifications', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ title: 'Hack', body: 'attempt' }),
+        })
+        expect(response.status).toBe(403)
+    })
+
+    it('admin CRUD for school settings', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const get = await api('/api/school-settings', { headers })
+        expect(get.response.status).toBe(200)
+        expect(get.body.data).toBeDefined()
+
+        const updated = await api('/api/school-settings', {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ schoolName: 'Maika Test' }),
+        })
+        expect(updated.response.status).toBe(200)
+        expect(updated.body.data.school_name).toBe('Maika Test')
+    })
+
+    it('teacher cannot write school settings (RBAC)', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'teacher', password: 'maika' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const { response } = await api('/api/school-settings', {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ school_name: 'Hack' }),
+        })
+        expect(response.status).toBe(403)
+    })
+
+    it('admin can create and publish notifications', async () => {
+        const login = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const headers = { Authorization: `Bearer ${login.body.token}` }
+
+        const created = await api('/api/notifications', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ title: 'Test Notif', body: 'Hello', type: 'general', channel: 'app' }),
+        })
+        expect(created.response.status).toBe(201)
+        expect(created.body.data.status).toBe('draft')
+
+        // Send it (channel='app' uses mock adapter which succeeds)
+        const sent = await api(`/api/notifications/${created.body.data.id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ status: 'sent' }),
+        })
+        expect(sent.response.status).toBe(200)
+    })
+
+    it('admin can upsert attendance records and teacher can read them', async () => {
+        const adminLogin = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'admin', password: '123456' }),
+        })
+        const adminHeaders = { Authorization: `Bearer ${adminLogin.body.token}` }
+
+        const snap = await api('/api/snapshot', { headers: adminHeaders })
+        const studentId = snap.body.data.students[0]?.id
+        if (!studentId) return
+
+        const upsert = await api(`/api/attendance-records/${studentId}/2024-01-15`, {
+            method: 'PUT',
+            headers: adminHeaders,
+            body: JSON.stringify({ status: 'present', checkInTime: '07:30' }),
+        })
+        expect(upsert.response.status).toBe(200)
+        expect(upsert.body.data.status).toBe('present')
+
+        const teacherLogin = await api('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ role: 'teacher', password: 'maika' }),
+        })
+        const teacherHeaders = { Authorization: `Bearer ${teacherLogin.body.token}` }
+
+        const list = await api('/api/attendance-records?date=2024-01-15', { headers: teacherHeaders })
+        expect(list.response.status).toBe(200)
+    })
 })
