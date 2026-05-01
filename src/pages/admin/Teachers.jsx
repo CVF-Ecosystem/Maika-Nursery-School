@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
+import { isSupabaseSession } from '../../data/backendMode'
+import { listProfiles } from '../../features/profiles/profileService'
 
 function Avatar({ initials, size = 38 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -36,7 +38,74 @@ function TeacherModal({ teacher, db, onClose, onSave }) {
     )
 }
 
-export default function Teachers() {
+function initialsFromName(name = '') {
+    return name.split(' ').filter(Boolean).slice(-2).map(word => word[0]?.toUpperCase()).join('') || '?'
+}
+
+function SupabaseTeachers({ selectedFacilityId = '', facilities = [] }) {
+    const [teachers, setTeachers] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
+    const facility = facilities.find(f => f.id === selectedFacilityId)
+
+    useEffect(() => {
+        if (!selectedFacilityId) {
+            setTeachers([])
+            setLoading(false)
+            return
+        }
+        let mounted = true
+        setLoading(true)
+        setError('')
+        listProfiles({ role: 'teacher', facilityId: selectedFacilityId })
+            .then(items => { if (mounted) setTeachers(items) })
+            .catch(err => { if (mounted) setError(err.message) })
+            .finally(() => { if (mounted) setLoading(false) })
+        return () => { mounted = false }
+    }, [selectedFacilityId])
+
+    return (
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 800 }}>{facility ? `${facility.code} - ${facility.name}` : 'Chưa chọn cơ sở'}</div>
+            </div>
+            {error && <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', color: '#DC2626', fontSize: 13, fontWeight: 800 }}>{error}</div>}
+            {loading ? (
+                <div style={{ background: '#fff', borderRadius: 16, padding: 36, textAlign: 'center', color: '#7C6D9B', fontWeight: 800 }}>Đang tải giáo viên...</div>
+            ) : teachers.length === 0 ? (
+                <div style={{ background: '#fff', borderRadius: 16, padding: 42, textAlign: 'center', color: '#7C6D9B', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
+                    <div style={{ fontWeight: 800, color: '#1E1B4B', marginBottom: 6 }}>Chưa có giáo viên trong cơ sở này</div>
+                    <div style={{ fontSize: 13 }}>Tài khoản giáo viên được tạo và gán cơ sở tại tab Tài khoản.</div>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,300px),1fr))', gap: 18 }}>
+                    {teachers.map(teacher => (
+                        <div key={teacher.id} style={{ background: '#fff', borderRadius: 20, padding: '22px 24px', boxShadow: '0 2px 16px rgba(109,40,217,0.08)', border: '1.5px solid #EDE9FE' }}>
+                            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
+                                <Avatar initials={initialsFromName(teacher.fullName || teacher.email)} size={50} />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{teacher.fullName || 'Chưa đặt tên'}</div>
+                                    <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 2 }}>{teacher.email}</div>
+                                    <span style={{ fontSize: 11, fontWeight: 800, color: '#7C3AED', background: '#EDE9FE', borderRadius: 6, padding: '2px 8px', display: 'inline-block', marginTop: 6 }}>{facility?.code || 'Cơ sở'}</span>
+                                </div>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: teacher.isActive ? '#16A34A' : '#DC2626', background: teacher.isActive ? '#F0FDF4' : '#FEF2F2', borderRadius: 6, padding: '3px 8px' }}>{teacher.isActive ? 'Đang làm' : 'Đã khóa'}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                <div style={{ fontSize: 13, color: '#6B6494' }}>📞 {teacher.phone || '—'}</div>
+                                <div style={{ fontSize: 13, color: '#6B6494' }}>✉️ {teacher.email || '—'}</div>
+                                <div style={{ fontSize: 13, color: '#6B6494' }}>📅 Tạo tài khoản: {teacher.createdAt ? fmtDate(teacher.createdAt.slice(0, 10)) : '—'}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+export default function Teachers(props) {
+    if (isSupabaseSession()) return <SupabaseTeachers {...props} />
+
     const [db, setDB] = useState(getDB())
     const [modal, setModal] = useState(null)
     const [selected, setSelected] = useState(null)

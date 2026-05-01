@@ -79,7 +79,7 @@ function UserModal({ user, students, onClose, onSave }) {
     )
 }
 
-function SupabaseUsers() {
+function SupabaseUsers({ selectedFacilityId = '' }) {
     const [profiles, setProfiles] = useState([])
     const [currentProfile, setCurrentProfile] = useState(null)
     const [students, setStudents] = useState([])
@@ -95,7 +95,7 @@ function SupabaseUsers() {
             const [me, nextProfiles, nextStudents, nextFacilities, nextLinks] = await Promise.all([
                 getCurrentProfile(),
                 listProfiles(),
-                listStudents({ status: 'active' }),
+                listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
                 listFacilities(),
                 listParentLinks(),
             ])
@@ -109,7 +109,7 @@ function SupabaseUsers() {
         }
     }
 
-    useEffect(() => { reload() }, [])
+    useEffect(() => { reload() }, [selectedFacilityId])
 
     async function save(form) {
         try {
@@ -155,12 +155,21 @@ function SupabaseUsers() {
         }
     }
 
-    const filtered = profiles.filter(profile => `${profile.fullName} ${profile.email} ${profile.phone} ${profile.role}`.toLowerCase().includes(query.toLowerCase()))
     const linkFor = profileId => links.find(link => link.parent_profile_id === profileId)
+    const scopedStudentIds = new Set(students.map(student => student.id))
+    const filtered = profiles.filter(profile => {
+        if (selectedFacilityId && profile.role === 'teacher' && profile.facilityId !== selectedFacilityId) return false
+        if (selectedFacilityId && profile.role === 'parent') {
+            const link = linkFor(profile.id)
+            if (!link?.student_id || !scopedStudentIds.has(link.student_id)) return false
+        }
+        const text = `${profile.fullName} ${profile.email} ${profile.phone} ${profile.role}`.toLowerCase()
+        return text.includes(query.toLowerCase())
+    })
 
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
-            {editing && <SupabaseUserModal profile={editing === 'add' ? null : editing} facilities={facilities} students={students} link={editing === 'add' ? null : linkFor(editing.id)} onClose={() => setEditing(null)} onSave={save} />}
+            {editing && <SupabaseUserModal profile={editing === 'add' ? null : editing} facilities={facilities} students={students} link={editing === 'add' ? null : linkFor(editing.id)} defaultFacilityId={selectedFacilityId} onClose={() => setEditing(null)} onSave={save} />}
             <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
                 <div style={{ fontSize: 13, color: '#7C6D9B', fontWeight: 700 }}>Admin hiện tại: {currentProfile?.email || '—'}</div>
                 <button onClick={() => setEditing('add')} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#6D28D9', color: '#fff', fontWeight: 900, fontSize: 13 }}>
@@ -205,12 +214,12 @@ function SupabaseUsers() {
     )
 }
 
-function SupabaseUserModal({ profile, facilities, students, link, onClose, onSave }) {
+function SupabaseUserModal({ profile, facilities, students, link, defaultFacilityId = '', onClose, onSave }) {
     const isNew = !profile
     const [form, setForm] = useState({
         id: profile?.id || '',
         role: profile?.role || 'teacher',
-        facilityId: profile?.facilityId || '',
+        facilityId: profile?.facilityId || defaultFacilityId || '',
         fullName: profile?.fullName || '',
         phone: profile?.phone || '',
         email: profile?.email || '',
@@ -245,8 +254,8 @@ function SupabaseUserModal({ profile, facilities, students, link, onClose, onSav
     )
 }
 
-export default function Users() {
-    if (isSupabaseSession()) return <SupabaseUsers />
+export default function Users(props) {
+    if (isSupabaseSession()) return <SupabaseUsers {...props} />
 
     const [users, setUsers] = useState([])
     const [modal, setModal] = useState(null)

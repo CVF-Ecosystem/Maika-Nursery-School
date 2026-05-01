@@ -4,6 +4,9 @@ import Sidebar, { TopBar } from './Sidebar'
 import { getDB, hydrateFromAPI } from '../../data/store'
 import { hasBackendAPI } from '../../data/api'
 import { isLegacyBackendAllowed, isSupabaseSession } from '../../data/backendMode'
+import { listFacilities } from '../../features/facilities/facilityService'
+import { listProfiles } from '../../features/profiles/profileService'
+import { listStudents } from '../../features/students/studentService'
 import ChangePassword from './ChangePassword'
 
 // Lazy-load each admin module for code splitting
@@ -32,29 +35,29 @@ const MediaLibrary = lazy(() => import('./MediaLibrary'))
 const TourRequests = lazy(() => import('./TourRequests'))
 
 const PAGE_MAP = {
-    dashboard: { title: 'Tổng quan', subtitle: 'Maika Nursery School', component: (nav) => <Dashboard onNav={nav} /> },
-    students: { title: 'Quản lý học sinh', subtitle: null, component: () => <Students /> },
-    teachers: { title: 'Quản lý giáo viên', subtitle: null, component: () => <Teachers /> },
-    attendance: { title: 'Điểm danh', subtitle: 'Theo dõi chuyên cần', component: () => <Attendance /> },
-    reports: { title: 'Nhật ký ngày', subtitle: 'Bữa ăn · Giấc ngủ · Tâm trạng', component: () => <DailyReports /> },
-    finance: { title: 'Quản lý học phí', subtitle: 'Thu chi và tài chính', component: () => <Finance /> },
+    dashboard: { title: 'Tổng quan', subtitle: 'Maika Nursery School', component: (nav, scope) => <Dashboard onNav={nav} {...scope} /> },
+    students: { title: 'Quản lý học sinh', subtitle: null, component: (_nav, scope) => <Students {...scope} /> },
+    teachers: { title: 'Quản lý giáo viên', subtitle: null, component: (_nav, scope) => <Teachers {...scope} /> },
+    attendance: { title: 'Điểm danh', subtitle: 'Theo dõi chuyên cần', component: (_nav, scope) => <Attendance {...scope} /> },
+    reports: { title: 'Nhật ký ngày', subtitle: 'Bữa ăn · Giấc ngủ · Tâm trạng', component: (_nav, scope) => <DailyReports {...scope} /> },
+    finance: { title: 'Quản lý học phí', subtitle: 'Thu chi và tài chính', component: (_nav, scope) => <Finance {...scope} /> },
     messages: { title: 'Tin nhắn', subtitle: 'Giao tiếp với phụ huynh', component: () => <Messages /> },
     calendar: { title: 'Lịch sự kiện', subtitle: 'Lịch học và hoạt động', component: () => <CalendarView /> },
     analytics: { title: 'Báo cáo & Phân tích', subtitle: 'Thống kê tổng hợp', component: () => <Analytics /> },
     resources: { title: 'Thư viện tài nguyên', subtitle: 'Giáo cụ và học liệu', component: () => <Resources /> },
     gamification: { title: 'Thành tích & Khen thưởng', subtitle: 'Tạo động lực cho bé', component: () => <Gamification /> },
-    users: { title: 'Quản lý tài khoản', subtitle: 'Phân quyền và trạng thái truy cập', component: () => <Users /> },
+    users: { title: 'Quản lý tài khoản', subtitle: 'Phân quyền và trạng thái truy cập', component: (_nav, scope) => <Users {...scope} /> },
     audit: { title: 'Nhật ký kiểm toán', subtitle: 'Theo dõi thay đổi và truy cập hệ thống', component: () => <AuditLog /> },
     backups: { title: 'Sao lưu & dung lượng', subtitle: 'Theo dõi lưu trữ ảnh và dọn dữ liệu media', component: () => <Backups /> },
-    health: { title: 'Hồ sơ sức khỏe', subtitle: 'Dị ứng · Thuốc · Liên hệ khẩn cấp', component: () => <HealthRecords /> },
-    incidents: { title: 'Báo cáo sự cố', subtitle: 'Ghi nhận và theo dõi sự cố học sinh', component: () => <Incidents /> },
-    invoices: { title: 'Hóa đơn & Biên lai', subtitle: 'Quản lý học phí nâng cao', component: () => <Invoices /> },
+    health: { title: 'Hồ sơ sức khỏe', subtitle: 'Dị ứng · Thuốc · Liên hệ khẩn cấp', component: (_nav, scope) => <HealthRecords {...scope} /> },
+    incidents: { title: 'Báo cáo sự cố', subtitle: 'Ghi nhận và theo dõi sự cố học sinh', component: (_nav, scope) => <Incidents {...scope} /> },
+    invoices: { title: 'Hóa đơn & Biên lai', subtitle: 'Quản lý học phí nâng cao', component: (_nav, scope) => <Invoices {...scope} /> },
     settings: { title: 'Cấu hình trường học', subtitle: 'Thông tin trường · Năm học · Mức phí · Quyền riêng tư', component: () => <Settings /> },
     notifications: { title: 'Thông báo', subtitle: 'Tạo và quản lý thông báo gửi cho phụ huynh', component: () => <Notifications /> },
     tourRequests: { title: 'Đăng ký tham quan', subtitle: 'Yêu cầu tuyển sinh từ landing page', component: () => <TourRequests /> },
-    attendanceAdv: { title: 'Điểm danh nâng cao', subtitle: 'Check-in · Check-out · Người đón · Mobile mode', component: () => <AttendanceAdvanced /> },
+    attendanceAdv: { title: 'Điểm danh nâng cao', subtitle: 'Check-in · Check-out · Người đón · Mobile mode', component: (_nav, scope) => <AttendanceAdvanced {...scope} /> },
     mealMenu: { title: 'Thực đơn', subtitle: 'Kế hoạch bữa ăn tuần · Xuất bản cho phụ huynh', component: () => <MealMenu /> },
-    media: { title: 'Thư viện ảnh', subtitle: 'Upload · Duyệt · Đăng ảnh hoạt động', component: () => <MediaLibrary /> },
+    media: { title: 'Thư viện ảnh', subtitle: 'Upload · Duyệt · Đăng ảnh hoạt động', component: (_nav, scope) => <MediaLibrary {...scope} /> },
 }
 
 function LoadingSpinner() {
@@ -75,7 +78,11 @@ export default function AdminApp() {
     const [showChangePassword, setShowChangePassword] = useState(false)
     const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
     const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 900 : true)
+    const [facilities, setFacilities] = useState([])
+    const [selectedFacilityId, setSelectedFacilityId] = useState(() => localStorage.getItem('maika_admin_facility_id') || '')
+    const [scopeStats, setScopeStats] = useState({ students: 0, teachers: 0 })
     const legacyMode = isLegacyBackendAllowed() && !isSupabaseSession()
+    const supabaseMode = isSupabaseSession()
     const db = legacyMode ? getDB() : { messages: [], students: [], teachers: [] }
     const unread = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
 
@@ -93,6 +100,38 @@ export default function AdminApp() {
             .finally(() => { if (mounted) setLoadingData(false) })
         return () => { mounted = false }
     }, [legacyMode])
+
+    useEffect(() => {
+        if (!supabaseMode) return
+        let mounted = true
+        listFacilities()
+            .then(items => {
+                if (!mounted) return
+                setFacilities(items)
+                const exists = items.some(item => item.id === selectedFacilityId)
+                const next = exists ? selectedFacilityId : items[0]?.id || ''
+                if (next && next !== selectedFacilityId) {
+                    setSelectedFacilityId(next)
+                    localStorage.setItem('maika_admin_facility_id', next)
+                }
+            })
+            .catch(() => { if (mounted) setFacilities([]) })
+        return () => { mounted = false }
+    }, [supabaseMode])
+
+    useEffect(() => {
+        if (!supabaseMode || !selectedFacilityId) return
+        let mounted = true
+        Promise.all([
+            listStudents({ facilityId: selectedFacilityId, status: 'active' }),
+            listProfiles({ role: 'teacher', facilityId: selectedFacilityId, activeOnly: true }),
+        ])
+            .then(([students, teachers]) => {
+                if (mounted) setScopeStats({ students: students.length, teachers: teachers.length })
+            })
+            .catch(() => { if (mounted) setScopeStats({ students: 0, teachers: 0 }) })
+        return () => { mounted = false }
+    }, [supabaseMode, selectedFacilityId])
 
     useEffect(() => {
         function syncLayout() {
@@ -115,11 +154,18 @@ export default function AdminApp() {
 
     const current = PAGE_MAP[page] || PAGE_MAP.dashboard
     const db2 = legacyMode ? getDB() : { students: [], teachers: [] }
-    const activeStudents = db2.students.filter(s => s.status === 'active').length
-    const activeTeachers = db2.teachers.filter(t => t.status === 'active').length
+    const activeStudents = supabaseMode ? scopeStats.students : db2.students.filter(s => s.status === 'active').length
+    const activeTeachers = supabaseMode ? scopeStats.teachers : db2.teachers.filter(t => t.status === 'active').length
     const subtitle = current.subtitle ??
-        (page === 'students' ? (isSupabaseSession() ? 'Danh sách học sinh theo cơ sở' : `${activeStudents} học sinh đang học`) :
+        (page === 'students' ? `${activeStudents} học sinh đang học` :
             page === 'teachers' ? `${activeTeachers} giáo viên` : '')
+    const selectedFacility = facilities.find(f => f.id === selectedFacilityId) || null
+    const scope = { selectedFacilityId, selectedFacility, facilities, scopeStats }
+
+    function handleFacilityChange(id) {
+        setSelectedFacilityId(id)
+        localStorage.setItem('maika_admin_facility_id', id)
+    }
 
     function handlePasswordChanged() {
         sessionStorage.removeItem('maika_must_change_password')
@@ -153,10 +199,13 @@ export default function AdminApp() {
                     onChangePassword={() => setShowChangePassword(true)}
                     isMobile={isMobile}
                     onMenuClick={() => setSidebarOpen(true)}
+                    facilities={supabaseMode ? facilities : []}
+                    selectedFacilityId={selectedFacilityId}
+                    onFacilityChange={handleFacilityChange}
                 />
                 <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#F5F3FF' }}>
                     <Suspense fallback={<LoadingSpinner />}>
-                        {current.component(handleNav)}
+                        {current.component(handleNav, scope)}
                     </Suspense>
                 </main>
                 <button onClick={() => navigate('/')} style={{ position: 'fixed', bottom: isMobile ? 12 : 20, right: isMobile ? 12 : 20, zIndex: 999, padding: isMobile ? '10px 12px' : '10px 20px', borderRadius: 50, background: 'linear-gradient(135deg,#1E1B4B,#2D2870)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', boxShadow: '0 4px 16px rgba(30,27,75,0.4)' }}>

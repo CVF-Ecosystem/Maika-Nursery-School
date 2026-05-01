@@ -65,8 +65,8 @@ function StudentModal({ student, db, onClose, onSave }) {
     )
 }
 
-export default function Students() {
-    if (isSupabaseSession()) return <SupabaseStudentsPanel />
+export default function Students(props) {
+    if (isSupabaseSession()) return <SupabaseStudentsPanel {...props} />
 
     const [db, setDB] = useState(getDB())
     const [search, setSearch] = useState('')

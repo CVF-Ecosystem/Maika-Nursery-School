@@ -45,7 +45,7 @@ function StudentEditor({ form, facilities, canEdit, onChange, onCancel, onSave }
     )
 }
 
-export default function SupabaseStudentsPanel() {
+export default function SupabaseStudentsPanel({ selectedFacilityId = '', facilities: scopedFacilities = [] }) {
     const [profile, setProfile] = useState(null)
     const [facilities, setFacilities] = useState([])
     const [students, setStudents] = useState([])
@@ -66,10 +66,13 @@ export default function SupabaseStudentsPanel() {
         setErr('')
         setLoading(true)
         try {
-            const [p, fs] = await Promise.all([getCurrentProfile(), listFacilities()])
+            const [p, fs] = await Promise.all([
+                getCurrentProfile(),
+                scopedFacilities.length ? Promise.resolve(scopedFacilities) : listFacilities(),
+            ])
             setProfile(p)
             setFacilities(fs)
-            const nextFacility = p?.role === 'teacher' ? p.facility_id : (facilityId || fs[0]?.id || '')
+            const nextFacility = p?.role === 'teacher' ? p.facility_id : (selectedFacilityId || facilityId || fs[0]?.id || '')
             setFacilityId(nextFacility)
             const items = await listStudents({ facilityId: nextFacility, status })
             setStudents(items)
@@ -90,6 +93,12 @@ export default function SupabaseStudentsPanel() {
 
     useEffect(() => { if (isSupabaseConfigured) loadBase(); else setLoading(false) }, [])
 
+    useEffect(() => {
+        if (!selectedFacilityId || profile?.role === 'teacher') return
+        setFacilityId(selectedFacilityId)
+        reload(selectedFacilityId, status)
+    }, [selectedFacilityId])
+
     if (!isSupabaseConfigured) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Hệ thống dữ liệu chưa sẵn sàng.</div>
     if (loading) return <div style={{ padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Đang tải danh sách học sinh...</div>
     if (!profile) return <div style={{ padding: 28, color: '#DC2626', fontWeight: 800 }}>Vui lòng đăng nhập để xem danh sách học sinh.</div>
@@ -103,7 +112,6 @@ export default function SupabaseStudentsPanel() {
             {form && <StudentEditor form={form} facilities={facilities} canEdit={canEdit} onChange={setForm} onCancel={() => setForm(null)} onSave={async () => { await saveStudent(form); setForm(null); reload() }} />}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
                 <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm học sinh, phụ huynh, lớp..." style={{ flex: 1, minWidth: 220, padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }} />
-                <select value={facilityId} disabled={profile.role === 'teacher'} onChange={e => { setFacilityId(e.target.value); reload(e.target.value, status) }} style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }}>{facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}</select>
                 <select value={status} onChange={e => { setStatus(e.target.value); reload(facilityId, e.target.value) }} style={{ padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE' }}><option value="active">Đang học</option><option value="inactive">Nghỉ học</option><option value="all">Tất cả</option></select>
             </div>
             <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>

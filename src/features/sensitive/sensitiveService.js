@@ -96,10 +96,11 @@ export async function saveStudentConsent(studentId, input) {
     return data
 }
 
-export async function listIncidents({ studentId, status } = {}) {
+export async function listIncidents({ studentId, facilityId, status } = {}) {
     const client = requireSupabase()
     let query = client.from('incidents').select(INCIDENT_COLUMNS).order('occurred_at', { ascending: false })
     if (studentId) query = query.eq('student_id', studentId)
+    if (facilityId) query = query.eq('facility_id', facilityId)
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
     if (error) throw error
@@ -147,10 +148,11 @@ function invoiceNumber() {
     return `INV${ym}-${String(Date.now()).slice(-6)}`
 }
 
-export async function listInvoices({ studentId, status } = {}) {
+export async function listInvoices({ studentId, facilityId, status } = {}) {
     const client = requireSupabase()
     let query = client.from('invoices').select(INVOICE_COLUMNS).order('due_date', { ascending: false })
     if (studentId) query = query.eq('student_id', studentId)
+    if (facilityId) query = query.eq('facility_id', facilityId)
     if (status && status !== 'all') query = query.eq('status', status)
     const { data, error } = await query
     if (error) throw error

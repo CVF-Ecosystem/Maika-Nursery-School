@@ -38,8 +38,8 @@ const STATUS_BADGE = {
     archived: { label: 'Lưu trữ', bg: '#F9FAFB', color: '#9CA3AF' },
 }
 
-export default function MediaLibrary({ readOnly = false, forParent = false }) {
-    if (isSupabaseSession()) return <SupabaseMediaLibrary readOnly={readOnly} forParent={forParent} />
+export default function MediaLibrary({ readOnly = false, forParent = false, selectedFacilityId = '' }) {
+    if (isSupabaseSession()) return <SupabaseMediaLibrary readOnly={readOnly} forParent={forParent} selectedFacilityId={selectedFacilityId} />
 
     const [albums, setAlbums] = useState([])
     const [assets, setAssets] = useState([])
@@ -239,7 +239,7 @@ export default function MediaLibrary({ readOnly = false, forParent = false }) {
     )
 }
 
-function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
+function SupabaseMediaLibrary({ readOnly = false, forParent = false, selectedFacilityId = '' }) {
     const [profile, setProfile] = useState(null)
     const [albums, setAlbums] = useState([])
     const [assets, setAssets] = useState([])
@@ -254,9 +254,10 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
         try {
             const p = profile || await getCurrentProfile()
             if (!profile) setProfile(p)
+            const facilityId = p?.role === 'admin' ? selectedFacilityId || undefined : p?.role === 'parent' ? undefined : p?.facility_id
             const [nextAlbums, nextAssets] = await Promise.all([
-                listAlbums({ facilityId: p?.role === 'admin' || p?.role === 'parent' ? undefined : p?.facility_id }),
-                listAssets({ albumId: albumId || undefined, facilityId: p?.role === 'admin' || p?.role === 'parent' ? undefined : p?.facility_id }),
+                listAlbums({ facilityId }),
+                listAssets({ albumId: albumId || undefined, facilityId }),
             ])
             setAlbums(forParent ? nextAlbums.filter(a => a.status === 'published') : nextAlbums)
             setAssets(forParent ? nextAssets.filter(a => a.status === 'published') : nextAssets)
@@ -265,11 +266,11 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
         }
     }
 
-    useEffect(() => { reload('') }, [])
+    useEffect(() => { setActiveAlbum(''); reload('') }, [selectedFacilityId])
 
     async function createAlbum() {
         if (!albumTitle.trim()) return
-        await saveAlbum({ title: albumTitle, status: 'draft', facilityId: profile?.facility_id })
+        await saveAlbum({ title: albumTitle, status: 'draft', facilityId: profile?.role === 'admin' ? selectedFacilityId : profile?.facility_id })
         setAlbumTitle('')
         reload('')
     }
@@ -291,7 +292,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false }) {
                 await uploadMediaAsset({
                     file,
                     albumId: activeAlbum || null,
-                    facilityId: profile?.facility_id,
+                    facilityId: profile?.role === 'admin' ? selectedFacilityId : profile?.facility_id,
                 })
             }
             await reload(activeAlbum)

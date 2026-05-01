@@ -23,7 +23,7 @@ function Field({ label, value, type = 'text', options, onChange, readOnly }) {
     return <div><label style={ls}>{label}</label><input type={type} style={is} value={value || ''} onChange={e => onChange(e.target.value)} /></div>
 }
 
-export default function HealthRecords({ readOnly = false, filterStudentId = null }) {
+export default function HealthRecords({ readOnly = false, filterStudentId = null, selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const db = getDB()
     const localStudents = filterStudentId
@@ -43,14 +43,14 @@ export default function HealthRecords({ readOnly = false, filterStudentId = null
 
     useEffect(() => {
         if (!supabaseMode) return
-        listStudents({ status: 'active' })
+        listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' })
             .then(items => {
                 const next = filterStudentId ? items.filter(s => s.id === filterStudentId) : items
                 setSupabaseStudents(next)
-                if (!selectedId && next[0]) setSelectedId(next[0].id)
+                setSelectedId(prev => next.some(s => s.id === prev) ? prev : next[0]?.id || '')
             })
             .catch(err => setError(err.message))
-    }, [supabaseMode, filterStudentId])
+    }, [supabaseMode, filterStudentId, selectedFacilityId])
 
     async function loadRecord(sid) {
         if (!sid || (!hasBackendAPI() && !supabaseMode)) return

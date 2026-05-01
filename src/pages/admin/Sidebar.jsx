@@ -116,7 +116,7 @@ export default function Sidebar({ active, onNav, unreadCount, isMobile = false, 
     )
 }
 
-export function TopBar({ title, subtitle, onChangePassword, isMobile = false, onMenuClick }) {
+export function TopBar({ title, subtitle, onChangePassword, isMobile = false, onMenuClick, facilities = [], selectedFacilityId = '', onFacilityChange }) {
     const dateStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     const role = sessionStorage.getItem('maika_role')
     return (
@@ -134,6 +134,16 @@ export function TopBar({ title, subtitle, onChangePassword, isMobile = false, on
                 <div style={{ fontWeight: 800, fontSize: isMobile ? 16 : 18, color: '#1E1B4B', letterSpacing: -0.3, lineHeight: 1.2 }}>{title}</div>
                 {subtitle && <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 1, fontWeight: 600 }}>{subtitle}</div>}
             </div>
+            {facilities.length > 0 && (
+                <select
+                    value={selectedFacilityId}
+                    onChange={e => onFacilityChange?.(e.target.value)}
+                    aria-label="Chọn cơ sở dữ liệu"
+                    style={{ maxWidth: isMobile ? 136 : 210, padding: '7px 12px', borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#1E1B4B', fontSize: 12, fontWeight: 800, outline: 'none' }}
+                >
+                    {facilities.map(f => <option key={f.id} value={f.id}>{f.code} - {f.name}</option>)}
+                </select>
+            )}
             <div className="hide-mobile" style={{ fontSize: 12, color: '#7C6D9B', fontWeight: 700, background: '#F5F3FF', padding: '6px 14px', borderRadius: 20 }}>{dateStr}</div>
             {onChangePassword && role && role !== 'parent' && (
                 <button

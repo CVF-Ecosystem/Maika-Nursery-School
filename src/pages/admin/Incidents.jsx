@@ -121,7 +121,7 @@ function IncidentModal({ incident, students, onClose, onSave }) {
     )
 }
 
-export default function Incidents({ readOnly = false, filterStudentId = null }) {
+export default function Incidents({ readOnly = false, filterStudentId = null, selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const db = getDB()
     const [supabaseStudents, setSupabaseStudents] = useState([])
@@ -136,10 +136,10 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
 
     useEffect(() => {
         if (!supabaseMode) return
-        listStudents({ status: 'active' })
+        listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' })
             .then(items => setSupabaseStudents(filterStudentId ? items.filter(s => s.id === filterStudentId) : items))
             .catch(err => setError(err.message))
-    }, [supabaseMode, filterStudentId])
+    }, [supabaseMode, filterStudentId, selectedFacilityId])
 
     async function load() {
         if (!hasBackendAPI() && !supabaseMode) return
@@ -147,7 +147,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
         setError('')
         try {
             if (supabaseMode) {
-                setIncidents(await listSupabaseIncidents({ studentId: filterStudentId, status: filterStatus }))
+                setIncidents(await listSupabaseIncidents({ studentId: filterStudentId, facilityId: filterStudentId ? undefined : selectedFacilityId || undefined, status: filterStatus }))
             } else {
                 const params = new URLSearchParams()
                 if (filterStudentId) params.set('studentId', filterStudentId)
@@ -162,7 +162,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null }) 
         }
     }
 
-    useEffect(() => { load() }, [filterStatus, filterStudentId])
+    useEffect(() => { load() }, [filterStatus, filterStudentId, selectedFacilityId])
 
     async function handleSave(form) {
         setError('')

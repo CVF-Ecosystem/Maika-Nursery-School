@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { getDB, commit, todayStr } from '../../data/store'
 import { fmtDate } from '../../utils/format'
+import { isSupabaseSession } from '../../data/backendMode'
+import AttendanceAdvanced from './AttendanceAdvanced'
 
 function Avatar({ initials, size = 36 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -8,7 +10,9 @@ function Avatar({ initials, size = 36 }) {
     return <div style={{ width: size, height: size, borderRadius: 999, background: `linear-gradient(135deg,${c},${c}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: size * 0.35, flexShrink: 0 }}>{initials}</div>
 }
 
-export default function Attendance() {
+export default function Attendance(props) {
+    if (isSupabaseSession()) return <AttendanceAdvanced {...props} />
+
     const [db, setDB] = useState(getDB())
     const [selDate, setSelDate] = useState(todayStr())
     const [filterClass, setFilterClass] = useState('all')

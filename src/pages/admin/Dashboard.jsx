@@ -1,5 +1,6 @@
 import { getDB, todayStr } from '../../data/store'
 import { fmtMoney, fmtDate } from '../../utils/format'
+import { isSupabaseSession } from '../../data/backendMode'
 
 function StatCard({ icon, label, value, sub, color, onClick }) {
     return (
@@ -130,10 +131,11 @@ function FinanceSummary({ db }) {
     )
 }
 
-export default function Dashboard({ onNav }) {
+export default function Dashboard({ onNav, scopeStats = {} }) {
+    const supabaseMode = isSupabaseSession()
     const db = getDB()
-    const activeStudents = db.students.filter(s => s.status === 'active').length
-    const activeTeachers = db.teachers.filter(t => t.status === 'active').length
+    const activeStudents = supabaseMode ? scopeStats.students || 0 : db.students.filter(s => s.status === 'active').length
+    const activeTeachers = supabaseMode ? scopeStats.teachers || 0 : db.teachers.filter(t => t.status === 'active').length
     const unreadMsg = db.messages.filter(m => !m.read && m.fromRole === 'parent').length
     const today = todayStr()
     const todayReports = db.dailyReports.filter(r => r.date === today).length

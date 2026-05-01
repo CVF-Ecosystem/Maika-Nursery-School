@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
 
 function today() { return new Date().toISOString().split('T')[0] }
 
-export default function AttendanceAdvanced({ readOnly = false, filterStudentId }) {
+export default function AttendanceAdvanced({ readOnly = false, filterStudentId, selectedFacilityId = '' }) {
     const [date, setDate] = useState(today)
     const [students, setStudents] = useState([])
     const [records, setRecords] = useState({})
@@ -63,18 +63,19 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId }
                 setSummary(res.summary || [])
             })
             .catch(() => setErr('Lỗi tải dữ liệu'))
-    }, [date, filterStudentId, supabaseMode])
+    }, [date, filterStudentId, supabaseMode, selectedFacilityId])
 
     async function loadSupabaseAttendance() {
         setErr('')
         try {
             const profile = await getCurrentProfile()
-            const items = await listStudents({ status: 'active' })
+            const facilityId = profile?.role === 'teacher' ? profile.facility_id : selectedFacilityId || undefined
+            const items = await listStudents({ facilityId, status: 'active' })
             const scoped = filterStudentId ? items.filter(s => s.id === filterStudentId) : items
             setStudents(scoped)
             setClasses([...new Set(scoped.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
             const attendance = await listAttendanceByFacilityDate({
-                facilityId: profile?.role === 'parent' ? undefined : profile?.facility_id,
+                facilityId: profile?.role === 'parent' ? undefined : facilityId,
                 date,
             })
             const map = {}

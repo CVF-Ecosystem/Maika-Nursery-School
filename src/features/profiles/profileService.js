@@ -17,12 +17,17 @@ export function mapProfile(row) {
     }
 }
 
-export async function listProfiles() {
+export async function listProfiles({ role, facilityId, activeOnly } = {}) {
     const client = requireSupabase()
-    const { data, error } = await client
+    let query = client
         .from('profiles')
         .select(PROFILE_COLUMNS)
         .order('created_at', { ascending: false })
+    if (role) query = query.eq('role', role)
+    if (facilityId) query = query.eq('facility_id', facilityId)
+    if (activeOnly) query = query.eq('is_active', true)
+
+    const { data, error } = await query
     if (error) throw error
     return (data || []).map(mapProfile)
 }

@@ -174,7 +174,7 @@ function InvoiceModal({ invoice, students, onClose, onSave }) {
     )
 }
 
-export default function Invoices({ readOnly = false, filterStudentId = null }) {
+export default function Invoices({ readOnly = false, filterStudentId = null, selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const db = getDB()
     const [supabaseStudents, setSupabaseStudents] = useState([])
@@ -189,10 +189,10 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
 
     useEffect(() => {
         if (!supabaseMode) return
-        listStudents({ status: 'active' })
+        listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' })
             .then(items => setSupabaseStudents(filterStudentId ? items.filter(s => s.id === filterStudentId) : items))
             .catch(err => setError(err.message))
-    }, [supabaseMode, filterStudentId])
+    }, [supabaseMode, filterStudentId, selectedFacilityId])
 
     async function load() {
         if (!hasBackendAPI() && !supabaseMode) return
@@ -200,7 +200,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
         setError('')
         try {
             if (supabaseMode) {
-                setInvoices(await listSupabaseInvoices({ studentId: filterStudentId }))
+                setInvoices(await listSupabaseInvoices({ studentId: filterStudentId, facilityId: filterStudentId ? undefined : selectedFacilityId || undefined }))
             } else {
                 const params = new URLSearchParams()
                 if (filterStudentId) params.set('studentId', filterStudentId)
@@ -214,7 +214,7 @@ export default function Invoices({ readOnly = false, filterStudentId = null }) {
         }
     }
 
-    useEffect(() => { load() }, [filterStudentId])
+    useEffect(() => { load() }, [filterStudentId, selectedFacilityId])
 
     async function handleSave(form) {
         setError('')
