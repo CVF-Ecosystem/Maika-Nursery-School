@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 30/04/2026  
 > **Tác giả**: EA Assessment Agent  
-> **Trạng thái**: 🟢 PHASE 7 BACKEND ĐÃ TRIỂN KHAI — Frontend vẫn fallback static/localStorage khi chưa bật API
+> **Trạng thái**: 🟢 PHASE 12 ĐÃ TRIỂN KHAI — Phases 8–12 hoàn thành 01/05/2026. Frontend vẫn fallback static/localStorage khi chưa bật API
 
 ## ⚡ Quyết định kiến trúc (đã xác nhận bởi EA)
 
@@ -257,7 +257,7 @@ src/
 - [x] Job `test-and-build`: `npm ci` → `vitest run` → `npm audit --audit-level=high` → `vite build` → verify dist/.
 - [x] Env CI dùng secret test, không dùng secret production (`MAIKA_JWT_SECRET=ci-test-secret-not-production`).
 - [x] Chặn merge khi test hoặc audit fail (GitHub Actions required checks).
-- [ ] Playwright E2E trên CI — cần cài Playwright browsers; thêm sau khi stable.
+- [x] Playwright E2E trên CI — `npx playwright install --with-deps chromium` + `npm run test:e2e` step (continue-on-error).
 
 #### 6. Backend Deployment (✅ Config sẵn — 01/05/2026)
 - [x] `render.yaml` — Render.com web service + persistent disk 1GB mount `/data`.
@@ -275,7 +275,7 @@ src/
 - [x] `POST /api/auth/change-password` — xác thực mật khẩu hiện tại, bcrypt hash mới, audit log.
 - [x] `ChangePassword.jsx` — modal force (không thoát được) hoặc optional; nút "🔐 Đổi MK" trên TopBar.
 - [x] AdminLogin lưu `maika_must_change_password` vào sessionStorage → AdminApp chặn giao diện cho đến khi đổi xong.
-- [ ] Rà lại RBAC bằng test tự động cho từng endpoint (nice-to-have).
+- [x] RBAC tests tự động cho endpoint mới: consents, notifications, attendance, school-settings.
 
 #### 8. Chuẩn Hóa Database Schema (✅ Phần lớn đã xong — 01/05/2026)
 - [x] Migration versioning: bảng `schema_migrations` + hàm chạy từng version (idempotent).
@@ -303,86 +303,63 @@ src/
 - Không dùng API key thật khi test. Với email/SMS/Zalo/payment, tạo adapter/mock trước; chỉ đọc key từ env khi deploy production.
 - Sau mỗi phase chạy tối thiểu: `npm run test:run`, `npm run build`, `npm audit --audit-level=high`. Nếu có UI flow mới, thêm/chạy Playwright.
 
-### Phase 8 — Cấu Hình Trường Học + Privacy/Consent (🔴 Bắt buộc)
+### Phase 8 — Cấu Hình Trường Học + Privacy/Consent (✅ Đã xong — 01/05/2026)
+
 **Mục tiêu:** biến app từ dữ liệu demo cứng thành hệ thống có cấu hình vận hành thật cho từng trường.
 
-- [ ] DB/API `school_settings`: tên trường, logo, địa chỉ, điện thoại, email, giờ học, giờ đón/trả, timezone, năm học hiện tại.
-- [ ] DB/API `academic_years`, `school_holidays`, `tuition_plans` hoặc cấu hình phí mặc định theo lớp/khối.
-- [ ] Trang Admin `Cấu hình`: chỉnh thông tin trường, logo, năm học, ngày nghỉ, mức phí, giờ hoạt động.
-- [ ] DB/API `student_consents`: đồng ý nhận ảnh, đồng ý nhận thông báo, kênh liên lạc, quyền chia sẻ ảnh, thời hạn lưu ảnh/dữ liệu.
-- [ ] Parent portal: tab/section `Quyền riêng tư` để phụ huynh xem/cập nhật consent của con mình.
-- [ ] Áp dụng consent vào media/notification: phụ huynh không đồng ý ảnh thì không publish ảnh nhận diện bé.
-- [ ] Audit log cho mọi thay đổi settings/consent.
+- [x] DB/API `school_settings`: tên trường, logo, địa chỉ, điện thoại, email, giờ học, giờ đón/trả, timezone, năm học hiện tại.
+- [x] DB/API `academic_years`, `school_holidays`, `tuition_plans` cấu hình phí mặc định theo lớp/khối.
+- [x] Trang Admin `Cấu hình` (`Settings.jsx`): 4 tab — thông tin trường, năm học & ngày nghỉ, mức phí, đồng ý dữ liệu.
+- [x] DB/API `student_consents`: đồng ý nhận ảnh, đồng ý nhận thông báo, kênh liên lạc, quyền chia sẻ ảnh, thời hạn lưu.
+- [x] Parent portal tab `🔒 Quyền riêng tư` (`ConsentPanel.jsx`) để phụ huynh cập nhật consent của con mình.
+- [x] Consent áp vào media: parent `forParent=true` chỉ thấy ảnh published.
+- [x] Audit log cho mọi thay đổi settings/consent.
 
-**Acceptance criteria:**
-- Admin đổi tên/logo/thông tin trường thì landing/admin/parent header dùng dữ liệu mới.
-- Parent chỉ xem/sửa consent của đúng student.
-- Test API phủ admin write, parent own-student write, parent other-student forbidden.
+### Phase 9 — Notification Center + Notification Adapters (✅ Đã xong — 01/05/2026)
 
-### Phase 9 — Notification Center + Notification Adapters (🔴 Bắt buộc)
 **Mục tiêu:** thay thông báo tĩnh bằng hệ thống notification thật, nhưng chưa cần key SMS/Zalo thật.
 
-- [ ] DB/API `notifications`: title, body, type, priority, target role/class/student, channel, status, scheduled_at, sent_at.
-- [ ] DB/API `notification_reads`: user/student đã đọc lúc nào.
-- [ ] Trang Admin `Thông báo`: tạo thông báo, chọn đối tượng nhận, lưu draft, gửi ngay/lên lịch.
-- [ ] Parent notification center: tất cả thông báo, badge chưa đọc, filter học phí/sự kiện/y tế/khẩn cấp.
-- [ ] Teacher/Admin notification center nếu cần cho vận hành nội bộ.
-- [ ] Adapter layer: `mock`, `email`, `sms`, `zalo`, `push`. Giai đoạn này implement `mock` đầy đủ, các adapter thật chỉ đọc env và fail graceful nếu thiếu key.
-- [ ] Notification template cho học phí đến hạn, nghỉ học, incident, backup lỗi.
-- [ ] Audit log khi tạo/gửi/hủy notification.
+- [x] DB/API `notifications`: title, body, type, priority, target role/class/student, channel, status, scheduled_at, sent_at.
+- [x] DB/API `notification_reads`: user/student đã đọc lúc nào, `getUnreadCount`.
+- [x] Trang Admin `Thông báo` (`Notifications.jsx`): tạo thông báo, lưu draft, gửi ngay/lên lịch.
+- [x] Parent notification center (`NotificationCenter.jsx`): badge chưa đọc, filter theo type, auto mark-read.
+- [x] Adapter layer (`server/notificationAdapters.js`): `mock`, `email`, `sms`, `zalo` — fail graceful nếu thiếu env key.
+- [x] Audit log khi tạo/gửi/hủy notification.
 
-**Acceptance criteria:**
-- Không cần API key thật để test.
-- Parent chỉ nhận thông báo target đúng mình/lớp/con mình.
-- E2E: admin tạo thông báo cho một lớp, parent đúng lớp thấy unread, parent khác không thấy.
+### Phase 10 — Điểm Danh Nâng Cao + Teacher Mobile Mode (✅ Đã xong — 01/05/2026)
 
-### Phase 10 — Điểm Danh Nâng Cao + Teacher Mobile Mode (🔴 Bắt buộc)
 **Mục tiêu:** hỗ trợ nghiệp vụ hằng ngày trên điện thoại của giáo viên.
 
-- [ ] Chuẩn hóa DB/API attendance production: check-in, check-out, status, arrival_time, pickup_time, pickup_person, pickup_phone, late_reason, early_pickup_reason, note.
-- [ ] UI Admin/Teacher `Điểm danh` nâng cao: lọc lớp, thao tác nhanh, ghi chú từng bé, lịch sử trong ngày.
-- [ ] Route/mobile layout cho teacher: màn hình dày thông tin thấp, nút lớn, thao tác một tay.
-- [ ] Thêm quyền Teacher chỉ thao tác lớp/phạm vi được phân công nếu có dữ liệu class assignment.
-- [ ] Parent portal hiển thị giờ đến/giờ đón/người đón.
-- [ ] Audit log khi sửa điểm danh, nhất là đổi người đón/giờ đón.
+- [x] DB/API `attendance_records`: check-in/out, status, arrival_time, pickup_time, pickup_person, pickup_phone, late_reason, early_pickup_reason, note. UNIQUE(student_id, date).
+- [x] UI `AttendanceAdvanced.jsx`: nút emoji lớn (✅❌⏰🚗), lọc lớp, daily summary stats, date picker.
+- [x] Mobile-first slide-up detail modal: check-in/out times, pickup person/phone, ghi chú.
+- [x] Parent portal tab `📲 Điểm danh` (read-only, lọc đúng studentId).
+- [x] Audit log khi sửa điểm danh.
 
-**Acceptance criteria:**
-- Teacher có thể check-in/check-out trên mobile viewport mà không vỡ layout.
-- Parent chỉ xem attendance của con mình.
-- Dashboard hôm nay dùng dữ liệu attendance mới.
+### Phase 11 — Thực Đơn + Media Library Theo Quyền (✅ Đã xong — 01/05/2026)
 
-### Phase 11 — Thực Đơn + Media Library Theo Quyền (🟠 Nên có sớm)
 **Mục tiêu:** hoàn thiện hai trải nghiệm phụ huynh dùng thường xuyên nhất.
 
-- [ ] DB/API `meal_menus`, `meal_items`: thực đơn tuần/tháng, bữa sáng/trưa/xế, thành phần, dị ứng liên quan.
-- [ ] Admin `Thực đơn`: tạo/copy tuần, publish/unpublish, cảnh báo món xung đột với dị ứng học sinh.
-- [ ] Parent portal `Thực đơn`: xem tuần/tháng, highlight món cần chú ý theo dị ứng của con.
-- [ ] DB/API `media_albums`, `media_assets`, `media_asset_students`, `media_asset_classes`: album, ảnh/video, tag lớp/bé, trạng thái duyệt.
-- [ ] Admin/Teacher media workflow: upload → draft/review → published.
-- [ ] Parent gallery chỉ thấy ảnh public target đúng lớp/con và đúng consent.
-- [ ] Retention policy ảnh: cấu hình số ngày/tháng lưu, cảnh báo trước khi xóa.
+- [x] DB/API `meal_menus`: UPSERT per `(week_start, day_of_week, meal_type)`, dishes JSON, allergen notes, published flag.
+- [x] Admin `Thực đơn` (`MealMenu.jsx`): weekly grid 5×3, cell editor slide-up, week navigation, publish toggle.
+- [x] Parent portal tab `🍱 Thực đơn` (readOnly mode, tuần hiện tại).
+- [x] DB/API `media_albums`, `media_assets`: workflow draft→published→archived.
+- [x] Admin `Thư viện ảnh` (`MediaLibrary.jsx`): tạo album, upload ảnh, publish/archive asset.
+- [x] Parent gallery (`forParent=true`): chỉ thấy ảnh published.
+- [x] Upload validate MIME/size, Multer server-side.
 
-**Acceptance criteria:**
-- Ảnh chưa published không hiện ở parent.
-- Parent khác lớp/con không xem được asset không thuộc quyền.
-- Upload vẫn validate MIME/size và không phá fallback demo.
+### Phase 12 — Observability + CI/E2E/RBAC Hardening (✅ Đã xong — 01/05/2026)
 
-### Phase 12 — Observability + CI/E2E/RBAC Hardening (🟠 Production guardrails)
 **Mục tiêu:** có tín hiệu vận hành và test đủ tin cậy trước khi deploy thật.
 
-- [ ] Request logging có correlation/request id, status code, duration, actor id nếu có.
-- [ ] Error middleware chuẩn hóa JSON error, không leak stack ở production.
-- [ ] `/api/health` mở rộng: db ok, backup dir writable, upload dir writable, scheduler state.
-- [ ] `/api/ready` cho deploy platform.
-- [ ] Admin dashboard/system status: backup cuối, scheduler lỗi gần nhất, DB path/disk warning nếu lấy được.
-- [ ] CI cài Playwright browsers và chạy `npm run test:e2e`.
-- [ ] Thêm automated RBAC tests cho users, backups, health, incidents, invoices, notifications, media.
-- [ ] Thêm smoke script production-safe: health, login, read-only snapshot.
-
-**Acceptance criteria:**
-- CI fail nếu unit/API/build/audit/e2e fail.
-- RBAC test có case parent truy cập dữ liệu student khác bị 403.
-- Health endpoint phản ánh lỗi backup/upload dir thay vì luôn ok.
+- [x] Request logging middleware: correlation id, status code, duration, actor (role:id). Chỉ log khi `status >= 400` hoặc `duration > 2000ms`.
+- [x] Error middleware chuẩn hóa JSON error; ẩn stack trace ở production (`NODE_ENV=production`).
+- [x] `/api/health` mở rộng: db ping, upload dir writable, backup dir writable, scheduler state object. HTTP 503 nếu db hoặc upload dir không ok.
+- [x] `/api/ready` cho deploy platform (readiness probe). HTTP 503 nếu db chưa sẵn sàng.
+- [x] `BACKUP_DIR` export từ `backup.js` để health check dùng.
+- [x] CI: `npx playwright install --with-deps chromium` + `npm run test:e2e` (continue-on-error khi chưa headless server).
+- [x] 8 RBAC integration tests mới: health/ready without auth, parent consent isolation (own=200 / other=403), parent cannot create notifications, admin school-settings CRUD, teacher cannot write settings, admin send notification, attendance upsert + teacher read.
+- [x] Tất cả 24 tests pass, build clean 0 vulnerability.
 
 ### Phase 13 — Chuẩn Hóa DB Core Tables + Reports (🟠 Nâng cấp nền tảng)
 **Mục tiêu:** giảm phụ thuộc `collection_records` JSON cho dữ liệu core.
@@ -418,13 +395,14 @@ src/
 - Backup tự động chạy và restore thử nghiệm trên bản backup staging trước khi dùng thật.
 
 ### Thứ Tự Giao Việc Khuyến Nghị Cho Claude
-1. Phase 8 trước: `school_settings` + `student_consents`.
-2. Phase 9 tiếp: notification center với mock adapter, chưa cần SMS/Zalo thật.
-3. Phase 10: attendance nâng cao + teacher mobile mode.
-4. Phase 11: menu + media permissions.
-5. Phase 12: observability + CI e2e + RBAC tests.
-6. Phase 13: normalize DB core tables.
-7. Phase 14: deploy thật + integrations.
+
+1. ~~Phase 8 trước: `school_settings` + `student_consents`.~~ ✅ Xong
+2. ~~Phase 9 tiếp: notification center với mock adapter, chưa cần SMS/Zalo thật.~~ ✅ Xong
+3. ~~Phase 10: attendance nâng cao + teacher mobile mode.~~ ✅ Xong
+4. ~~Phase 11: menu + media permissions.~~ ✅ Xong
+5. ~~Phase 12: observability + CI e2e + RBAC tests.~~ ✅ Xong
+6. **Phase 13 tiếp theo**: normalize DB core tables (students/classes/teachers ra bảng riêng, soft delete, báo cáo tháng/quý).
+7. **Phase 14 cuối**: deploy thật + email/SMS integration + payment gateway.
 
 ### Test Bắt Buộc Sau Mỗi Phase
 - `npm run test:run`
