@@ -16,6 +16,7 @@
     "api:import": "node server/import-snapshot.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dompurify": "^3.2.4",

@@ -13,7 +13,7 @@ test('parent can log in and view the daily report', async ({ page }) => {
     await page.getByLabel('Số điện thoại').fill('0901234567')
     await page.getByRole('button', { name: /Đăng nhập/ }).click()
 
-    await expect(page).toHaveURL(/\/parent\/portal$/)
+    await expect(page).toHaveURL(/\/parent\/app$/)
     await page.getByRole('button', { name: /Nhật ký/ }).click()
 
     await expect(page.getByRole('heading', { name: 'Nhật ký hàng ngày' })).toBeVisible()

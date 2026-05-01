@@ -476,26 +476,27 @@ src/
 ### Layer 1 — Supabase Schema + RLS MVP (🔴 First)
 **Scope:** tạo nền database chuẩn cho 2 cơ sở, user, học sinh, điểm danh.
 
-- [ ] Thêm `supabase/migrations/001_core_schema.sql`.
-- [ ] Tạo bảng `facilities`, `profiles`, `students`, `attendance`.
-- [ ] `profiles.id` FK tới `auth.users(id)`.
-- [ ] `students.facility_id` FK tới `facilities(id)`.
-- [ ] `attendance.student_id` + `facility_id` FK đúng student/cơ sở.
-- [ ] RLS: admin xem tất cả; teacher chỉ xem dữ liệu thuộc `profiles.facility_id`.
-- [ ] Seed 2 cơ sở: CS1, CS2 trong SQL seed/dev note.
+- [x] Thêm `supabase/migrations/001_core_schema.sql`.
+- [x] Tạo bảng `facilities`, `profiles`, `students`, `attendance`.
+- [x] `profiles.id` FK tới `auth.users(id)`.
+- [x] `students.facility_id` FK tới `facilities(id)`.
+- [x] `attendance.student_id` + `facility_id` FK đúng student/cơ sở.
+- [x] RLS: admin xem tất cả; teacher chỉ xem dữ liệu thuộc `profiles.facility_id`.
+- [x] Seed 2 cơ sở: CS1, CS2 trong SQL seed/dev note.
+- [ ] Chạy migration trong Supabase Dashboard/project thật và verify RLS bằng user thật.
 
 **Done when:** chạy SQL trong Supabase Dashboard không lỗi; teacher CS1 không đọc được student CS2.
 
 ### Layer 2 — Frontend Supabase Foundation (🔴)
 **Scope:** thêm kết nối Supabase nhưng chưa refactor toàn app.
 
-- [ ] Cài `@supabase/supabase-js`.
-- [ ] Thêm env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_BACKEND=supabase|api|local`.
-- [ ] Tạo `src/lib/supabaseClient.js`.
-- [ ] Tạo `src/features/auth/authService.js`: get current user/profile, sign in/out.
-- [ ] Tạo `src/features/students/studentService.js`: `listStudentsForCurrentTeacher()`.
-- [ ] Tạo route shell rõ ràng cho `/admin`, `/teacher`, `/parent` và role-based redirect.
-- [ ] Không sửa UI lớn ở phase này, chỉ thêm service + smoke route/test nhỏ nếu cần.
+- [x] Cài `@supabase/supabase-js`.
+- [x] Thêm env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_BACKEND=supabase|api|local`.
+- [x] Tạo `src/lib/supabaseClient.js`.
+- [x] Tạo `src/features/auth/authService.js`: get current user/profile, sign in/out.
+- [x] Tạo `src/features/students/studentService.js`: `listStudentsForCurrentTeacher()`.
+- [x] Tạo route shell rõ ràng cho `/admin`, `/teacher`, `/parent` và role-based redirect.
+- [x] Không sửa UI lớn ở phase này; chỉ thêm service, route shell và teacher portal tối thiểu.
 
 **Done when:** frontend lấy được profile hiện tại và danh sách học sinh theo cơ sở qua RLS.
 

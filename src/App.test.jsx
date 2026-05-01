@@ -34,4 +34,17 @@ describe('app routes', () => {
         expect(screen.getByText('Chào mừng trở lại')).toBeInTheDocument()
         expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
     })
+
+    it('renders teacher login', () => {
+        renderRoute('/teacher')
+        expect(screen.getByText('Cổng Giáo Viên')).toBeInTheDocument()
+        expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
+    })
+
+    it('renders teacher portal for teacher role', () => {
+        sessionStorage.setItem('maika_role', 'teacher')
+        renderRoute('/teacher/app')
+        expect(screen.getByText('Maika Teacher')).toBeInTheDocument()
+        expect(screen.getByText('Công cụ hằng ngày cho giáo viên')).toBeInTheDocument()
+    })
 })

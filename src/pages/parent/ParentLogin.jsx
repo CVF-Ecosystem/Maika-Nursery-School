@@ -21,7 +21,7 @@ export default function ParentLogin() {
                 sessionStorage.setItem('maika_role', session.user.role)
                 sessionStorage.setItem('maika_api_token', session.token)
                 clearApiSnapshot()
-                navigate('/parent/portal')
+                navigate('/parent/app')
             } catch (error) {
                 setErr(error.message)
             }
@@ -32,7 +32,8 @@ export default function ParentLogin() {
         const validPhones = ['0901234567', '0912345678', '0923456789', '0934567890', '0945678901', '0956789012', '0967890123', '0978901234', '0989012345', '0990123456', '0901234560', '0912345670', '0923456780', '0934567800', '0000']
         if (validPhones.includes(normalizedPhone)) {
             sessionStorage.setItem('maika_parent_phone', normalizedPhone)
-            navigate('/parent/portal')
+            sessionStorage.setItem('maika_role', 'parent')
+            navigate('/parent/app')
         } else {
             setErr(DEMO_MODE ? 'Không tìm thấy tài khoản. Demo: 0901234567' : 'Không tìm thấy tài khoản.')
         }

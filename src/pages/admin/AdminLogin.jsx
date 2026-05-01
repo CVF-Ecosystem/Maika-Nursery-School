@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasBackendAPI, loginWithBackend } from '../../data/api'
 import { clearApiSnapshot } from '../../data/store'
+import { portalPathForRole } from '../../features/auth/authService'
 
 const DEMO_PASS = ['123456', 'maika']
 const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
 
-export default function AdminLogin() {
-    const [role, setRole] = useState('admin')
+export default function AdminLogin({ defaultRole = 'admin', lockedRole = false, title = 'Chào mừng trở lại', subtitle = 'Đăng nhập để quản lý trường', backTo = '/' }) {
+    const [role, setRole] = useState(defaultRole)
     const [pass, setPass] = useState('')
     const [err, setErr] = useState('')
     const [loading, setLoading] = useState(false)
@@ -28,7 +29,7 @@ export default function AdminLogin() {
                     sessionStorage.removeItem('maika_must_change_password')
                 }
                 clearApiSnapshot()
-                navigate('/admin/app')
+                navigate(portalPathForRole(session.user.role))
             } catch (error) {
                 setErr(error.message)
                 setLoading(false)
@@ -39,7 +40,7 @@ export default function AdminLogin() {
         setTimeout(() => {
             if (DEMO_PASS.includes(pass)) {
                 sessionStorage.setItem('maika_role', role)
-                navigate('/admin/app')
+                navigate(portalPathForRole(role))
             } else {
                 setErr(DEMO_MODE ? 'Mật khẩu không đúng. Thử: 123456' : 'Mật khẩu không đúng.')
                 setLoading(false)
@@ -58,16 +59,18 @@ export default function AdminLogin() {
                     <div style={{ fontSize: 14, color: '#A78BFA', fontWeight: 600, marginTop: 4 }}>Hệ thống quản lý nhà trẻ</div>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.97)', borderRadius: 24, padding: '36px 32px', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 20, color: '#1E1B4B', marginBottom: 8 }}>Chào mừng trở lại</div>
-                    <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 28 }}>Đăng nhập để quản lý trường</div>
+                    <div style={{ fontWeight: 800, fontSize: 20, color: '#1E1B4B', marginBottom: 8 }}>{title}</div>
+                    <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 28 }}>{subtitle}</div>
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div style={{ textAlign: 'left' }}>
-                            <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>
-                            <select id="admin-role" value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }}>
-                                <option value="admin">👑 Hiệu trưởng / Admin</option>
-                                <option value="teacher">👩‍🏫 Giáo viên</option>
-                            </select>
-                        </div>
+                        {!lockedRole && (
+                            <div style={{ textAlign: 'left' }}>
+                                <label htmlFor="admin-role" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Vai trò</label>
+                                <select id="admin-role" value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }}>
+                                    <option value="admin">👑 Hiệu trưởng / Admin</option>
+                                    <option value="teacher">👩‍🏫 Giáo viên</option>
+                                </select>
+                            </div>
+                        )}
                         <div style={{ textAlign: 'left' }}>
                             <label htmlFor="admin-password" style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 6 }}>Mật khẩu</label>
                             <input id="admin-password" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Nhập mật khẩu..." autoFocus style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #DDD6FE', fontSize: 14, color: '#1E1B4B', background: '#F8F7FF' }} />
@@ -80,7 +83,7 @@ export default function AdminLogin() {
                     {DEMO_MODE && <div style={{ marginTop: 16, fontSize: 12, color: '#9B93C9', background: '#F5F3FF', borderRadius: 8, padding: '8px 12px' }}>
                         Demo: mật khẩu <strong style={{ color: '#6D28D9' }}>123456</strong>
                     </div>}
-                    <button onClick={() => navigate('/')} style={{ marginTop: 12, background: 'none', border: 'none', color: '#7C6D9B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>← Về trang chủ</button>
+                    <button onClick={() => navigate(backTo)} style={{ marginTop: 12, background: 'none', border: 'none', color: '#7C6D9B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>← Về trang chủ</button>
                 </div>
             </div>
         </div>
