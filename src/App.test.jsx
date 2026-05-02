@@ -7,7 +7,7 @@ function renderRoute(route) {
     return render(
         <MemoryRouter initialEntries={[route]}>
             <App />
-        </MemoryRouter>
+        </MemoryRouter>,
     )
 }
 
@@ -37,7 +37,7 @@ describe('app routes', () => {
 
     it('renders unified login', () => {
         renderRoute('/login')
-        expect(screen.getByText('Đăng nhập Maika')).toBeInTheDocument()
+        expect(screen.getByText('Đăng nhập nhân sự Maika')).toBeInTheDocument()
         expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
     })
 

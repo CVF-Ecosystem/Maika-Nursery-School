@@ -579,7 +579,7 @@ export default function SupabaseParentPortal() {
     async function logout() {
         await signOut().catch(() => {})
         sessionStorage.clear()
-        navigate('/login')
+        navigate('/parent')
     }
 
     if (loading) return <Loading />
