@@ -17,6 +17,37 @@ self.addEventListener('activate', event => {
   )
 })
 
+self.addEventListener('push', event => {
+  let data = { title: 'Maika', body: '' }
+  try { data = event.data?.json() || data } catch { /* ignore */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon || '/icon.svg',
+      badge: '/favicon.svg',
+      tag: data.tag || 'maika-push',
+      renotify: true,
+      data: { url: data.url || '/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const url = event.notification.data?.url || '/'
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url)
+          return client.focus()
+        }
+      }
+      return clients.openWindow(url)
+    })
+  )
+})
+
 self.addEventListener('fetch', event => {
   const request = event.request
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return

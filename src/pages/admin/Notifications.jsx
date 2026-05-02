@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { createNotification, listNotifications, updateNotification } from '../../features/operations/operationalService'
+import { sendPushForEvent } from '../../features/push/pushService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -148,6 +149,12 @@ export default function Notifications({ readOnly = false }) {
         try {
             if (supabaseMode) {
                 await updateNotification(item.id, { status: 'sent' })
+                sendPushForEvent({
+                    facilityId: item.facility_id,
+                    title: item.title,
+                    body: item.body,
+                    url: '/parent',
+                }).catch(() => {})
             } else {
                 await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'sent' }) })
             }

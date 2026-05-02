@@ -5,6 +5,7 @@ import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents } from '../../features/students/studentService'
 import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident } from '../../features/sensitive/sensitiveService'
 import { getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
+import { sendPushForEvent } from '../../features/push/pushService'
 
 const SEVERITY_MAP = {
     minor: ['#D97706', '#FFFBEB', 'Nhẹ'],
@@ -256,7 +257,16 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                     )
                 }
                 const photoPaths = [...(existingPaths || []), ...newPaths]
-                await saveSupabaseIncident({ ...incidentData, id: editingIncident?.id, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined, photoPaths })
+                const saved = await saveSupabaseIncident({ ...incidentData, id: editingIncident?.id, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined, photoPaths })
+                if (!editingIncident) {
+                    const studentName = students.find(s => s.id === incidentData.studentId)?.name || 'Học sinh'
+                    sendPushForEvent({
+                        studentId: incidentData.studentId,
+                        title: `Sự cố: ${studentName}`,
+                        body: incidentData.description?.slice(0, 80),
+                        url: '/parent',
+                    }).catch(() => {})
+                }
                 setMessage(editingIncident ? 'Đã cập nhật sự cố.' : 'Đã ghi nhận sự cố.')
             } else if (editingIncident) {
                 await apiRequest(`/api/incidents/${editingIncident.id}`, {
