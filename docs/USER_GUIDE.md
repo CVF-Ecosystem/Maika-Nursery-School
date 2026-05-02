@@ -79,6 +79,7 @@ Khi tạo tài khoản mới, nhập email, mật khẩu tạm thời, vai trò 
 Quy tắc tài khoản đăng nhập:
 
 - Mỗi email chỉ tạo được một tài khoản trong toàn hệ thống.
+- Email là định danh đăng nhập và cần có dạng `ten@mien.xxx`. Nếu nhà trường chưa có domain riêng, dùng email thật của người dùng hoặc một quy ước nội bộ thống nhất; không cần dùng đuôi `@maika.edu.vn`.
 - Giáo viên được phân cơ sở trực tiếp. Giáo viên chỉ thấy dữ liệu của cơ sở được gán.
 - Phụ huynh được phân cơ sở thông qua học sinh được liên kết. Khi đang chọn CS1 hoặc CS2, danh sách phụ huynh chỉ hiện các tài khoản có con thuộc cơ sở đó.
 - Phụ huynh phải được liên kết với học sinh trước khi lưu tài khoản. Nếu chưa thấy học sinh trong danh sách chọn, hãy kiểm tra lại bộ lọc cơ sở hoặc hồ sơ học sinh.

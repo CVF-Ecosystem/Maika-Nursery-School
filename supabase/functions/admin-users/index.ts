@@ -6,6 +6,7 @@ const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_KEY') || ''
 
 const validRoles = new Set(['admin', 'teacher', 'parent'])
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function jsonResponse(request: Request, body: unknown, status = 200) {
     return new Response(JSON.stringify(body), {
@@ -45,7 +46,7 @@ function validatePayload(input: Record<string, unknown>, isCreate: boolean) {
     const password = cleanText(input.password)
 
     if (!validRoles.has(role)) return 'Vai trò không hợp lệ.'
-    if (!email || !email.includes('@')) return 'Email không hợp lệ.'
+    if (!email || !emailPattern.test(email)) return 'Email cần có dạng ten@mien.xxx.'
     if (!fullName) return 'Thiếu họ tên.'
     if (role === 'teacher' && !cleanText(input.facilityId)) return 'Giáo viên cần được gán cơ sở.'
     if (role === 'parent' && !cleanText(input.studentId)) return 'Phụ huynh cần được liên kết học sinh.'

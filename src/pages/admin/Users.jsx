@@ -18,6 +18,7 @@ import { listStudents } from '../../features/students/studentService'
 const ROLE_LABEL = { admin: 'Admin', teacher: 'Giáo viên', parent: 'Phụ huynh' }
 const STATUS_LABEL = { active: 'Đang hoạt động', locked: 'Đã khóa' }
 const MANAGED_ROLES = ['teacher', 'parent']
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function validateAccountForm(form, isNew) {
     const role = form.role
@@ -26,7 +27,7 @@ function validateAccountForm(form, isNew) {
     const password = form.password?.trim()
 
     if (!fullName) return 'Vui lòng nhập tên tài khoản.'
-    if (!email || !email.includes('@')) return 'Vui lòng nhập email đăng nhập hợp lệ.'
+    if (!email || !EMAIL_PATTERN.test(email)) return 'Vui lòng nhập email đăng nhập dạng ten@mien.xxx.'
     if (isNew && (!password || password.length < 8)) return 'Mật khẩu tạm thời cần ít nhất 8 ký tự.'
     if (!isNew && password && password.length < 8) return 'Mật khẩu mới cần ít nhất 8 ký tự.'
     if (role === 'teacher' && !form.facilityId) return 'Giáo viên cần được gán cơ sở.'
@@ -38,7 +39,7 @@ function AccountRulesPanel() {
     const items = [
         ['Giáo viên', 'Chọn cơ sở để giới hạn dữ liệu giáo viên được xem và nhập.'],
         ['Phụ huynh', 'Chọn học sinh; tài khoản sẽ đi theo cơ sở của học sinh đó.'],
-        ['Email', 'Mỗi email chỉ tạo được một tài khoản đăng nhập trong toàn hệ thống.'],
+        ['Email', 'Dùng dạng ten@mien.xxx. Mỗi email chỉ tạo được một tài khoản trong toàn hệ thống.'],
         ['Mật khẩu', 'Khi tạo mới cần mật khẩu tạm thời tối thiểu 8 ký tự.'],
     ]
 
@@ -156,6 +157,8 @@ function UserModal({ user, students, onClose, onSave }) {
                         </label>
                         <input
                             id={`user-display-${id}`}
+                            name={`maika-user-name-${id}`}
+                            autoComplete="name"
                             style={is}
                             value={form.displayName}
                             onChange={e => setForm({ ...form, displayName: e.target.value })}
@@ -167,6 +170,9 @@ function UserModal({ user, students, onClose, onSave }) {
                         </label>
                         <input
                             id={`user-phone-${id}`}
+                            name={`maika-user-phone-${id}`}
+                            type="tel"
+                            autoComplete="tel"
                             style={is}
                             value={form.phone}
                             onChange={e => setForm({ ...form, phone: e.target.value })}
@@ -178,6 +184,9 @@ function UserModal({ user, students, onClose, onSave }) {
                         </label>
                         <input
                             id={`user-email-${id}`}
+                            name={`maika-user-email-${id}`}
+                            type="email"
+                            autoComplete="email"
                             style={is}
                             value={form.email}
                             onChange={e => setForm({ ...form, email: e.target.value })}
@@ -210,6 +219,8 @@ function UserModal({ user, students, onClose, onSave }) {
                         <input
                             id={`user-password-${id}`}
                             type="password"
+                            name={`maika-user-password-${id}`}
+                            autoComplete="new-password"
                             style={is}
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
@@ -434,6 +445,8 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
                 </div>
             )}
             <input
+                name="maika-account-search"
+                autoComplete="off"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Tìm tên, email, vai trò..."
@@ -602,6 +615,8 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={label}>Tên</label>
                         <input
+                            name="maika-account-full-name"
+                            autoComplete="name"
                             style={input}
                             value={form.fullName}
                             onChange={e => setForm({ ...form, fullName: e.target.value })}
@@ -632,6 +647,9 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                     <div>
                         <label style={label}>Email</label>
                         <input
+                            name="maika-account-email"
+                            type="email"
+                            autoComplete="email"
                             style={input}
                             value={form.email}
                             onChange={e => setForm({ ...form, email: e.target.value })}
@@ -640,6 +658,9 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                     <div>
                         <label style={label}>Điện thoại</label>
                         <input
+                            name="maika-account-phone"
+                            type="tel"
+                            autoComplete="tel"
                             style={input}
                             value={form.phone}
                             onChange={e => setForm({ ...form, phone: e.target.value })}
@@ -649,6 +670,8 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                         <label style={label}>{isNew ? 'Mật khẩu tạm thời' : 'Mật khẩu mới'}</label>
                         <input
                             type="password"
+                            name="maika-account-new-password"
+                            autoComplete="new-password"
                             style={input}
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
@@ -840,6 +863,8 @@ function LegacyUsers() {
             </div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 <input
+                    name="maika-legacy-account-search"
+                    autoComplete="off"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Tìm theo tên, SĐT, email, vai trò..."
