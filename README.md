@@ -63,6 +63,12 @@ Supported file types: `.xls`, `.xlsx`, `.csv`.
 - [Legacy server notes](server/README.md)
 - [Legacy deployment notes](server/DEPLOY.md)
 
+## Contributors
+
+Maika Nursery School belongs to the CVF Ecosystem. Product ownership and acceptance review are led by Blackbird, with development support from Codex and earlier AI implementation support from Claude.
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the canonical contributor record.
+
 ## CI
 
 GitHub Actions runs unit tests, dependency audit, frontend build, and Playwright e2e checks on pushes and pull requests to `master` or `main`.
