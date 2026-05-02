@@ -13,18 +13,28 @@ function makeChain(resolvedData = { data: [], error: null }) {
 
 let chain
 const mockFrom = vi.fn()
+const mockRpc = vi.fn()
 
 vi.mock('../../lib/supabaseClient', () => ({
-    requireSupabase: () => ({ from: mockFrom }),
+    requireSupabase: () => ({ from: mockFrom, rpc: mockRpc }),
 }))
 
 const SAMPLE_ROW = {
-    id: 'r1', student_id: 's1', facility_id: 'cs1-id',
-    attendance_date: '2026-05-01', status: 'present',
-    note: null, meal_photo_url: null, meal_photo_path: null,
-    recorded_by: 'u1', check_in_time: '08:00', check_out_time: '16:00',
-    pickup_person: 'Bà Lan', pickup_phone: '0901234567',
-    late_reason: null, early_pickup_reason: null,
+    id: 'r1',
+    student_id: 's1',
+    facility_id: 'cs1-id',
+    attendance_date: '2026-05-01',
+    status: 'present',
+    note: null,
+    meal_photo_url: null,
+    meal_photo_path: null,
+    recorded_by: 'u1',
+    check_in_time: '08:00',
+    check_out_time: '16:00',
+    pickup_person: 'Bà Lan',
+    pickup_phone: '0901234567',
+    late_reason: null,
+    early_pickup_reason: null,
 }
 
 describe('attendanceService — facility isolation', () => {
@@ -32,6 +42,7 @@ describe('attendanceService — facility isolation', () => {
         vi.clearAllMocks()
         chain = makeChain()
         mockFrom.mockReturnValue(chain)
+        mockRpc.mockResolvedValue({ data: SAMPLE_ROW, error: null })
     })
 
     it('queries attendance filtered by facilityId and date', async () => {
@@ -66,14 +77,20 @@ describe('attendanceService — facility isolation', () => {
         expect(results[0]).not.toHaveProperty('facility_id')
     })
 
-    it('upsert sends facility_id and student_id snake_case to Supabase', async () => {
-        chain.single = vi.fn(() => Promise.resolve({ data: SAMPLE_ROW, error: null }))
+    it('upsert delegates durable attendance writes to the Supabase RPC', async () => {
         await upsertAttendance({
-            studentId: 's1', facilityId: 'cs1-id', date: '2026-05-01', status: 'present',
+            studentId: 's1',
+            facilityId: 'cs1-id',
+            date: '2026-05-01',
+            status: 'present',
         })
-        expect(chain.upsert).toHaveBeenCalledWith(
-            expect.objectContaining({ facility_id: 'cs1-id', student_id: 's1', attendance_date: '2026-05-01' }),
-            { onConflict: 'student_id,attendance_date' }
+        expect(mockRpc).toHaveBeenCalledWith(
+            'mark_attendance',
+            expect.objectContaining({
+                p_student_id: 's1',
+                p_attendance_date: '2026-05-01',
+                p_status: 'present',
+            }),
         )
     })
 

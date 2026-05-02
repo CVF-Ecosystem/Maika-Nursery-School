@@ -7,8 +7,9 @@ import './styles/global.css'
 
 const root = document.getElementById('root')
 const supabaseBackend = import.meta.env.VITE_DATA_BACKEND === 'supabase'
-const missingSupabaseEnv = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']
-    .filter(key => !import.meta.env[key] || import.meta.env[key].includes('your-'))
+const missingSupabaseEnv = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter(
+    key => !import.meta.env[key] || import.meta.env[key].includes('your-'),
+)
 
 if (supabaseBackend && missingSupabaseEnv.length) {
     root.innerHTML = `
@@ -27,12 +28,15 @@ if (supabaseBackend && missingSupabaseEnv.length) {
                     <App />
                 </BrowserRouter>
             </ErrorBoundary>
-        </React.StrictMode>
+        </React.StrictMode>,
     )
 }
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => { })
+        navigator.serviceWorker
+            .register('/sw.js')
+            .then(registration => registration.update().catch(() => {}))
+            .catch(() => {})
     })
 }

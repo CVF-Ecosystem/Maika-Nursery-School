@@ -1,9 +1,8 @@
-const SHELL_CACHE = 'maika-shell-v2'
-const DATA_CACHE = 'maika-data-v1'
+const SHELL_CACHE = 'maika-shell-v3'
+const DATA_CACHE = 'maika-data-v2'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/favicon.svg']
 
 // Data cache TTLs (ms)
-const ATTENDANCE_TTL = 7 * 24 * 60 * 60 * 1000
 const REPORTS_TTL = 7 * 24 * 60 * 60 * 1000
 const NOTIFICATIONS_TTL = 30 * 24 * 60 * 60 * 1000
 
@@ -12,7 +11,9 @@ function isCacheableSupabaseRequest(url) {
     const u = new URL(url)
     if (!u.hostname.includes('supabase')) return false
     const path = u.pathname
-    if (path.includes('/rest/v1/attendance')) return { ttl: ATTENDANCE_TTL }
+    // Attendance must always be live. Stale cached reads make teachers lose
+    // trust because F5 can show "0 checked" right after a successful save.
+    if (path.includes('/rest/v1/attendance')) return false
     if (path.includes('/rest/v1/daily_reports')) return { ttl: REPORTS_TTL }
     if (path.includes('/rest/v1/notifications')) return { ttl: NOTIFICATIONS_TTL }
     return false
