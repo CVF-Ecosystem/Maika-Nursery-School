@@ -153,6 +153,7 @@ export default function Landing() {
                     </a>
                     <button
                         onClick={() => navigate('/parent')}
+                        className="landing-nav-parent-btn"
                         style={{
                             fontWeight: 700,
                             fontSize: 14,
@@ -183,6 +184,7 @@ export default function Landing() {
 
             {/* HERO */}
             <section
+                className="landing-hero"
                 style={{
                     minHeight: '100vh',
                     background: 'linear-gradient(145deg,#1E1B4B,#2D2870 40%,#4C1D95 72%,#6D28D9)',
@@ -303,7 +305,7 @@ export default function Landing() {
                         width: 390,
                         zIndex: 1,
                     }}
-                    className="hide-mobile"
+                    className="landing-hero-cards"
                 >
                     {landingData.heroCards.map(([icon, num, lbl], i) => (
                         <div
@@ -340,7 +342,7 @@ export default function Landing() {
 
             {/* STATS STRIP */}
             <div
-                className="landing-section-grid"
+                className="landing-section-grid landing-stats-strip"
                 style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))',

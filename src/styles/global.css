@@ -106,6 +106,27 @@ input:focus, textarea:focus, select:focus {
   .landing-nav-links {
     gap: 10px !important;
   }
+
+  /* Hero: stack content + cards vertically */
+  .landing-hero {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 86px 5% 44px !important;
+    min-height: auto !important;
+  }
+
+  /* Hero cards: pull out of absolute, show inline below hero text */
+  .landing-hero-cards {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    margin-top: 28px;
+    gap: 10px !important;
+  }
+
+  .landing-hero-cards > div {
+    min-height: 110px !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -117,9 +138,40 @@ input:focus, textarea:focus, select:focus {
     min-width: 680px;
   }
 
+  /* Programs, gallery etc stay 1 col */
   .landing-section-grid,
   .landing-gallery-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Stats strip: 2×2 grid, compact */
+  .landing-stats-strip {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .landing-stats-strip > div {
+    padding: 22px 12px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #EDE9FE !important;
+  }
+
+  .landing-stats-strip > div:nth-child(odd) {
+    border-right: 1px solid #EDE9FE !important;
+  }
+
+  .landing-stats-strip > div:nth-last-child(-n+2) {
+    border-bottom: none !important;
+  }
+
+  /* Shrink stat numbers on mobile */
+  .landing-stats-strip > div > div:nth-child(2) {
+    font-size: 30px !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  /* Hide parent login button in navbar — too cramped */
+  .landing-nav-parent-btn {
+    display: none !important;
   }
 
   .landing-gallery-grid {
