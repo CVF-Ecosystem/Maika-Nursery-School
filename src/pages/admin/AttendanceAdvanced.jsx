@@ -17,8 +17,10 @@ import {
     readCachedTeacherData,
     syncOfflineQueue,
 } from '../../features/offline/offlineSyncService'
+import PaginationBar from '../../components/PaginationBar'
 
 const API = import.meta.env.VITE_API_URL || ''
+const STUDENTS_PER_PAGE = 12
 
 async function apiFetch(path, opts = {}) {
     const token = sessionStorage.getItem('maika_api_token')
@@ -69,6 +71,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
     const [saving, setSaving] = useState(false)
     const [savingIds, setSavingIds] = useState([])
     const [syncStatus, setSyncStatus] = useState({})
+    const [page, setPage] = useState(1)
     const [err, setErr] = useState('')
     const supabaseMode = isSupabaseSession()
 
@@ -186,6 +189,14 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
               return rec?.status === statusFilter
           })
         : classFilteredStudents
+    const pagedStudents = useMemo(
+        () => filteredStudents.slice((page - 1) * STUDENTS_PER_PAGE, page * STUDENTS_PER_PAGE),
+        [filteredStudents, page],
+    )
+
+    useEffect(() => {
+        setPage(1)
+    }, [date, classFilter, statusFilter, filteredStudents.length])
 
     async function quickMark(studentId, status) {
         if (readOnly) return
@@ -310,6 +321,51 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
 
     return (
         <div>
+            {!readOnly && (
+                <div
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 80,
+                        background: 'rgba(245,243,255,0.97)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid #DDD6FE',
+                        borderRadius: 14,
+                        padding: '8px 12px',
+                        marginBottom: 14,
+                        boxShadow: '0 8px 24px rgba(109,40,217,0.12)',
+                    }}
+                >
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 10,
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ color: '#1E1B4B', fontWeight: 900, fontSize: 13 }}>
+                                Điểm danh {totalMarked}/{classFilteredStudents.length}
+                            </span>
+                            <SummaryPill label="Có" value={totalPresent} color="#059669" bg="#ECFDF5" />
+                            <SummaryPill label="Vắng" value={totalAbsent} color="#DC2626" bg="#FEF2F2" />
+                            <SummaryPill label="Trễ" value={totalLate} color="#D97706" bg="#FFFBEB" />
+                            <SummaryPill label="Còn" value={missingCount} color="#6D28D9" bg="#EDE9FE" />
+                        </div>
+                        <PaginationBar
+                            page={page}
+                            pageSize={STUDENTS_PER_PAGE}
+                            total={filteredStudents.length}
+                            onPageChange={setPage}
+                            itemLabel="bé"
+                            compact
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Date + filter bar */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
                 <input
@@ -447,9 +503,17 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 </div>
             )}
 
+            <PaginationBar
+                page={page}
+                pageSize={STUDENTS_PER_PAGE}
+                total={filteredStudents.length}
+                onPageChange={setPage}
+                itemLabel="bé"
+            />
+
             {/* Student list — mobile-optimized large buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {filteredStudents.map(student => {
+                {pagedStudents.map(student => {
                     const rec = records[student.id]
                     const status = rec?.status || null
                     const cfg = status ? STATUS_CONFIG[status] : null
@@ -564,6 +628,13 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     </div>
                 )}
             </div>
+            <PaginationBar
+                page={page}
+                pageSize={STUDENTS_PER_PAGE}
+                total={filteredStudents.length}
+                onPageChange={setPage}
+                itemLabel="bé"
+            />
 
             {/* Detail modal */}
             {editModal && (
@@ -577,6 +648,26 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 />
             )}
         </div>
+    )
+}
+
+function SummaryPill({ label, value, color, bg }) {
+    return (
+        <span
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                borderRadius: 999,
+                background: bg,
+                color,
+                padding: '5px 8px',
+                fontSize: 11,
+                fontWeight: 900,
+            }}
+        >
+            {label}: {value}
+        </span>
     )
 }
 

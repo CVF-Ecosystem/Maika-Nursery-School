@@ -14,6 +14,7 @@ import { listIncidents } from '../../features/sensitive/sensitiveService'
 import { compressImage, getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 import { createNotification } from '../../features/operations/operationalService'
 import ModalCloseButton from '../../components/ModalCloseButton'
+import PaginationBar from '../../components/PaginationBar'
 import {
     cacheTeacherData,
     enqueueOfflineAction,
@@ -22,6 +23,8 @@ import {
     readCachedTeacherData,
     syncOfflineQueue,
 } from '../../features/offline/offlineSyncService'
+
+const STUDENTS_PER_PAGE = 12
 
 function Avatar({ initials, size = 36 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -55,6 +58,26 @@ function ReportChip({ icon, label, value }) {
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#1E1B4B', marginTop: 1 }}>{value || '—'}</div>
         </div>
+    )
+}
+
+function SummaryPill({ label, value, color, bg }) {
+    return (
+        <span
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                borderRadius: 999,
+                background: bg,
+                color,
+                padding: '5px 8px',
+                fontSize: 11,
+                fontWeight: 900,
+            }}
+        >
+            {label}: {value}
+        </span>
     )
 }
 
@@ -858,6 +881,7 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
     const [summaryOpen, setSummaryOpen] = useState(false)
     const [summarySending, setSummarySending] = useState(false)
     const [summarySent, setSummarySent] = useState(false)
+    const [page, setPage] = useState(1)
     const [loading, setLoading] = useState(true)
     const [err, setErr] = useState('')
     const moodColors = {
@@ -962,6 +986,10 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
         [classFilter, students],
     )
     const filteredStudents = showMissingOnly ? baseStudents.filter(student => !reports[student.id]) : baseStudents
+    const pagedStudents = useMemo(
+        () => filteredStudents.slice((page - 1) * STUDENTS_PER_PAGE, page * STUDENTS_PER_PAGE),
+        [filteredStudents, page],
+    )
     const todaySelected = date === todayStr()
     const failedCount = getFailedActions().filter(action => action.type === 'daily-report').length
     const summary = useMemo(() => {
@@ -973,6 +1001,10 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
             missingNames: missingStudents.map(student => student.name),
         }
     }, [baseStudents, reports])
+
+    useEffect(() => {
+        setPage(1)
+    }, [date, classFilter, showMissingOnly, filteredStudents.length])
 
     function toggleSelected(studentId) {
         setSelectedIds(prev => (prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]))
@@ -1181,6 +1213,40 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
                 />
             )}
             <div
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 70,
+                    background: 'rgba(245,243,255,0.97)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid #DDD6FE',
+                    borderRadius: 14,
+                    padding: '8px 12px',
+                    marginBottom: 14,
+                    boxShadow: '0 8px 24px rgba(109,40,217,0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ color: '#1E1B4B', fontWeight: 900, fontSize: 13 }}>Nhật ký ngày</span>
+                    <SummaryPill label="Đã ghi" value={summary.completed} color="#059669" bg="#ECFDF5" />
+                    <SummaryPill label="Còn thiếu" value={summary.missing} color="#D97706" bg="#FFFBEB" />
+                    <SummaryPill label="Đang xem" value={filteredStudents.length} color="#6D28D9" bg="#EDE9FE" />
+                </div>
+                <PaginationBar
+                    page={page}
+                    pageSize={STUDENTS_PER_PAGE}
+                    total={filteredStudents.length}
+                    onPageChange={setPage}
+                    itemLabel="bé"
+                    compact
+                />
+            </div>
+            <div
                 className="mobile-stack"
                 style={{
                     display: 'flex',
@@ -1223,7 +1289,16 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
                     gap: 14,
                 }}
             >
-                {filteredStudents.map(s => {
+                <div style={{ gridColumn: '1/-1' }}>
+                    <PaginationBar
+                        page={page}
+                        pageSize={STUDENTS_PER_PAGE}
+                        total={filteredStudents.length}
+                        onPageChange={setPage}
+                        itemLabel="bé"
+                    />
+                </div>
+                {pagedStudents.map(s => {
                     const r = reports[s.id]
                     const isSelected = selectedIds.includes(s.id)
                     return (
@@ -1412,6 +1487,15 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
                         </div>
                     )
                 })}
+                <div style={{ gridColumn: '1/-1' }}>
+                    <PaginationBar
+                        page={page}
+                        pageSize={STUDENTS_PER_PAGE}
+                        total={filteredStudents.length}
+                        onPageChange={setPage}
+                        itemLabel="bé"
+                    />
+                </div>
             </div>
         </div>
     )
@@ -1422,6 +1506,7 @@ function LegacyDailyReports() {
     const [selDate, setSelDate] = useState(todayStr())
     const [filterClass, setFilterClass] = useState('all')
     const [editing, setEditing] = useState(null)
+    const [page, setPage] = useState(1)
     const moodColors = {
         'Vui vẻ': '#16A34A',
         'Hào hứng': '#7C3AED',
@@ -1434,6 +1519,10 @@ function LegacyDailyReports() {
         if (filterClass !== 'all') s = s.filter(st => st.classId === filterClass)
         return s
     }, [db, filterClass])
+    const pagedStudents = useMemo(
+        () => students.slice((page - 1) * STUDENTS_PER_PAGE, page * STUDENTS_PER_PAGE),
+        [students, page],
+    )
     const reportMap = useMemo(() => {
         const map = {}
         db.dailyReports
@@ -1462,6 +1551,10 @@ function LegacyDailyReports() {
         setDB({ ...ndb })
         setEditing(null)
     }
+    useEffect(() => {
+        setPage(1)
+    }, [selDate, filterClass, students.length])
+
     return (
         <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
             {editing && (
@@ -1497,7 +1590,16 @@ function LegacyDailyReports() {
                     gap: 14,
                 }}
             >
-                {students.map(s => {
+                <div style={{ gridColumn: '1/-1' }}>
+                    <PaginationBar
+                        page={page}
+                        pageSize={STUDENTS_PER_PAGE}
+                        total={students.length}
+                        onPageChange={setPage}
+                        itemLabel="bé"
+                    />
+                </div>
+                {pagedStudents.map(s => {
                     const r = reportMap[s.id]
                     const cls = db.classes.find(c => c.id === s.classId)
                     return (
@@ -1599,6 +1701,15 @@ function LegacyDailyReports() {
                         </div>
                     )
                 })}
+                <div style={{ gridColumn: '1/-1' }}>
+                    <PaginationBar
+                        page={page}
+                        pageSize={STUDENTS_PER_PAGE}
+                        total={students.length}
+                        onPageChange={setPage}
+                        itemLabel="bé"
+                    />
+                </div>
             </div>
         </div>
     )

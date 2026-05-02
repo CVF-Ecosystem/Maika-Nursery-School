@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getCurrentProfile } from '../../features/auth/authService'
@@ -10,8 +10,10 @@ import {
     updateAssetStatus,
     uploadMediaAsset,
 } from '../../features/media/mediaService'
+import PaginationBar from '../../components/PaginationBar'
 
 const API = import.meta.env.VITE_API_URL || ''
+const ASSETS_PER_PAGE = 12
 
 async function apiFetch(path, opts = {}) {
     const token = sessionStorage.getItem('maika_api_token')
@@ -52,6 +54,7 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
     const [showAlbumForm, setShowAlbumForm] = useState(false)
     const [albumForm, setAlbumForm] = useState({ title: '', description: '', status: 'draft' })
     const [uploading, setUploading] = useState(false)
+    const [page, setPage] = useState(1)
     const [err, setErr] = useState('')
     const fileRef = useRef()
 
@@ -144,6 +147,19 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
         }
     }
 
+    const displayAssets = useMemo(
+        () => (forParent ? assets.filter(a => a.status === 'published') : assets),
+        [assets, forParent],
+    )
+    const pagedAssets = useMemo(
+        () => displayAssets.slice((page - 1) * ASSETS_PER_PAGE, page * ASSETS_PER_PAGE),
+        [displayAssets, page],
+    )
+
+    useEffect(() => {
+        setPage(1)
+    }, [activeAlbum?.id, displayAssets.length])
+
     if (!hasBackendAPI()) {
         return (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
@@ -152,8 +168,6 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
             </div>
         )
     }
-
-    const displayAssets = forParent ? assets.filter(a => a.status === 'published') : assets
 
     return (
         <div
@@ -303,6 +317,13 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
                 </div>
 
                 {err && <div style={{ color: '#DC2626', fontSize: 13, marginBottom: 10 }}>{err}</div>}
+                <PaginationBar
+                    page={page}
+                    pageSize={ASSETS_PER_PAGE}
+                    total={displayAssets.length}
+                    onPageChange={setPage}
+                    itemLabel="ảnh"
+                />
 
                 {/* Album form */}
                 {showAlbumForm && (
@@ -374,7 +395,7 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
-                    {displayAssets.map(asset => {
+                    {pagedAssets.map(asset => {
                         const badge = STATUS_BADGE[asset.status] || STATUS_BADGE.draft
                         const imgUrl = API + asset.path
                         return (
@@ -485,6 +506,13 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
                         </div>
                     )}
                 </div>
+                <PaginationBar
+                    page={page}
+                    pageSize={ASSETS_PER_PAGE}
+                    total={displayAssets.length}
+                    onPageChange={setPage}
+                    itemLabel="ảnh"
+                />
             </div>
         </div>
     )
@@ -506,6 +534,7 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false, selectedFac
     const [albumTitle, setAlbumTitle] = useState('')
     const [err, setErr] = useState('')
     const [uploading, setUploading] = useState(false)
+    const [page, setPage] = useState(1)
     const fileRef = useRef()
 
     async function reload(albumId = activeAlbum) {
@@ -577,6 +606,14 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false, selectedFac
 
     const canWrite = !readOnly && !forParent && profile?.role !== 'parent'
     const canDelete = canWrite && profile?.role === 'admin'
+    const pagedAssets = useMemo(
+        () => assets.slice((page - 1) * ASSETS_PER_PAGE, page * ASSETS_PER_PAGE),
+        [assets, page],
+    )
+
+    useEffect(() => {
+        setPage(1)
+    }, [activeAlbum, assets.length])
 
     async function downloadAsset(asset) {
         if (!asset.url) return
@@ -767,8 +804,15 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false, selectedFac
                         {err}
                     </div>
                 )}
+                <PaginationBar
+                    page={page}
+                    pageSize={ASSETS_PER_PAGE}
+                    total={assets.length}
+                    onPageChange={setPage}
+                    itemLabel="ảnh"
+                />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 12 }}>
-                    {assets.map(asset => (
+                    {pagedAssets.map(asset => (
                         <div
                             key={asset.id}
                             style={{
@@ -890,6 +934,13 @@ function SupabaseMediaLibrary({ readOnly = false, forParent = false, selectedFac
                         </div>
                     )}
                 </div>
+                <PaginationBar
+                    page={page}
+                    pageSize={ASSETS_PER_PAGE}
+                    total={assets.length}
+                    onPageChange={setPage}
+                    itemLabel="ảnh"
+                />
             </section>
         </div>
     )
