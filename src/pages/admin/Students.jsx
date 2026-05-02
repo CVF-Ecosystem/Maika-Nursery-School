@@ -585,7 +585,7 @@ function LegacyStudents() {
                     background: '#fff',
                     borderRadius: 16,
                     boxShadow: '0 2px 16px rgba(109,40,217,0.08)',
-                    overflow: 'hidden',
+                    overflowY: 'hidden',
                 }}
             >
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>

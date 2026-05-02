@@ -71,6 +71,16 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 900px) {
   .hide-mobile { display: none !important; }
 
+  /* Prevent fixed FAB (🌸 Trang chủ) from covering pagination at bottom */
+  .admin-main-content {
+    padding-bottom: 72px !important;
+  }
+
+  /* Teacher portal: safe area for iOS Safari bottom bar */
+  .teacher-main-content {
+    padding-bottom: 80px !important;
+  }
+
   html { font-size: 15px; }
 
   body { overflow-x: hidden; }

@@ -116,7 +116,7 @@ export default function TeacherApp() {
                     ))}
                 </nav>
             </header>
-            <main style={{ padding: '16px', maxWidth: 960, margin: '0 auto' }}>
+            <main className="teacher-main-content" style={{ padding: '16px', maxWidth: 960, margin: '0 auto' }}>
                 <div style={{ marginBottom: 12 }}>
                     <div style={{ color: '#1E1B4B', fontSize: 20, fontWeight: 900 }}>{current.label}</div>
                 </div>

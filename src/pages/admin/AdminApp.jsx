@@ -337,7 +337,10 @@ export default function AdminApp() {
                     selectedFacilityId={selectedFacilityId}
                     onFacilityChange={handleFacilityChange}
                 />
-                <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#F5F3FF' }}>
+                <main
+                    className="admin-main-content"
+                    style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#F5F3FF' }}
+                >
                     <Suspense fallback={<LoadingSpinner />}>{current.component(handleNav, scope)}</Suspense>
                 </main>
                 <button
