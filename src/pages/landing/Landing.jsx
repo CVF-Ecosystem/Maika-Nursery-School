@@ -21,7 +21,7 @@ export default function Landing() {
         )
         revealRefs.current.forEach(el => el && io.observe(el))
         return () => io.disconnect()
-    }, [])
+    }, [landingData])
 
     useEffect(() => {
         let alive = true

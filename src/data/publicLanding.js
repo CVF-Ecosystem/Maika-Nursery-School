@@ -21,7 +21,41 @@ const PLACEHOLDER_LANDING_DATA = {
         ['—', 'Giáo viên và nhân sự'],
         ['Riêng tư', 'Quyền truy cập theo vai trò'],
     ],
-    programs: [],
+    programs: [
+        {
+            id: 'program-mam',
+            cls: 'Lớp Mầm',
+            age: '3–4 tuổi',
+            icon: '🌱',
+            bg: '#EDE9FE',
+            col: '#6D28D9',
+            delay: 'd1',
+            desc: 'Làm quen môi trường học, phát triển ngôn ngữ và kỹ năng xã hội qua vui chơi.',
+            feats: ['🎨 Vẽ và tô màu sáng tạo', '🎵 Học qua bài hát & vần điệu', '🤝 Kỹ năng sống căn bản'],
+        },
+        {
+            id: 'program-choi',
+            cls: 'Lớp Chồi',
+            age: '4–5 tuổi',
+            icon: '🌿',
+            bg: '#FEF3C7',
+            col: '#D97706',
+            delay: 'd2',
+            desc: 'Phát triển tư duy logic, toán học và vốn từ vựng qua khám phá thế giới.',
+            feats: ['🔢 Làm quen với con số', '📖 Nhận biết chữ cái', '🌍 Khám phá thiên nhiên'],
+        },
+        {
+            id: 'program-la',
+            cls: 'Lớp Lá',
+            age: '5–6 tuổi',
+            icon: '🌳',
+            bg: '#D1FAE5',
+            col: '#059669',
+            delay: 'd3',
+            desc: 'Chuẩn bị toàn diện vào lớp 1 với kỹ năng đọc viết, tính toán và tư duy độc lập.',
+            feats: ['✏️ Tập viết chữ & số', '🧩 Tư duy logic & sáng tạo', '🎤 Tự tin giao tiếp'],
+        },
+    ],
     publicEvents: [],
 }
 
@@ -59,7 +93,10 @@ const FALLBACK_PROGRAMS = [
 ]
 
 function cleanText(value, max = 160) {
-    return String(value || '').trim().replace(/\s+/g, ' ').slice(0, max)
+    return String(value || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .slice(0, max)
 }
 
 function formatAgeGroup(value) {
@@ -161,15 +198,13 @@ export async function submitTourRequest(input) {
 
     if (isSupabaseBackend() && supabase) {
         if (payload.website) return { status: 'received' }
-        const { error } = await supabase
-            .from('tour_requests')
-            .insert({
-                parent_name: payload.parentName,
-                phone: payload.phone,
-                child_age: payload.childAge || null,
-                note: payload.note || null,
-                source: 'landing',
-            })
+        const { error } = await supabase.from('tour_requests').insert({
+            parent_name: payload.parentName,
+            phone: payload.phone,
+            child_age: payload.childAge || null,
+            note: payload.note || null,
+            source: 'landing',
+        })
         if (error) throw new Error(error.message || 'Chưa gửi được đăng ký.')
         return { status: 'new' }
     }
