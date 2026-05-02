@@ -3,9 +3,15 @@ import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents } from '../../features/students/studentService'
-import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident, subscribeIncidents } from '../../features/sensitive/sensitiveService'
+import {
+    acknowledgeIncident,
+    listIncidents as listSupabaseIncidents,
+    saveIncident as saveSupabaseIncident,
+    subscribeIncidents,
+} from '../../features/sensitive/sensitiveService'
 import { getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 import { sendPushForEvent } from '../../features/push/pushService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 
 const SEVERITY_MAP = {
     minor: ['#D97706', '#FFFBEB', 'Nhẹ'],
@@ -22,31 +28,53 @@ const STATUS_MAP = {
 
 function StatusBadge({ status }) {
     const [col, bg, label] = STATUS_MAP[status] || ['#6B6494', '#F5F5F4', status]
-    return <span style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 800, padding: '2px 8px' }}>{label}</span>
+    return (
+        <span
+            style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 800, padding: '2px 8px' }}
+        >
+            {label}
+        </span>
+    )
 }
 
 function SeverityBadge({ severity }) {
     const [col, bg, label] = SEVERITY_MAP[severity] || ['#6B6494', '#F5F5F4', severity]
-    return <span style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '2px 8px' }}>{label}</span>
+    return (
+        <span
+            style={{ background: bg, color: col, borderRadius: 6, fontSize: 11, fontWeight: 700, padding: '2px 8px' }}
+        >
+            {label}
+        </span>
+    )
 }
 
 function IncidentModal({ incident, students, onClose, onSave }) {
     const isNew = !incident?.id
-    const [form, setForm] = useState(incident || {
-        studentId: students[0]?.id || '',
-        occurredAt: new Date().toISOString().slice(0, 16),
-        severity: 'minor',
-        description: '',
-        initialAction: '',
-        status: 'open',
-    })
+    const [form, setForm] = useState(
+        incident || {
+            studentId: students[0]?.id || '',
+            occurredAt: new Date().toISOString().slice(0, 16),
+            severity: 'minor',
+            description: '',
+            initialAction: '',
+            status: 'open',
+        },
+    )
     const [existingPaths, setExistingPaths] = useState(incident?.photo_paths || [])
     const [existingUrls, setExistingUrls] = useState([])
     const [photoFiles, setPhotoFiles] = useState([])
     const [photoPreviews, setPhotoPreviews] = useState([])
     const fileRef = useRef()
 
-    const is = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
+    const is = {
+        width: '100%',
+        padding: '8px 12px',
+        borderRadius: 8,
+        border: '1.5px solid #DDD6FE',
+        fontSize: 13,
+        color: '#1E1B4B',
+        boxSizing: 'border-box',
+    }
     const ls = { fontSize: 12, fontWeight: 700, color: '#6B6494', display: 'block', marginBottom: 4 }
 
     useEffect(() => {
@@ -79,31 +107,76 @@ function IncidentModal({ incident, students, onClose, onSave }) {
 
     return (
         <div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            onClick={e => e.target === e.currentTarget && onClose()}
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.4)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
             role="dialog"
             aria-modal="true"
             aria-label={isNew ? 'Tạo sự cố mới' : 'Chỉnh sửa sự cố'}
         >
-            <div style={{ background: '#fff', borderRadius: 20, width: 'min(560px, calc(100vw - 24px))', maxHeight: '90vh', overflowY: 'auto', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div
+                style={{
+                    position: 'relative',
+                    background: '#fff',
+                    borderRadius: 20,
+                    width: 'min(560px, calc(100vw - 24px))',
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    padding: 28,
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+                }}
+            >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
                     {isNew ? 'Ghi nhận sự cố mới' : 'Cập nhật sự cố'}
                 </div>
                 <div style={{ display: 'grid', gap: 14 }}>
                     <div>
-                        <label style={ls} htmlFor="inc-student">Học sinh *</label>
-                        <select id="inc-student" style={is} value={form.studentId} onChange={e => setForm({ ...form, studentId: e.target.value })}>
-                            {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        <label style={ls} htmlFor="inc-student">
+                            Học sinh *
+                        </label>
+                        <select
+                            id="inc-student"
+                            style={is}
+                            value={form.studentId}
+                            onChange={e => setForm({ ...form, studentId: e.target.value })}
+                        >
+                            {students.map(s => (
+                                <option key={s.id} value={s.id}>
+                                    {s.name}
+                                </option>
+                            ))}
                         </select>
                     </div>
-                    <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div
+                        className="mobile-two-col"
+                        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
+                    >
                         <div>
-                            <label style={ls} htmlFor="inc-time">Thời gian xảy ra *</label>
-                            <input id="inc-time" type="datetime-local" style={is} value={(form.occurredAt || '').slice(0, 16)} onChange={e => setForm({ ...form, occurredAt: e.target.value })} />
+                            <label style={ls} htmlFor="inc-time">
+                                Thời gian xảy ra *
+                            </label>
+                            <input
+                                id="inc-time"
+                                type="datetime-local"
+                                style={is}
+                                value={(form.occurredAt || '').slice(0, 16)}
+                                onChange={e => setForm({ ...form, occurredAt: e.target.value })}
+                            />
                         </div>
                         <div>
                             <label style={ls}>Mức độ</label>
-                            <select style={is} value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value })}>
+                            <select
+                                style={is}
+                                value={form.severity}
+                                onChange={e => setForm({ ...form, severity: e.target.value })}
+                            >
                                 <option value="minor">Nhẹ</option>
                                 <option value="moderate">Vừa</option>
                                 <option value="severe">Nghiêm trọng</option>
@@ -111,7 +184,9 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                         </div>
                     </div>
                     <div>
-                        <label style={ls} htmlFor="inc-desc">Mô tả sự cố *</label>
+                        <label style={ls} htmlFor="inc-desc">
+                            Mô tả sự cố *
+                        </label>
                         <textarea
                             id="inc-desc"
                             style={{ ...is, resize: 'vertical', minHeight: 80 }}
@@ -121,7 +196,9 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                         />
                     </div>
                     <div>
-                        <label style={ls} htmlFor="inc-action">Xử lý ban đầu</label>
+                        <label style={ls} htmlFor="inc-action">
+                            Xử lý ban đầu
+                        </label>
                         <textarea
                             id="inc-action"
                             style={{ ...is, resize: 'vertical', minHeight: 60 }}
@@ -133,7 +210,11 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                     {!isNew && (
                         <div>
                             <label style={ls}>Trạng thái</label>
-                            <select style={is} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                            <select
+                                style={is}
+                                value={form.status}
+                                onChange={e => setForm({ ...form, status: e.target.value })}
+                            >
                                 <option value="draft">Nháp</option>
                                 <option value="open">Đang xử lý</option>
                                 <option value="resolved">Đã giải quyết</option>
@@ -143,33 +224,153 @@ function IncidentModal({ incident, students, onClose, onSave }) {
                     <div>
                         <label style={ls}>📷 Ảnh hiện trường (tối đa 3)</label>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-                            {existingUrls.map((url, i) => url ? (
-                                <div key={`e${i}`} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                                    <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1.5px solid #DDD6FE' }} />
-                                    <button onClick={() => removeExisting(i)} aria-label="Xóa ảnh" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 999, border: 'none', background: '#DC2626', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                                </div>
-                            ) : null)}
+                            {existingUrls.map((url, i) =>
+                                url ? (
+                                    <div
+                                        key={`e${i}`}
+                                        style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt=""
+                                            style={{
+                                                width: 72,
+                                                height: 72,
+                                                objectFit: 'cover',
+                                                borderRadius: 8,
+                                                border: '1.5px solid #DDD6FE',
+                                            }}
+                                        />
+                                        <button
+                                            onClick={() => removeExisting(i)}
+                                            aria-label="Xóa ảnh"
+                                            style={{
+                                                position: 'absolute',
+                                                top: -6,
+                                                right: -6,
+                                                width: 20,
+                                                height: 20,
+                                                borderRadius: 999,
+                                                border: 'none',
+                                                background: '#DC2626',
+                                                color: '#fff',
+                                                fontSize: 11,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ) : null,
+                            )}
                             {photoPreviews.map((url, i) => (
-                                <div key={`n${i}`} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                                    <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1.5px solid #7C3AED' }} />
-                                    <button onClick={() => removeNew(i)} aria-label="Xóa ảnh mới" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 999, border: 'none', background: '#DC2626', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                <div
+                                    key={`n${i}`}
+                                    style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}
+                                >
+                                    <img
+                                        src={url}
+                                        alt=""
+                                        style={{
+                                            width: 72,
+                                            height: 72,
+                                            objectFit: 'cover',
+                                            borderRadius: 8,
+                                            border: '1.5px solid #7C3AED',
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => removeNew(i)}
+                                        aria-label="Xóa ảnh mới"
+                                        style={{
+                                            position: 'absolute',
+                                            top: -6,
+                                            right: -6,
+                                            width: 20,
+                                            height: 20,
+                                            borderRadius: 999,
+                                            border: 'none',
+                                            background: '#DC2626',
+                                            color: '#fff',
+                                            fontSize: 11,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             ))}
                             {totalPhotos < 3 && (
                                 <>
-                                    <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhotoSelect} />
-                                    <button onClick={() => fileRef.current?.click()} aria-label="Chụp ảnh hiện trường" style={{ width: 72, height: 72, borderRadius: 8, border: '1.5px dashed #FCA5A5', background: '#FFF1F2', color: '#DC2626', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
+                                    <input
+                                        ref={fileRef}
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        multiple
+                                        style={{ display: 'none' }}
+                                        onChange={handlePhotoSelect}
+                                    />
+                                    <button
+                                        onClick={() => fileRef.current?.click()}
+                                        aria-label="Chụp ảnh hiện trường"
+                                        style={{
+                                            width: 72,
+                                            height: 72,
+                                            borderRadius: 8,
+                                            border: '1.5px dashed #FCA5A5',
+                                            background: '#FFF1F2',
+                                            color: '#DC2626',
+                                            fontSize: 24,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        +
+                                    </button>
                                 </>
                             )}
                         </div>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
-                    <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', fontSize: 13, fontWeight: 700, color: '#6B6494', cursor: 'pointer' }}>Hủy</button>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            padding: '9px 20px',
+                            borderRadius: 10,
+                            border: '1.5px solid #DDD6FE',
+                            background: '#fff',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: '#6B6494',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Hủy
+                    </button>
                     <button
                         onClick={() => onSave({ ...form, photoFiles, existingPaths })}
                         disabled={!form.description || !form.studentId}
-                        style={{ padding: '9px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#7C3AED,#A78BFA)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                        style={{
+                            padding: '9px 24px',
+                            borderRadius: 10,
+                            border: 'none',
+                            background: 'linear-gradient(90deg,#7C3AED,#A78BFA)',
+                            color: '#fff',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                        }}
                     >
                         {isNew ? 'Ghi nhận' : 'Lưu'}
                     </button>
@@ -205,7 +406,13 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
         setError('')
         try {
             if (supabaseMode) {
-                setIncidents(await listSupabaseIncidents({ studentId: filterStudentId, facilityId: filterStudentId ? undefined : selectedFacilityId || undefined, status: filterStatus }))
+                setIncidents(
+                    await listSupabaseIncidents({
+                        studentId: filterStudentId,
+                        facilityId: filterStudentId ? undefined : selectedFacilityId || undefined,
+                        status: filterStatus,
+                    }),
+                )
             } else {
                 const params = new URLSearchParams()
                 if (filterStudentId) params.set('studentId', filterStudentId)
@@ -220,18 +427,30 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
         }
     }
 
-    useEffect(() => { load() }, [filterStatus, filterStudentId, selectedFacilityId])
+    useEffect(() => {
+        load()
+    }, [filterStatus, filterStudentId, selectedFacilityId])
 
     useEffect(() => {
         if (!supabaseMode) return
         return subscribeIncidents({
             facilityId: filterStudentId ? undefined : selectedFacilityId || undefined,
             onChange: ({ eventType, record, oldRecord }) => {
-                if (filterStudentId && record?.student_id !== filterStudentId && oldRecord?.student_id !== filterStudentId) return
+                if (
+                    filterStudentId &&
+                    record?.student_id !== filterStudentId &&
+                    oldRecord?.student_id !== filterStudentId
+                )
+                    return
                 if (eventType === 'DELETE') {
-                    const id = oldRecord?.id; if (id) setIncidents(prev => prev.filter(i => i.id !== id))
+                    const id = oldRecord?.id
+                    if (id) setIncidents(prev => prev.filter(i => i.id !== id))
                 } else if (record) {
-                    setIncidents(prev => prev.some(i => i.id === record.id) ? prev.map(i => i.id === record.id ? record : i) : [record, ...prev])
+                    setIncidents(prev =>
+                        prev.some(i => i.id === record.id)
+                            ? prev.map(i => (i.id === record.id ? record : i))
+                            : [record, ...prev],
+                    )
                 }
             },
         })
@@ -255,7 +474,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
             photo_paths: existingPaths || [],
         }
         if (editingIncident) {
-            setIncidents(prev => prev.map(inc => inc.id === editingIncident.id ? { ...inc, ...optimistic } : inc))
+            setIncidents(prev => prev.map(inc => (inc.id === editingIncident.id ? { ...inc, ...optimistic } : inc)))
         } else {
             setIncidents(prev => [optimistic, ...prev])
         }
@@ -268,11 +487,18 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                 if (photoFiles?.length) {
                     const facilityId = editingIncident?.facility_id || selectedFacilityId || undefined
                     newPaths = await Promise.all(
-                        photoFiles.map(f => uploadReportPhoto({ file: f, facilityId, studentId: incidentData.studentId }))
+                        photoFiles.map(f =>
+                            uploadReportPhoto({ file: f, facilityId, studentId: incidentData.studentId }),
+                        ),
                     )
                 }
                 const photoPaths = [...(existingPaths || []), ...newPaths]
-                const saved = await saveSupabaseIncident({ ...incidentData, id: editingIncident?.id, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined, photoPaths })
+                const saved = await saveSupabaseIncident({
+                    ...incidentData,
+                    id: editingIncident?.id,
+                    occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined,
+                    photoPaths,
+                })
                 if (!editingIncident) {
                     const studentName = students.find(s => s.id === incidentData.studentId)?.name || 'Học sinh'
                     sendPushForEvent({
@@ -286,13 +512,21 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
             } else if (editingIncident) {
                 await apiRequest(`/api/incidents/${editingIncident.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify({ ...incidentData, occurredAt: incidentData.occurredAt ? new Date(incidentData.occurredAt).toISOString() : undefined }),
+                    body: JSON.stringify({
+                        ...incidentData,
+                        occurredAt: incidentData.occurredAt
+                            ? new Date(incidentData.occurredAt).toISOString()
+                            : undefined,
+                    }),
                 })
                 setMessage('Đã cập nhật sự cố.')
             } else {
                 await apiRequest('/api/incidents', {
                     method: 'POST',
-                    body: JSON.stringify({ ...incidentData, occurredAt: new Date(incidentData.occurredAt).toISOString() }),
+                    body: JSON.stringify({
+                        ...incidentData,
+                        occurredAt: new Date(incidentData.occurredAt).toISOString(),
+                    }),
                 })
                 setMessage('Đã ghi nhận sự cố.')
             }
@@ -306,9 +540,13 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
 
     async function acknowledge(id) {
         const prevIncidents = incidents
-        setIncidents(prev => prev.map(inc => inc.id === id
-            ? { ...inc, status: 'parent_acknowledged', parent_acknowledged_at: new Date().toISOString() }
-            : inc))
+        setIncidents(prev =>
+            prev.map(inc =>
+                inc.id === id
+                    ? { ...inc, status: 'parent_acknowledged', parent_acknowledged_at: new Date().toISOString() }
+                    : inc,
+            ),
+        )
         try {
             if (supabaseMode) {
                 await acknowledgeIncident(id)
@@ -330,16 +568,34 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
     if (!hasBackendAPI() && !supabaseMode) {
         return (
             <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
-                <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 2px 16px rgba(109,40,217,0.08)' }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>Báo cáo sự cố</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>Báo cáo sự cố đang được chuẩn bị để ghi nhận và theo dõi trực tuyến.</div>
+                <div
+                    style={{
+                        background: '#fff',
+                        borderRadius: 16,
+                        padding: 28,
+                        boxShadow: '0 2px 16px rgba(109,40,217,0.08)',
+                    }}
+                >
+                    <div style={{ fontWeight: 800, fontSize: 18, color: '#1E1B4B', marginBottom: 8 }}>
+                        Báo cáo sự cố
+                    </div>
+                    <div style={{ color: '#7C6D9B', fontSize: 14 }}>
+                        Báo cáo sự cố đang được chuẩn bị để ghi nhận và theo dõi trực tuyến.
+                    </div>
                 </div>
             </div>
         )
     }
 
     const filtered = filterStatus === 'all' ? incidents : incidents.filter(i => i.status === filterStatus)
-    const sel = { padding: '9px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff' }
+    const sel = {
+        padding: '9px 14px',
+        borderRadius: 10,
+        border: '1.5px solid #DDD6FE',
+        fontSize: 13,
+        color: '#1E1B4B',
+        background: '#fff',
+    }
 
     return (
         <div className={readOnly ? '' : 'admin-page-pad'} style={{ padding: readOnly ? 0 : '28px 36px' }}>
@@ -347,16 +603,41 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                 <IncidentModal
                     incident={selected}
                     students={students}
-                    onClose={() => { setModal(null); setSelected(null) }}
+                    onClose={() => {
+                        setModal(null)
+                        setSelected(null)
+                    }}
                     onSave={handleSave}
                 />
             )}
 
             {!readOnly && (
-                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                <div
+                    className="mobile-stack"
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        marginBottom: 20,
+                        gap: 12,
+                    }}
+                >
                     <button
-                        onClick={() => { setSelected(null); setModal('form') }}
-                        style={{ padding: '10px 22px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}
+                        onClick={() => {
+                            setSelected(null)
+                            setModal('form')
+                        }}
+                        style={{
+                            padding: '10px 22px',
+                            borderRadius: 12,
+                            border: 'none',
+                            background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 14px rgba(109,40,217,0.35)',
+                        }}
                         aria-label="Ghi nhận sự cố mới"
                     >
                         + Ghi nhận sự cố
@@ -365,21 +646,69 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
             )}
 
             {readOnly && (
-                <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 16 }}>Sự cố ({incidents.length})</div>
+                <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 16 }}>
+                    Sự cố ({incidents.length})
+                </div>
             )}
 
-            {message && <div style={{ color: '#059669', background: '#ECFDF5', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{message}</div>}
-            {error && <div style={{ color: '#DC2626', background: '#FEF2F2', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontWeight: 700, marginBottom: 16 }}>{error}</div>}
+            {message && (
+                <div
+                    style={{
+                        color: '#059669',
+                        background: '#ECFDF5',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        marginBottom: 16,
+                    }}
+                >
+                    {message}
+                </div>
+            )}
+            {error && (
+                <div
+                    style={{
+                        color: '#DC2626',
+                        background: '#FEF2F2',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        marginBottom: 16,
+                    }}
+                >
+                    {error}
+                </div>
+            )}
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                 {['all', 'draft', 'open', 'resolved', 'parent_acknowledged'].map(s => (
-                    <button key={s} onClick={() => setFilterStatus(s)} style={{ ...sel, fontWeight: filterStatus === s ? 800 : 600, borderColor: filterStatus === s ? '#7C3AED' : '#DDD6FE', color: filterStatus === s ? '#7C3AED' : '#6B6494', background: filterStatus === s ? '#F5F3FF' : '#fff' }}>
-                        {s === 'all' ? 'Tất cả' : (STATUS_MAP[s]?.[2] || s)}
+                    <button
+                        key={s}
+                        onClick={() => setFilterStatus(s)}
+                        style={{
+                            ...sel,
+                            fontWeight: filterStatus === s ? 800 : 600,
+                            borderColor: filterStatus === s ? '#7C3AED' : '#DDD6FE',
+                            color: filterStatus === s ? '#7C3AED' : '#6B6494',
+                            background: filterStatus === s ? '#F5F3FF' : '#fff',
+                        }}
+                    >
+                        {s === 'all' ? 'Tất cả' : STATUS_MAP[s]?.[2] || s}
                     </button>
                 ))}
             </div>
 
-            <div className="mobile-scroll-table" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 16px rgba(109,40,217,0.08)', overflow: 'hidden' }}>
+            <div
+                className="mobile-scroll-table"
+                style={{
+                    background: '#fff',
+                    borderRadius: 16,
+                    boxShadow: '0 2px 16px rgba(109,40,217,0.08)',
+                    overflow: 'hidden',
+                }}
+            >
                 {loading ? (
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <tbody>
@@ -400,34 +729,100 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                         <div style={{ fontWeight: 700 }}>Không có sự cố nào</div>
                     </div>
                 ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }} role="table" aria-label="Danh sách sự cố">
+                    <table
+                        style={{ width: '100%', borderCollapse: 'collapse' }}
+                        role="table"
+                        aria-label="Danh sách sự cố"
+                    >
                         <thead>
                             <tr style={{ background: '#F8F7FF' }}>
                                 {['Học sinh', 'Thời gian', 'Mức độ', 'Mô tả', 'Trạng thái', ''].map(h => (
-                                    <th key={h} scope="col" style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>
+                                    <th
+                                        key={h}
+                                        scope="col"
+                                        style={{
+                                            padding: '12px 16px',
+                                            textAlign: 'left',
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                            color: '#7C6D9B',
+                                            borderBottom: '1.5px solid #DDD6FE',
+                                        }}
+                                    >
+                                        {h}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.map(inc => (
                                 <tr key={inc.id} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                                    <td style={{ padding: '12px 16px', fontWeight: 700, fontSize: 13, color: '#1E1B4B' }}>{getStudentName(inc.student_id)}</td>
+                                    <td
+                                        style={{
+                                            padding: '12px 16px',
+                                            fontWeight: 700,
+                                            fontSize: 13,
+                                            color: '#1E1B4B',
+                                        }}
+                                    >
+                                        {getStudentName(inc.student_id)}
+                                    </td>
                                     <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B6494' }}>
-                                        {new Date(inc.occurred_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
+                                        {new Date(inc.occurred_at).toLocaleString('vi-VN', {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short',
+                                        })}
                                     </td>
-                                    <td style={{ padding: '12px 16px' }}><SeverityBadge severity={inc.severity} /></td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <SeverityBadge severity={inc.severity} />
+                                    </td>
                                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#4B4899', maxWidth: 260 }}>
-                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inc.description}</div>
-                                        {inc.initial_action && <div style={{ fontSize: 11, color: '#9B93C9', marginTop: 2 }}>Xử lý: {inc.initial_action}</div>}
-                                        {inc.photo_paths?.length > 0 && <div style={{ fontSize: 11, color: '#7C3AED', marginTop: 2 }}>📷 {inc.photo_paths.length} ảnh</div>}
+                                        <div
+                                            style={{
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {inc.description}
+                                        </div>
+                                        {inc.initial_action && (
+                                            <div style={{ fontSize: 11, color: '#9B93C9', marginTop: 2 }}>
+                                                Xử lý: {inc.initial_action}
+                                            </div>
+                                        )}
+                                        {inc.photo_paths?.length > 0 && (
+                                            <div style={{ fontSize: 11, color: '#7C3AED', marginTop: 2 }}>
+                                                📷 {inc.photo_paths.length} ảnh
+                                            </div>
+                                        )}
                                     </td>
-                                    <td style={{ padding: '12px 16px' }}><StatusBadge status={inc.status} /></td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <StatusBadge status={inc.status} />
+                                    </td>
                                     <td style={{ padding: '12px 16px' }}>
                                         <div style={{ display: 'flex', gap: 6 }}>
                                             {!readOnly && (
                                                 <button
-                                                    onClick={() => { setSelected({ ...inc, studentId: inc.student_id, occurredAt: inc.occurred_at, initialAction: inc.initial_action }); setModal('form') }}
-                                                    style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#fff', color: '#7C3AED', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        setSelected({
+                                                            ...inc,
+                                                            studentId: inc.student_id,
+                                                            occurredAt: inc.occurred_at,
+                                                            initialAction: inc.initial_action,
+                                                        })
+                                                        setModal('form')
+                                                    }}
+                                                    style={{
+                                                        padding: '5px 12px',
+                                                        borderRadius: 8,
+                                                        border: '1.5px solid #7C3AED',
+                                                        background: '#fff',
+                                                        color: '#7C3AED',
+                                                        fontWeight: 700,
+                                                        fontSize: 12,
+                                                        cursor: 'pointer',
+                                                    }}
                                                     aria-label={`Sửa sự cố ${inc.id}`}
                                                 >
                                                     Sửa
@@ -436,14 +831,25 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                                             {readOnly && inc.status === 'resolved' && !inc.parent_acknowledged_at && (
                                                 <button
                                                     onClick={() => acknowledge(inc.id)}
-                                                    style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px solid #16A34A', background: '#fff', color: '#16A34A', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                                                    style={{
+                                                        padding: '5px 12px',
+                                                        borderRadius: 8,
+                                                        border: '1.5px solid #16A34A',
+                                                        background: '#fff',
+                                                        color: '#16A34A',
+                                                        fontWeight: 700,
+                                                        fontSize: 12,
+                                                        cursor: 'pointer',
+                                                    }}
                                                     aria-label="Xác nhận đã đọc"
                                                 >
                                                     ✓ Đã đọc
                                                 </button>
                                             )}
                                             {inc.parent_acknowledged_at && (
-                                                <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>✓ PH đã đọc</span>
+                                                <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>
+                                                    ✓ PH đã đọc
+                                                </span>
                                             )}
                                         </div>
                                     </td>

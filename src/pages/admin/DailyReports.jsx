@@ -13,6 +13,7 @@ import { listAttendanceByFacilityDate } from '../../features/attendance/attendan
 import { listIncidents } from '../../features/sensitive/sensitiveService'
 import { compressImage, getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 import { createNotification } from '../../features/operations/operationalService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 import {
     cacheTeacherData,
     enqueueOfflineAction,
@@ -262,10 +263,10 @@ function BatchModal({ selectedCount, onClose, onApply }) {
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 18,
                     width: 'min(460px, calc(100vw - 24px))',
@@ -273,6 +274,7 @@ function BatchModal({ selectedCount, onClose, onApply }) {
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 900, fontSize: 16, color: '#1E1B4B' }}>
                     Áp dụng cho {selectedCount} học sinh
                 </div>
@@ -378,10 +380,10 @@ function EndOfDayModal({ summary, sending, sent, onClose, onSend }) {
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 18,
                     width: 'min(440px, calc(100vw - 24px))',
@@ -389,6 +391,7 @@ function EndOfDayModal({ summary, sending, sent, onClose, onSend }) {
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 900, fontSize: 16, color: '#1E1B4B' }}>Tổng kết cuối ngày</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '16px 0' }}>
                     <ReportChip icon="✅" label="Đã ghi" value={`${summary.completed}/${summary.total}`} />
@@ -509,10 +512,10 @@ function EditModal({ student, report, onClose, onSave, showPhotos = false, draft
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 20,
                     width: 'min(480px, calc(100vw - 24px))',
@@ -522,6 +525,7 @@ function EditModal({ student, report, onClose, onSave, showPhotos = false, draft
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 4 }}>
                     Nhật ký: {student?.name}
                 </div>

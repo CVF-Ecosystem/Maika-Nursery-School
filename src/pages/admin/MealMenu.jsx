@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listMealMenus, upsertMealMenu } from '../../features/operations/operationalService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -51,9 +52,7 @@ export default function MealMenu({ readOnly = false }) {
         const request = supabaseMode
             ? listMealMenus({ weekStart, published: readOnly })
             : apiFetch(`/api/meal-menus?weekStart=${weekStart}`)
-        request
-            .then(setMenus)
-            .catch(() => setErr('Lỗi tải dữ liệu'))
+        request.then(setMenus).catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
     useEffect(reload, [weekStart, supabaseMode, readOnly])
@@ -95,7 +94,9 @@ export default function MealMenu({ readOnly = false }) {
             }
             setEditCell(null)
             reload()
-        } catch (ex) { setErr(ex.message) }
+        } catch (ex) {
+            setErr(ex.message)
+        }
         setSaving(false)
     }
 
@@ -124,10 +125,21 @@ export default function MealMenu({ readOnly = false }) {
         <div>
             {/* Week navigation */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-                <button onClick={() => setWeekStart(w => offsetWeek(w, -1))} style={navBtn}>← Tuần trước</button>
-                <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B', flex: 1, textAlign: 'center' }}>📅 Tuần {weekLabel}</div>
-                <button onClick={() => setWeekStart(w => offsetWeek(w, 1))} style={navBtn}>Tuần sau →</button>
-                <button onClick={() => setWeekStart(getMondayOf(new Date()))} style={{ ...navBtn, background: '#EDE9FE', color: '#6D28D9' }}>Hôm nay</button>
+                <button onClick={() => setWeekStart(w => offsetWeek(w, -1))} style={navBtn}>
+                    ← Tuần trước
+                </button>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B', flex: 1, textAlign: 'center' }}>
+                    📅 Tuần {weekLabel}
+                </div>
+                <button onClick={() => setWeekStart(w => offsetWeek(w, 1))} style={navBtn}>
+                    Tuần sau →
+                </button>
+                <button
+                    onClick={() => setWeekStart(getMondayOf(new Date()))}
+                    style={{ ...navBtn, background: '#EDE9FE', color: '#6D28D9' }}
+                >
+                    Hôm nay
+                </button>
             </div>
 
             {err && <div style={{ color: '#DC2626', fontSize: 13, marginBottom: 12 }}>{err}</div>}
@@ -139,30 +151,84 @@ export default function MealMenu({ readOnly = false }) {
                         <tr style={{ background: '#F5F3FF' }}>
                             <th style={th}>Bữa ăn</th>
                             {DAYS.slice(0, 5).map((d, i) => (
-                                <th key={i} style={th}>{d}</th>
+                                <th key={i} style={th}>
+                                    {d}
+                                </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {MEAL_TYPES.map(mt => (
                             <tr key={mt.value} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                                <td style={{ ...td, fontWeight: 700, background: '#FAFAFA', color: '#5B5490', whiteSpace: 'nowrap' }}>{mt.label}</td>
+                                <td
+                                    style={{
+                                        ...td,
+                                        fontWeight: 700,
+                                        background: '#FAFAFA',
+                                        color: '#5B5490',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    {mt.label}
+                                </td>
                                 {[1, 2, 3, 4, 5].map(day => {
                                     const menu = getMenu(day, mt.value)
                                     const isEditing = editCell?.dayOfWeek === day && editCell?.mealType === mt.value
                                     return (
-                                        <td key={day} onClick={() => openEdit(day, mt.value)}
-                                            style={{ ...td, cursor: readOnly ? 'default' : 'pointer', background: isEditing ? '#F5F3FF' : (menu?.is_published ? '#ECFDF5' : '#fff'), verticalAlign: 'top', minWidth: 120 }}>
+                                        <td
+                                            key={day}
+                                            onClick={() => openEdit(day, mt.value)}
+                                            style={{
+                                                ...td,
+                                                cursor: readOnly ? 'default' : 'pointer',
+                                                background: isEditing
+                                                    ? '#F5F3FF'
+                                                    : menu?.is_published
+                                                      ? '#ECFDF5'
+                                                      : '#fff',
+                                                verticalAlign: 'top',
+                                                minWidth: 120,
+                                            }}
+                                        >
                                             {menu?.dishes?.length > 0 ? (
                                                 <div>
-                                                    {menu.is_published && <span style={{ fontSize: 10, fontWeight: 700, color: '#059669', marginBottom: 4, display: 'block' }}>✓ Đã đăng</span>}
+                                                    {menu.is_published && (
+                                                        <span
+                                                            style={{
+                                                                fontSize: 10,
+                                                                fontWeight: 700,
+                                                                color: '#059669',
+                                                                marginBottom: 4,
+                                                                display: 'block',
+                                                            }}
+                                                        >
+                                                            ✓ Đã đăng
+                                                        </span>
+                                                    )}
                                                     <ul style={{ margin: 0, padding: '0 0 0 16px', color: '#1E1B4B' }}>
-                                                        {menu.dishes.map((d, i) => <li key={i}>{d}</li>)}
+                                                        {menu.dishes.map((d, i) => (
+                                                            <li key={i}>{d}</li>
+                                                        ))}
                                                     </ul>
-                                                    {menu.allergen_notes && <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>⚠ {menu.allergen_notes}</div>}
+                                                    {menu.allergen_notes && (
+                                                        <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>
+                                                            ⚠ {menu.allergen_notes}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
-                                                !readOnly && <div style={{ color: '#DDD6FE', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>+ Thêm</div>
+                                                !readOnly && (
+                                                    <div
+                                                        style={{
+                                                            color: '#DDD6FE',
+                                                            fontSize: 12,
+                                                            textAlign: 'center',
+                                                            padding: '8px 0',
+                                                        }}
+                                                    >
+                                                        + Thêm
+                                                    </div>
+                                                )
                                             )}
                                         </td>
                                     )
@@ -175,25 +241,79 @@ export default function MealMenu({ readOnly = false }) {
 
             {/* Edit panel */}
             {editCell && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(30,27,75,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000 }}>
-                    <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 500, padding: '24px 24px 32px', maxHeight: '85vh', overflowY: 'auto' }}>
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(30,27,75,0.45)',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                >
+                    <div
+                        style={{
+                            position: 'relative',
+                            background: '#fff',
+                            borderRadius: '20px 20px 0 0',
+                            width: '100%',
+                            maxWidth: 500,
+                            padding: '24px 24px 32px',
+                            maxHeight: '85vh',
+                            overflowY: 'auto',
+                        }}
+                    >
+                        <ModalCloseButton onClick={() => setEditCell(null)} />
                         <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 16 }}>
-                            {MEAL_TYPES.find(m => m.value === editCell.mealType)?.label} — {DAYS[editCell.dayOfWeek - 1]}
+                            {MEAL_TYPES.find(m => m.value === editCell.mealType)?.label} —{' '}
+                            {DAYS[editCell.dayOfWeek - 1]}
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
                             <label style={lbl}>Món ăn</label>
                             <div style={{ display: 'flex', gap: 8 }}>
-                                <input value={editForm.dishInput || ''} onChange={e => setEditForm(f => ({ ...f, dishInput: e.target.value }))}
+                                <input
+                                    value={editForm.dishInput || ''}
+                                    onChange={e => setEditForm(f => ({ ...f, dishInput: e.target.value }))}
                                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addDish())}
-                                    placeholder="Nhập tên món rồi Enter..." style={{ ...inp, flex: 1 }} />
-                                <button onClick={addDish} style={smallBtn}>+ Thêm</button>
+                                    placeholder="Nhập tên món rồi Enter..."
+                                    style={{ ...inp, flex: 1 }}
+                                />
+                                <button onClick={addDish} style={smallBtn}>
+                                    + Thêm
+                                </button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                                 {editForm.dishes.map((d, i) => (
-                                    <span key={i} style={{ background: '#EDE9FE', color: '#6D28D9', borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <span
+                                        key={i}
+                                        style={{
+                                            background: '#EDE9FE',
+                                            color: '#6D28D9',
+                                            borderRadius: 20,
+                                            padding: '4px 10px',
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                        }}
+                                    >
                                         {d}
-                                        <button onClick={() => removeDish(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9333EA', fontWeight: 900, lineHeight: 1 }}>×</button>
+                                        <button
+                                            onClick={() => removeDish(i)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                color: '#9333EA',
+                                                fontWeight: 900,
+                                                lineHeight: 1,
+                                            }}
+                                        >
+                                            ×
+                                        </button>
                                     </span>
                                 ))}
                             </div>
@@ -201,24 +321,75 @@ export default function MealMenu({ readOnly = false }) {
 
                         <div style={{ marginBottom: 12 }}>
                             <label style={lbl}>Thành phần chính</label>
-                            <input value={editForm.ingredients} onChange={e => setEditForm(f => ({ ...f, ingredients: e.target.value }))} placeholder="Gà, rau, tinh bột..." style={inp} />
+                            <input
+                                value={editForm.ingredients}
+                                onChange={e => setEditForm(f => ({ ...f, ingredients: e.target.value }))}
+                                placeholder="Gà, rau, tinh bột..."
+                                style={inp}
+                            />
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
                             <label style={lbl}>Cảnh báo dị ứng</label>
-                            <input value={editForm.allergenNotes} onChange={e => setEditForm(f => ({ ...f, allergenNotes: e.target.value }))} placeholder="Có tôm, lạc, sữa..." style={inp} />
+                            <input
+                                value={editForm.allergenNotes}
+                                onChange={e => setEditForm(f => ({ ...f, allergenNotes: e.target.value }))}
+                                placeholder="Có tôm, lạc, sữa..."
+                                style={inp}
+                            />
                         </div>
 
-                        <label style={{ fontSize: 13, color: '#059669', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, fontWeight: 700 }}>
-                            <input type="checkbox" checked={editForm.isPublished} onChange={e => setEditForm(f => ({ ...f, isPublished: e.target.checked }))} />
+                        <label
+                            style={{
+                                fontSize: 13,
+                                color: '#059669',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                marginBottom: 18,
+                                fontWeight: 700,
+                            }}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={editForm.isPublished}
+                                onChange={e => setEditForm(f => ({ ...f, isPublished: e.target.checked }))}
+                            />
                             Đăng thực đơn (phụ huynh xem được)
                         </label>
 
                         {err && <div style={{ color: '#DC2626', fontSize: 13, marginBottom: 10 }}>{err}</div>}
 
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button onClick={() => setEditCell(null)} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1.5px solid #DDD6FE', background: '#fff', color: '#6D28D9', fontWeight: 700, cursor: 'pointer' }}>Hủy</button>
-                            <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: 12, borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, cursor: saving ? 'wait' : 'pointer' }}>
+                            <button
+                                onClick={() => setEditCell(null)}
+                                style={{
+                                    flex: 1,
+                                    padding: 12,
+                                    borderRadius: 12,
+                                    border: '1.5px solid #DDD6FE',
+                                    background: '#fff',
+                                    color: '#6D28D9',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                style={{
+                                    flex: 2,
+                                    padding: 12,
+                                    borderRadius: 12,
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                                    color: '#fff',
+                                    fontWeight: 800,
+                                    cursor: saving ? 'wait' : 'pointer',
+                                }}
+                            >
                                 {saving ? 'Đang lưu...' : '💾 Lưu'}
                             </button>
                         </div>
@@ -232,6 +403,31 @@ export default function MealMenu({ readOnly = false }) {
 const th = { padding: '12px 10px', textAlign: 'left', fontWeight: 700, color: '#5B5490', fontSize: 12 }
 const td = { padding: '10px', border: '1px solid #EDE9FE' }
 const lbl = { fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }
-const inp = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }
-const smallBtn = { padding: '10px 14px', borderRadius: 8, border: 'none', background: '#EDE9FE', color: '#6D28D9', fontWeight: 700, cursor: 'pointer' }
-const navBtn = { padding: '8px 16px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#5B5490', fontWeight: 700, cursor: 'pointer', fontSize: 13 }
+const inp = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1.5px solid #DDD6FE',
+    fontSize: 13,
+    color: '#1E1B4B',
+    boxSizing: 'border-box',
+}
+const smallBtn = {
+    padding: '10px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#EDE9FE',
+    color: '#6D28D9',
+    fontWeight: 700,
+    cursor: 'pointer',
+}
+const navBtn = {
+    padding: '8px 16px',
+    borderRadius: 10,
+    border: '1.5px solid #DDD6FE',
+    background: '#fff',
+    color: '#5B5490',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: 13,
+}

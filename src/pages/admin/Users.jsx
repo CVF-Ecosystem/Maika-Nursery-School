@@ -4,6 +4,7 @@ import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
 import { getCurrentProfile } from '../../features/auth/authService'
 import { listFacilities } from '../../features/facilities/facilityService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 import {
     createProfileAccount,
     deleteProfileAccount,
@@ -100,10 +101,10 @@ function UserModal({ user, students, onClose, onSave }) {
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 20,
                     width: 'min(520px, calc(100vw - 24px))',
@@ -113,6 +114,7 @@ function UserModal({ user, students, onClose, onSave }) {
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 18 }}>
                     {user ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}
                 </div>
@@ -596,10 +598,10 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     width: 'min(540px, calc(100vw - 24px))',
                     background: '#fff',
                     borderRadius: 18,
@@ -608,6 +610,7 @@ function SupabaseUserModal({ profile, facilities, students, link, defaultFacilit
                     overflowY: 'auto',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 900, color: '#1E1B4B', marginBottom: 16 }}>
                     {isNew ? 'Tạo tài khoản' : 'Cập nhật tài khoản'}
                 </div>

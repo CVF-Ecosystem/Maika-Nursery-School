@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TYPE_MAP } from './invoiceTypes'
+import ModalCloseButton from '../../../components/ModalCloseButton'
 
 export default function InvoiceModal({ invoice, students, onClose, onSave }) {
     const isNew = !invoice?.id
@@ -51,13 +52,13 @@ export default function InvoiceModal({ invoice, students, onClose, onSave }) {
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
             role="dialog"
             aria-modal="true"
             aria-label={isNew ? 'Tạo hóa đơn mới' : 'Chỉnh sửa hóa đơn'}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 20,
                     width: 'min(520px, calc(100vw - 24px))',
@@ -67,6 +68,7 @@ export default function InvoiceModal({ invoice, students, onClose, onSave }) {
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
                     {isNew ? 'Tạo hóa đơn mới' : 'Cập nhật hóa đơn'}
                 </div>

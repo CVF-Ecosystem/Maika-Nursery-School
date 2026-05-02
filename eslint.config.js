@@ -50,6 +50,7 @@ export default [
         rules: {
             // React rules
             'react/jsx-uses-react': 'off',
+            'react/jsx-uses-vars': 'warn',
             'react/react-in-jsx-scope': 'off',
             'react/prop-types': 'off',
             'react/display-name': 'off',

@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
-import { createNotification, listNotifications, subscribeNotifications, updateNotification } from '../../features/operations/operationalService'
+import {
+    createNotification,
+    listNotifications,
+    subscribeNotifications,
+    updateNotification,
+} from '../../features/operations/operationalService'
 import { sendPushForEvent } from '../../features/push/pushService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -50,14 +56,25 @@ const STATUS_BADGE = {
     cancelled: { label: 'Đã hủy', bg: '#F9FAFB', color: '#9CA3AF' },
 }
 
-const EMPTY_FORM = { title: '', body: '', type: 'general', priority: 'normal', targetRole: '', channel: 'app', scheduledAt: '', status: 'draft' }
+const EMPTY_FORM = {
+    title: '',
+    body: '',
+    type: 'general',
+    priority: 'normal',
+    targetRole: '',
+    channel: 'app',
+    scheduledAt: '',
+    status: 'draft',
+}
 
 function NoBackend() {
     return (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Thông báo đang được chuẩn bị</div>
-            <div style={{ fontSize: 13 }}>Nhà trường sẽ có thể tạo và gửi thông báo tại đây khi chức năng được bật.</div>
+            <div style={{ fontSize: 13 }}>
+                Nhà trường sẽ có thể tạo và gửi thông báo tại đây khi chức năng được bật.
+            </div>
         </div>
     )
 }
@@ -76,9 +93,7 @@ export default function Notifications({ readOnly = false }) {
         const request = supabaseMode
             ? listNotifications({ status: filterStatus })
             : apiFetch(`/api/notifications${filterStatus ? `?status=${filterStatus}` : ''}`)
-        request
-            .then(d => setItems(Array.isArray(d) ? d : d.data || []))
-            .catch(() => setErr('Lỗi tải dữ liệu'))
+        request.then(d => setItems(Array.isArray(d) ? d : d.data || [])).catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
     useEffect(reload, [filterStatus, supabaseMode])
@@ -88,9 +103,14 @@ export default function Notifications({ readOnly = false }) {
         return subscribeNotifications({
             onChange: ({ eventType, record, oldRecord }) => {
                 if (eventType === 'DELETE') {
-                    const id = oldRecord?.id; if (id) setItems(prev => prev.filter(i => i.id !== id))
+                    const id = oldRecord?.id
+                    if (id) setItems(prev => prev.filter(i => i.id !== id))
                 } else if (record) {
-                    setItems(prev => prev.some(i => i.id === record.id) ? prev.map(i => i.id === record.id ? record : i) : [record, ...prev])
+                    setItems(prev =>
+                        prev.some(i => i.id === record.id)
+                            ? prev.map(i => (i.id === record.id ? record : i))
+                            : [record, ...prev],
+                    )
                 }
             },
         })
@@ -127,9 +147,23 @@ export default function Notifications({ readOnly = false }) {
         const isEdit = !!editing
         const prevItems = items
         if (isEdit) {
-            setItems(prev => prev.map(item => item.id === editing.id
-                ? { ...item, title: form.title, body: form.body, type: form.type, priority: form.priority, target_role: form.targetRole, channel: form.channel, scheduled_at: form.scheduledAt, status: form.status }
-                : item))
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === editing.id
+                        ? {
+                              ...item,
+                              title: form.title,
+                              body: form.body,
+                              type: form.type,
+                              priority: form.priority,
+                              target_role: form.targetRole,
+                              channel: form.channel,
+                              scheduled_at: form.scheduledAt,
+                              status: form.status,
+                          }
+                        : item,
+                ),
+            )
         }
         try {
             if (isEdit) {
@@ -158,7 +192,9 @@ export default function Notifications({ readOnly = false }) {
         if (!confirm(`Gửi thông báo "${item.title}" ngay bây giờ?`)) return
         setSaving(true)
         const prevItems = items
-        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'sent', sent_at: new Date().toISOString() } : i))
+        setItems(prev =>
+            prev.map(i => (i.id === item.id ? { ...i, status: 'sent', sent_at: new Date().toISOString() } : i)),
+        )
         try {
             if (supabaseMode) {
                 await updateNotification(item.id, { status: 'sent' })
@@ -169,7 +205,10 @@ export default function Notifications({ readOnly = false }) {
                     url: '/parent',
                 }).catch(() => {})
             } else {
-                await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'sent' }) })
+                await apiFetch(`/api/notifications/${item.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'sent' }),
+                })
             }
         } catch (ex) {
             setItems(prevItems)
@@ -181,12 +220,15 @@ export default function Notifications({ readOnly = false }) {
     async function handleCancel(item) {
         if (!confirm('Hủy thông báo này?')) return
         const prevItems = items
-        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'cancelled' } : i))
+        setItems(prev => prev.map(i => (i.id === item.id ? { ...i, status: 'cancelled' } : i)))
         try {
             if (supabaseMode) {
                 await updateNotification(item.id, { status: 'cancelled' })
             } else {
-                await apiFetch(`/api/notifications/${item.id}`, { method: 'PUT', body: JSON.stringify({ status: 'cancelled' }) })
+                await apiFetch(`/api/notifications/${item.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'cancelled' }),
+                })
             }
         } catch (ex) {
             setItems(prevItems)
@@ -201,15 +243,49 @@ export default function Notifications({ readOnly = false }) {
     return (
         <div>
             {!readOnly && (
-                <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12 }}>
+                <div
+                    className="mobile-stack"
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 20,
+                        gap: 12,
+                    }}
+                >
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {['', 'draft', 'sent', 'scheduled', 'failed'].map(s => (
-                            <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${filterStatus === s ? '#6D28D9' : '#DDD6FE'}`, background: filterStatus === s ? '#6D28D9' : '#fff', color: filterStatus === s ? '#fff' : '#7C6D9B', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                                {s ? (STATUS_BADGE[s]?.label || s) : 'Tất cả'}
+                            <button
+                                key={s}
+                                onClick={() => setFilterStatus(s)}
+                                style={{
+                                    padding: '6px 14px',
+                                    borderRadius: 20,
+                                    border: `1.5px solid ${filterStatus === s ? '#6D28D9' : '#DDD6FE'}`,
+                                    background: filterStatus === s ? '#6D28D9' : '#fff',
+                                    color: filterStatus === s ? '#fff' : '#7C6D9B',
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {s ? STATUS_BADGE[s]?.label || s : 'Tất cả'}
                             </button>
                         ))}
                     </div>
-                    <button onClick={openCreate} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                    <button
+                        onClick={openCreate}
+                        style={{
+                            padding: '10px 20px',
+                            borderRadius: 12,
+                            border: 'none',
+                            background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: 14,
+                            cursor: 'pointer',
+                        }}
+                    >
                         ✉️ Tạo thông báo
                     </button>
                 </div>
@@ -223,21 +299,96 @@ export default function Notifications({ readOnly = false }) {
                     const typeInfo = typeMap[item.type] || { icon: '📢', label: item.type }
                     const priority = PRIORITY_OPTIONS.find(p => p.value === item.priority)
                     return (
-                        <div key={item.id} style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', boxShadow: '0 2px 10px rgba(109,40,217,0.06)', borderLeft: `4px solid ${priority?.color || '#6D28D9'}` }}>
-                            <div className="mobile-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                        <div
+                            key={item.id}
+                            style={{
+                                background: '#fff',
+                                borderRadius: 14,
+                                padding: '16px 20px',
+                                boxShadow: '0 2px 10px rgba(109,40,217,0.06)',
+                                borderLeft: `4px solid ${priority?.color || '#6D28D9'}`,
+                            }}
+                        >
+                            <div
+                                className="mobile-stack"
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-start',
+                                    gap: 12,
+                                }}
+                            >
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 8,
+                                            marginBottom: 6,
+                                            flexWrap: 'wrap',
+                                        }}
+                                    >
                                         <span style={{ fontSize: 16 }}>{typeInfo.icon}</span>
-                                        <span style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{item.title}</span>
-                                        <span style={{ fontSize: 11, fontWeight: 700, background: badge.bg, color: badge.color, borderRadius: 20, padding: '2px 8px' }}>{badge.label}</span>
-                                        {item.priority !== 'normal' && <span style={{ fontSize: 11, fontWeight: 700, color: priority?.color, background: priority?.color + '15', borderRadius: 20, padding: '2px 8px' }}>{priority?.label}</span>}
+                                        <span style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>
+                                            {item.title}
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                background: badge.bg,
+                                                color: badge.color,
+                                                borderRadius: 20,
+                                                padding: '2px 8px',
+                                            }}
+                                        >
+                                            {badge.label}
+                                        </span>
+                                        {item.priority !== 'normal' && (
+                                            <span
+                                                style={{
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    color: priority?.color,
+                                                    background: priority?.color + '15',
+                                                    borderRadius: 20,
+                                                    padding: '2px 8px',
+                                                }}
+                                            >
+                                                {priority?.label}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div style={{ fontSize: 13, color: '#4B4899', marginBottom: 8, whiteSpace: 'pre-wrap' }}>{item.body}</div>
-                                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9CA3AF', flexWrap: 'wrap' }}>
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            color: '#4B4899',
+                                            marginBottom: 8,
+                                            whiteSpace: 'pre-wrap',
+                                        }}
+                                    >
+                                        {item.body}
+                                    </div>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            gap: 12,
+                                            fontSize: 11,
+                                            color: '#9CA3AF',
+                                            flexWrap: 'wrap',
+                                        }}
+                                    >
                                         {item.target_role && <span>👥 {item.target_role}</span>}
-                                        <span>📡 {CHANNEL_OPTIONS.find(c => c.value === item.channel)?.label || item.channel}</span>
-                                        {item.sent_at && <span>✅ Gửi: {new Date(item.sent_at).toLocaleString('vi-VN')}</span>}
-                                        {item.scheduled_at && item.status === 'scheduled' && <span>⏰ Lịch: {new Date(item.scheduled_at).toLocaleString('vi-VN')}</span>}
+                                        <span>
+                                            📡{' '}
+                                            {CHANNEL_OPTIONS.find(c => c.value === item.channel)?.label || item.channel}
+                                        </span>
+                                        {item.sent_at && (
+                                            <span>✅ Gửi: {new Date(item.sent_at).toLocaleString('vi-VN')}</span>
+                                        )}
+                                        {item.scheduled_at && item.status === 'scheduled' && (
+                                            <span>⏰ Lịch: {new Date(item.scheduled_at).toLocaleString('vi-VN')}</span>
+                                        )}
                                         <span>🕐 {new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
                                     </div>
                                 </div>
@@ -245,9 +396,25 @@ export default function Notifications({ readOnly = false }) {
                                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                                         {['draft', 'scheduled'].includes(item.status) && (
                                             <>
-                                                <button onClick={() => openEdit(item)} style={actBtn('#DDD6FE', '#6D28D9')}>✏️</button>
-                                                <button onClick={() => handleSend(item)} disabled={saving} style={actBtn('#D1FAE5', '#059669')}>📤</button>
-                                                <button onClick={() => handleCancel(item)} style={actBtn('#FEE2E2', '#DC2626')}>✕</button>
+                                                <button
+                                                    onClick={() => openEdit(item)}
+                                                    style={actBtn('#DDD6FE', '#6D28D9')}
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSend(item)}
+                                                    disabled={saving}
+                                                    style={actBtn('#D1FAE5', '#059669')}
+                                                >
+                                                    📤
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCancel(item)}
+                                                    style={actBtn('#FEE2E2', '#DC2626')}
+                                                >
+                                                    ✕
+                                                </button>
                                             </>
                                         )}
                                     </div>
@@ -266,31 +433,94 @@ export default function Notifications({ readOnly = false }) {
 
             {/* Modal */}
             {showModal && (
-                <div role="dialog" aria-modal="true" aria-label="Tạo thông báo" style={{ position: 'fixed', inset: 0, background: 'rgba(30,27,75,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
-                    <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', padding: '28px 32px', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Tạo thông báo"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(30,27,75,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: 24,
+                    }}
+                >
+                    <div
+                        style={{
+                            position: 'relative',
+                            background: '#fff',
+                            borderRadius: 20,
+                            width: '100%',
+                            maxWidth: 560,
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            padding: '28px 32px',
+                            boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+                        }}
+                    >
+                        <ModalCloseButton onClick={() => setShowModal(false)} />
                         <div style={{ fontWeight: 900, fontSize: 18, color: '#1E1B4B', marginBottom: 20 }}>
                             {editing ? '✏️ Chỉnh sửa thông báo' : '✉️ Tạo thông báo mới'}
                         </div>
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                             <Field label="Tiêu đề *">
-                                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="VD: Thông báo nghỉ lễ 30/4" style={INP} required />
+                                <input
+                                    value={form.title}
+                                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                                    placeholder="VD: Thông báo nghỉ lễ 30/4"
+                                    style={INP}
+                                    required
+                                />
                             </Field>
                             <Field label="Nội dung *">
-                                <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={4} placeholder="Nội dung thông báo..." style={{ ...INP, resize: 'vertical' }} required />
+                                <textarea
+                                    value={form.body}
+                                    onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+                                    rows={4}
+                                    placeholder="Nội dung thông báo..."
+                                    style={{ ...INP, resize: 'vertical' }}
+                                    required
+                                />
                             </Field>
-                            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div
+                                className="mobile-two-col"
+                                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
+                            >
                                 <Field label="Loại thông báo">
-                                    <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={INP}>
-                                        {TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+                                    <select
+                                        value={form.type}
+                                        onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                                        style={INP}
+                                    >
+                                        {TYPE_OPTIONS.map(t => (
+                                            <option key={t.value} value={t.value}>
+                                                {t.icon} {t.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 </Field>
                                 <Field label="Độ ưu tiên">
-                                    <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} style={INP}>
-                                        {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                    <select
+                                        value={form.priority}
+                                        onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
+                                        style={INP}
+                                    >
+                                        {PRIORITY_OPTIONS.map(p => (
+                                            <option key={p.value} value={p.value}>
+                                                {p.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 </Field>
                                 <Field label="Đối tượng nhận">
-                                    <select value={form.targetRole} onChange={e => setForm(f => ({ ...f, targetRole: e.target.value }))} style={INP}>
+                                    <select
+                                        value={form.targetRole}
+                                        onChange={e => setForm(f => ({ ...f, targetRole: e.target.value }))}
+                                        style={INP}
+                                    >
                                         <option value="">Tất cả</option>
                                         <option value="parent">Phụ huynh</option>
                                         <option value="teacher">Giáo viên</option>
@@ -298,18 +528,78 @@ export default function Notifications({ readOnly = false }) {
                                     </select>
                                 </Field>
                                 <Field label="Kênh gửi">
-                                    <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} style={INP}>
-                                        {CHANNEL_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                    <select
+                                        value={form.channel}
+                                        onChange={e => setForm(f => ({ ...f, channel: e.target.value }))}
+                                        style={INP}
+                                    >
+                                        {CHANNEL_OPTIONS.map(c => (
+                                            <option key={c.value} value={c.value}>
+                                                {c.label}
+                                            </option>
+                                        ))}
                                     </select>
                                 </Field>
                             </div>
                             <Field label="Gửi lúc (để trống = gửi ngay khi bấm Gửi)">
-                                <input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value, status: e.target.value ? 'scheduled' : 'draft' }))} style={INP} />
+                                <input
+                                    type="datetime-local"
+                                    value={form.scheduledAt}
+                                    onChange={e =>
+                                        setForm(f => ({
+                                            ...f,
+                                            scheduledAt: e.target.value,
+                                            status: e.target.value ? 'scheduled' : 'draft',
+                                        }))
+                                    }
+                                    style={INP}
+                                />
                             </Field>
-                            {err && <div style={{ color: '#DC2626', fontSize: 13, background: '#FEF2F2', borderRadius: 8, padding: '8px 12px' }}>{err}</div>}
-                            <div className="mobile-stack" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 20px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: '#fff', color: '#6D28D9', fontWeight: 700, cursor: 'pointer' }}>Hủy</button>
-                                <button type="submit" disabled={saving} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, cursor: saving ? 'wait' : 'pointer' }}>
+                            {err && (
+                                <div
+                                    style={{
+                                        color: '#DC2626',
+                                        fontSize: 13,
+                                        background: '#FEF2F2',
+                                        borderRadius: 8,
+                                        padding: '8px 12px',
+                                    }}
+                                >
+                                    {err}
+                                </div>
+                            )}
+                            <div
+                                className="mobile-stack"
+                                style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: 10,
+                                        border: '1.5px solid #DDD6FE',
+                                        background: '#fff',
+                                        color: '#6D28D9',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: 10,
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                                        color: '#fff',
+                                        fontWeight: 800,
+                                        cursor: saving ? 'wait' : 'pointer',
+                                    }}
+                                >
                                     {saving ? 'Đang lưu...' : editing ? 'Cập nhật' : 'Lưu nháp'}
                                 </button>
                             </div>
@@ -324,14 +614,35 @@ export default function Notifications({ readOnly = false }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }}>{label}</label>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }}>
+                {label}
+            </label>
             {children}
         </div>
     )
 }
 
-const INP = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', background: '#fff', boxSizing: 'border-box' }
+const INP = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1.5px solid #DDD6FE',
+    fontSize: 13,
+    color: '#1E1B4B',
+    background: '#fff',
+    boxSizing: 'border-box',
+}
 
 function actBtn(bg, color) {
-    return { background: bg, color, border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontWeight: 700, fontSize: 13 }
+    return {
+        background: bg,
+        color,
+        border: 'none',
+        borderRadius: 8,
+        width: 32,
+        height: 32,
+        cursor: 'pointer',
+        fontWeight: 700,
+        fontSize: 13,
+    }
 }

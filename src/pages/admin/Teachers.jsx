@@ -10,6 +10,7 @@ import {
 } from '../../utils/tabularImport'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listTeachers, saveTeacher as saveSupabaseTeacher } from '../../features/teachers/teacherService'
+import ModalCloseButton from '../../components/ModalCloseButton'
 
 function Avatar({ initials, size = 38 }) {
     const colors = ['#7C3AED', '#A78BFA', '#34D399', '#06B6D4', '#EC4899']
@@ -84,10 +85,10 @@ function TeacherModal({ teacher, db, facilityId = '', onClose, onSave }) {
                 alignItems: 'center',
                 justifyContent: 'center',
             }}
-            onClick={e => e.target === e.currentTarget && onClose()}
         >
             <div
                 style={{
+                    position: 'relative',
                     background: '#fff',
                     borderRadius: 20,
                     width: 'min(480px, calc(100vw - 24px))',
@@ -97,6 +98,7 @@ function TeacherModal({ teacher, db, facilityId = '', onClose, onSave }) {
                     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                 }}
             >
+                <ModalCloseButton onClick={onClose} />
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#1E1B4B', marginBottom: 20 }}>
                     {teacher ? 'Chỉnh sửa giáo viên' : 'Thêm giáo viên mới'}
                 </div>
