@@ -1,6 +1,12 @@
+import { useEffect, useState } from 'react'
 import { getDB, todayStr } from '../../data/store'
 import { fmtMoney, fmtDate } from '../../utils/format'
 import { isSupabaseSession } from '../../data/backendMode'
+import { getCurrentProfile } from '../../features/auth/authService'
+import { listStudents } from '../../features/students/studentService'
+import { listInvoices as listSupabaseInvoices, listIncidents as listSupabaseIncidents } from '../../features/sensitive/sensitiveService'
+import { listDailyReportsByFacilityDate } from '../../features/reports/dailyReportService'
+import { listAttendanceByFacilityDate } from '../../features/attendance/attendanceService'
 
 function StatCard({ icon, label, value, sub, color, onClick }) {
     return (
@@ -131,7 +137,93 @@ function FinanceSummary({ db }) {
     )
 }
 
-export default function Dashboard({ onNav, scopeStats = {} }) {
+function AlertItem({ color, bg, icon, label, count, onNav, navTarget }) {
+    if (!count) return null
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, background: bg, marginBottom: 8 }}>
+            <div style={{ fontSize: 20, flexShrink: 0 }}>{icon}</div>
+            <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 800, color, fontSize: 14 }}>{count}</span>
+                <span style={{ fontSize: 13, color: '#4B4899', fontWeight: 600, marginLeft: 6 }}>{label}</span>
+            </div>
+            <button onClick={() => onNav(navTarget)} style={{ padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${color}`, background: '#fff', color, fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>Xem →</button>
+        </div>
+    )
+}
+
+function SupabaseAlerts({ onNav, selectedFacilityId }) {
+    const [alerts, setAlerts] = useState(null)
+
+    useEffect(() => {
+        async function load() {
+            try {
+                const profile = await getCurrentProfile()
+                const facilityId = profile?.role === 'teacher' ? profile.facility_id : selectedFacilityId || undefined
+                const today = todayStr()
+                const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+                const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+                const cutoff3d = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+                const [invoices, incidents, students, reports, attToday, attYesterday] = await Promise.all([
+                    listSupabaseInvoices({ facilityId }).catch(() => []),
+                    listSupabaseIncidents({ facilityId }).catch(() => []),
+                    listStudents({ facilityId, status: 'active' }).catch(() => []),
+                    listDailyReportsByFacilityDate({ facilityId, date: today }).catch(() => []),
+                    listAttendanceByFacilityDate({ facilityId, date: today }).catch(() => ({})),
+                    listAttendanceByFacilityDate({ facilityId, date: yesterday }).catch(() => ({})),
+                ])
+
+                const overdueInvoices = invoices.filter(inv =>
+                    inv.status !== 'paid' && inv.status !== 'cancelled' && inv.due_date && inv.due_date < cutoff3d
+                ).length
+
+                const openIncidents = incidents.filter(inc =>
+                    inc.status === 'open' && inc.created_at && inc.created_at < cutoff24h
+                ).length
+
+                const reportedIds = new Set(reports.map(r => r.studentId))
+                const missingReports = students.filter(s => !reportedIds.has(s.id)).length
+
+                const absentToday = new Set(Object.values(attToday).filter(a => a?.status === 'absent').map(a => a.studentId))
+                const absentYesterday = new Set(Object.values(attYesterday).filter(a => a?.status === 'absent').map(a => a.studentId))
+                const consecutiveAbsent = [...absentToday].filter(id => absentYesterday.has(id)).length
+
+                setAlerts({ overdueInvoices, openIncidents, missingReports, consecutiveAbsent })
+            } catch { setAlerts({}) }
+        }
+        load()
+    }, [selectedFacilityId])
+
+    if (!alerts) return (
+        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 16px rgba(109,40,217,0.08)', marginBottom: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B', marginBottom: 14 }}>⚡ Việc cần làm hôm nay</div>
+            {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 46, borderRadius: 12, marginBottom: 8 }} />)}
+        </div>
+    )
+
+    const total = (alerts.overdueInvoices || 0) + (alerts.openIncidents || 0) + (alerts.missingReports || 0) + (alerts.consecutiveAbsent || 0)
+
+    return (
+        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 16px rgba(109,40,217,0.08)', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>⚡ Việc cần làm hôm nay</div>
+                {total === 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#16A34A', background: '#ECFDF5', borderRadius: 8, padding: '3px 10px' }}>✅ Tất cả ổn</span>}
+            </div>
+            {total === 0 ? (
+                <div style={{ textAlign: 'center', color: '#16A34A', fontSize: 14, fontWeight: 700, padding: '12px 0' }}>Không có việc tồn đọng — tốt lắm! 🎉</div>
+            ) : (
+                <>
+                    <AlertItem color="#DC2626" bg="#FEF2F2" icon="💸" label="hóa đơn quá hạn trên 3 ngày" count={alerts.overdueInvoices} onNav={onNav} navTarget="invoices" />
+                    <AlertItem color="#DC2626" bg="#FEF2F2" icon="🚨" label="sự cố mở chưa xử lý trên 24h" count={alerts.openIncidents} onNav={onNav} navTarget="incidents" />
+                    <AlertItem color="#D97706" bg="#FFFBEB" icon="📅" label="học sinh vắng liên tiếp ≥ 2 ngày" count={alerts.consecutiveAbsent} onNav={onNav} navTarget="attendance" />
+                    <AlertItem color="#7C3AED" bg="#F5F3FF" icon="📝" label="học sinh chưa có nhật ký hôm nay" count={alerts.missingReports} onNav={onNav} navTarget="reports" />
+                </>
+            )}
+        </div>
+    )
+}
+
+export default function Dashboard({ onNav, scopeStats = {}, selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const db = getDB()
     const activeStudents = supabaseMode ? scopeStats.students || 0 : db.students.filter(s => s.status === 'active').length
@@ -145,6 +237,7 @@ export default function Dashboard({ onNav, scopeStats = {} }) {
                 <div style={{ fontWeight: 800, fontSize: 22, color: '#1E1B4B' }}>Xin chào, Hiệu trưởng! 👋</div>
                 <div style={{ fontSize: 14, color: '#7C6D9B', marginTop: 4 }}>Đây là tổng quan hoạt động của trường hôm nay.</div>
             </div>
+            {supabaseMode && <SupabaseAlerts onNav={onNav} selectedFacilityId={selectedFacilityId} />}
             <div className="landing-section-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 16, marginBottom: 24 }}>
                 <StatCard icon="👦" label="Học sinh đang học" value={activeStudents} sub="Đang học" color="#7C3AED" onClick={() => onNav('students')} />
                 <StatCard icon="👩‍🏫" label="Giáo viên" value={activeTeachers} sub="Hoạt động" color="#A78BFA" onClick={() => onNav('teachers')} />
