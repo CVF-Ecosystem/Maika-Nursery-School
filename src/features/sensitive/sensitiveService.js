@@ -2,18 +2,20 @@ import { getCurrentProfile } from '../auth/authService'
 import { requireSupabase } from '../../lib/supabaseClient'
 import { buildReceiptNumber } from '../payments/receiptNumbers'
 
-const HEALTH_COLUMNS = 'id, student_id, facility_id, allergies, blood_type, medications, medical_notes, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, doctor_name, doctor_phone, updated_by, created_at, updated_at'
-const INCIDENT_COLUMNS = 'id, student_id, facility_id, occurred_at, reported_by, reporter_name, severity, description, initial_action, status, photo_paths, parent_acknowledged_at, parent_note, created_at, updated_at'
-const INVOICE_COLUMNS = 'id, student_id, facility_id, invoice_number, type, description, amount, due_date, paid_at, payment_method, status, note, created_by, created_at, updated_at'
-const CONSENT_COLUMNS = 'student_id, facility_id, allow_photos, allow_notifications, contact_channels, allow_photo_sharing, data_retention_days, updated_by, created_at, updated_at'
+const HEALTH_COLUMNS =
+    'id, student_id, facility_id, allergies, blood_type, medications, medical_notes, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, doctor_name, doctor_phone, updated_by, created_at, updated_at'
+const INCIDENT_COLUMNS =
+    'id, student_id, facility_id, occurred_at, reported_by, reporter_name, severity, description, initial_action, status, photo_paths, parent_acknowledged_at, parent_note, created_at, updated_at'
+const INCIDENT_COLUMNS_WITHOUT_PHOTOS =
+    'id, student_id, facility_id, occurred_at, reported_by, reporter_name, severity, description, initial_action, status, parent_acknowledged_at, parent_note, created_at, updated_at'
+const INVOICE_COLUMNS =
+    'id, student_id, facility_id, invoice_number, type, description, amount, due_date, paid_at, payment_method, status, note, created_by, created_at, updated_at'
+const CONSENT_COLUMNS =
+    'student_id, facility_id, allow_photos, allow_notifications, contact_channels, allow_photo_sharing, data_retention_days, updated_by, created_at, updated_at'
 
 async function getStudentFacilityId(studentId) {
     const client = requireSupabase()
-    const { data, error } = await client
-        .from('students')
-        .select('facility_id')
-        .eq('id', studentId)
-        .single()
+    const { data, error } = await client.from('students').select('facility_id').eq('id', studentId).single()
     if (error) throw error
     return data.facility_id
 }
@@ -64,14 +66,16 @@ export async function getStudentConsent(studentId) {
         .eq('student_id', studentId)
         .maybeSingle()
     if (error) throw error
-    return data || {
-        student_id: studentId,
-        allow_photos: true,
-        allow_notifications: true,
-        contact_channels: ['app'],
-        allow_photo_sharing: false,
-        data_retention_days: 365,
-    }
+    return (
+        data || {
+            student_id: studentId,
+            allow_photos: true,
+            allow_notifications: true,
+            contact_channels: ['app'],
+            allow_photo_sharing: false,
+            data_retention_days: 365,
+        }
+    )
 }
 
 export async function saveStudentConsent(studentId, input) {
@@ -99,13 +103,29 @@ export async function saveStudentConsent(studentId, input) {
 
 export async function listIncidents({ studentId, facilityId, status } = {}) {
     const client = requireSupabase()
-    let query = client.from('incidents').select(INCIDENT_COLUMNS).order('occurred_at', { ascending: false })
-    if (studentId) query = query.eq('student_id', studentId)
-    if (facilityId) query = query.eq('facility_id', facilityId)
-    if (status && status !== 'all') query = query.eq('status', status)
+    const applyFilters = query => {
+        if (studentId) query = query.eq('student_id', studentId)
+        if (facilityId) query = query.eq('facility_id', facilityId)
+        if (status && status !== 'all') query = query.eq('status', status)
+        return query
+    }
+
+    let query = applyFilters(
+        client.from('incidents').select(INCIDENT_COLUMNS).order('occurred_at', { ascending: false }),
+    )
     const { data, error } = await query
-    if (error) throw error
-    return data || []
+    if (!error) return data || []
+
+    if (error.message?.includes('photo_paths')) {
+        query = applyFilters(
+            client.from('incidents').select(INCIDENT_COLUMNS_WITHOUT_PHOTOS).order('occurred_at', { ascending: false }),
+        )
+        const fallback = await query
+        if (fallback.error) throw fallback.error
+        return (fallback.data || []).map(row => ({ ...row, photo_paths: [] }))
+    }
+
+    throw error
 }
 
 export async function saveIncident(input) {
@@ -191,10 +211,7 @@ export async function deleteInvoices(ids = []) {
     const invoiceIds = ids.filter(Boolean)
     if (!invoiceIds.length) return 0
     const client = requireSupabase()
-    const { error, count } = await client
-        .from('invoices')
-        .delete({ count: 'exact' })
-        .in('id', invoiceIds)
+    const { error, count } = await client.from('invoices').delete({ count: 'exact' }).in('id', invoiceIds)
     if (error) throw error
     return count ?? invoiceIds.length
 }
@@ -203,17 +220,13 @@ export function subscribeIncidents({ facilityId, onChange }) {
     const client = requireSupabase()
     const channel = client
         .channel(`incidents:${facilityId || 'all'}`)
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'incidents' },
-            payload => {
-                const row = payload.new?.id ? payload.new : null
-                const old = payload.old?.id ? payload.old : null
-                const rowFacilityId = row?.facility_id || old?.facility_id || ''
-                if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
-                onChange({ eventType: payload.eventType, record: row, oldRecord: old })
-            },
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, payload => {
+            const row = payload.new?.id ? payload.new : null
+            const old = payload.old?.id ? payload.old : null
+            const rowFacilityId = row?.facility_id || old?.facility_id || ''
+            if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
+            onChange({ eventType: payload.eventType, record: row, oldRecord: old })
+        })
         .subscribe()
     return () => client.removeChannel(channel)
 }

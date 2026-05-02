@@ -40,14 +40,24 @@ export default function ConsentPanel({ studentId, studentName }) {
         if (!hasBackendAPI() && !supabaseMode) return
         const request = supabaseMode ? getStudentConsent(studentId) : apiFetch(`/api/student-consents/${studentId}`)
         request
-            .then(d => setConsent({
-                allowPhotos: !!d.allow_photos,
-                allowNotifications: !!d.allow_notifications,
-                contactChannels: Array.isArray(d.contact_channels) ? d.contact_channels : ['app'],
-                allowPhotoSharing: !!d.allow_photo_sharing,
-                dataRetentionDays: d.data_retention_days || 365,
-            }))
-            .catch(() => setConsent({ allowPhotos: true, allowNotifications: true, contactChannels: ['app'], allowPhotoSharing: false, dataRetentionDays: 365 }))
+            .then(d =>
+                setConsent({
+                    allowPhotos: !!d.allow_photos,
+                    allowNotifications: !!d.allow_notifications,
+                    contactChannels: Array.isArray(d.contact_channels) ? d.contact_channels : ['app'],
+                    allowPhotoSharing: !!d.allow_photo_sharing,
+                    dataRetentionDays: d.data_retention_days || 365,
+                }),
+            )
+            .catch(() =>
+                setConsent({
+                    allowPhotos: true,
+                    allowNotifications: true,
+                    contactChannels: ['app'],
+                    allowPhotoSharing: false,
+                    dataRetentionDays: 365,
+                }),
+            )
     }, [studentId])
 
     async function handleSave(e) {
@@ -58,9 +68,9 @@ export default function ConsentPanel({ studentId, studentName }) {
             const updated = supabaseMode
                 ? await saveStudentConsent(studentId, consent)
                 : await apiFetch(`/api/student-consents/${studentId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(consent),
-                })
+                      method: 'PUT',
+                      body: JSON.stringify(consent),
+                  })
             setConsent({
                 allowPhotos: !!updated.allow_photos,
                 allowNotifications: !!updated.allow_notifications,
@@ -87,10 +97,20 @@ export default function ConsentPanel({ studentId, studentName }) {
 
     if (!hasBackendAPI() && !supabaseMode) {
         return (
-            <div style={{ background: '#fff', borderRadius: 20, padding: 48, textAlign: 'center', boxShadow: '0 2px 14px rgba(109,40,217,0.07)' }}>
+            <div
+                style={{
+                    background: '#fff',
+                    borderRadius: 20,
+                    padding: 48,
+                    textAlign: 'center',
+                    boxShadow: '0 2px 14px rgba(109,40,217,0.07)',
+                }}
+            >
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Tính năng đang được chuẩn bị</div>
-                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>Nhà trường sẽ thông báo khi phụ huynh có thể cập nhật quyền riêng tư trực tuyến.</div>
+                <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>
+                    Nhà trường sẽ thông báo khi phụ huynh có thể cập nhật quyền riêng tư trực tuyến.
+                </div>
             </div>
         )
     }
@@ -101,14 +121,23 @@ export default function ConsentPanel({ studentId, studentName }) {
 
     return (
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', borderRadius: 20, padding: '24px 28px', color: '#fff', marginBottom: 24 }}>
+            <div
+                style={{
+                    background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                    borderRadius: 20,
+                    padding: '24px 28px',
+                    color: '#fff',
+                    marginBottom: 24,
+                }}
+            >
                 <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 4 }}>🔒 Quyền riêng tư & Đồng ý</div>
-                <div style={{ fontSize: 13, opacity: 0.85 }}>Quản lý cách nhà trường sử dụng dữ liệu của <strong>{studentName}</strong></div>
+                <div style={{ fontSize: 13, opacity: 0.85 }}>
+                    Quản lý cách nhà trường sử dụng dữ liệu của <strong>{studentName}</strong>
+                </div>
             </div>
 
             <form onSubmit={handleSave}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
                     {/* Cho phép ảnh */}
                     <ConsentCard
                         icon="📷"
@@ -138,8 +167,17 @@ export default function ConsentPanel({ studentId, studentName }) {
 
                     {/* Kênh liên lạc */}
                     {consent.allowNotifications && (
-                        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(109,40,217,0.06)' }}>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 12 }}>📡 Kênh liên lạc ưu tiên</div>
+                        <div
+                            style={{
+                                background: '#fff',
+                                borderRadius: 16,
+                                padding: '20px 22px',
+                                boxShadow: '0 2px 10px rgba(109,40,217,0.06)',
+                            }}
+                        >
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 12 }}>
+                                📡 Kênh liên lạc ưu tiên
+                            </div>
                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                                 {CHANNEL_OPTIONS.map(opt => (
                                     <button
@@ -147,9 +185,15 @@ export default function ConsentPanel({ studentId, studentName }) {
                                         type="button"
                                         onClick={() => toggleChannel(opt.value)}
                                         style={{
-                                            padding: '8px 16px', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                            padding: '8px 16px',
+                                            borderRadius: 50,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
                                             border: `2px solid ${consent.contactChannels.includes(opt.value) ? '#6D28D9' : '#DDD6FE'}`,
-                                            background: consent.contactChannels.includes(opt.value) ? '#EDE9FE' : '#fff',
+                                            background: consent.contactChannels.includes(opt.value)
+                                                ? '#EDE9FE'
+                                                : '#fff',
                                             color: consent.contactChannels.includes(opt.value) ? '#6D28D9' : '#7C6D9B',
                                         }}
                                     >
@@ -161,9 +205,20 @@ export default function ConsentPanel({ studentId, studentName }) {
                     )}
 
                     {/* Thời gian lưu dữ liệu */}
-                    <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(109,40,217,0.06)' }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 4 }}>🗃️ Thời gian lưu trữ dữ liệu</div>
-                        <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 12 }}>Sau thời gian này dữ liệu hình ảnh và nhật ký sẽ được xóa tự động.</div>
+                    <div
+                        style={{
+                            background: '#fff',
+                            borderRadius: 16,
+                            padding: '20px 22px',
+                            boxShadow: '0 2px 10px rgba(109,40,217,0.06)',
+                        }}
+                    >
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 4 }}>
+                            🗃️ Thời gian lưu trữ dữ liệu
+                        </div>
+                        <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 12 }}>
+                            Sau thời gian này dữ liệu hình ảnh và nhật ký sẽ được xóa tự động.
+                        </div>
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                             {RETENTION_OPTIONS.map(opt => (
                                 <button
@@ -171,7 +226,11 @@ export default function ConsentPanel({ studentId, studentName }) {
                                     type="button"
                                     onClick={() => setConsent(p => ({ ...p, dataRetentionDays: opt.value }))}
                                     style={{
-                                        padding: '8px 16px', borderRadius: 50, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                        padding: '8px 16px',
+                                        borderRadius: 50,
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
                                         border: `2px solid ${consent.dataRetentionDays === opt.value ? '#6D28D9' : '#DDD6FE'}`,
                                         background: consent.dataRetentionDays === opt.value ? '#EDE9FE' : '#fff',
                                         color: consent.dataRetentionDays === opt.value ? '#6D28D9' : '#7C6D9B',
@@ -185,12 +244,33 @@ export default function ConsentPanel({ studentId, studentName }) {
                 </div>
 
                 {/* Legal note */}
-                <div style={{ background: '#F8F7FF', borderRadius: 12, padding: '14px 18px', marginTop: 20, fontSize: 12, color: '#7C6D9B', lineHeight: 1.6 }}>
-                    🛡️ Dữ liệu của bé được bảo mật theo quy định pháp luật. Nhà trường cam kết không chia sẻ thông tin cá nhân với bên thứ ba ngoài mục đích giáo dục đã được đồng ý.
+                <div
+                    style={{
+                        background: '#F8F7FF',
+                        borderRadius: 12,
+                        padding: '14px 18px',
+                        marginTop: 20,
+                        fontSize: 12,
+                        color: '#7C6D9B',
+                        lineHeight: 1.6,
+                    }}
+                >
+                    🛡️ Dữ liệu của bé được bảo mật theo quy định pháp luật. Nhà trường cam kết không chia sẻ thông tin
+                    cá nhân với bên thứ ba ngoài mục đích giáo dục đã được đồng ý.
                 </div>
 
                 {msg && (
-                    <div style={{ marginTop: 14, fontSize: 13, fontWeight: 700, color: msg.startsWith('✅') ? '#16a34a' : '#dc2626', background: msg.startsWith('✅') ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, padding: '10px 14px' }}>
+                    <div
+                        style={{
+                            marginTop: 14,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: msg.startsWith('✅') ? '#16a34a' : '#dc2626',
+                            background: msg.startsWith('✅') ? '#F0FDF4' : '#FEF2F2',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                        }}
+                    >
                         {msg}
                     </div>
                 )}
@@ -198,7 +278,18 @@ export default function ConsentPanel({ studentId, studentName }) {
                 <button
                     type="submit"
                     disabled={saving}
-                    style={{ marginTop: 20, width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: saving ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: saving ? '#7C6D9B' : '#fff', fontWeight: 800, fontSize: 15, cursor: saving ? 'not-allowed' : 'pointer' }}
+                    style={{
+                        marginTop: 20,
+                        width: '100%',
+                        padding: '14px',
+                        borderRadius: 14,
+                        border: 'none',
+                        background: saving ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                        color: saving ? '#7C6D9B' : '#fff',
+                        fontWeight: 800,
+                        fontSize: 15,
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                    }}
                 >
                     {saving ? 'Đang lưu...' : '💾 Lưu cài đặt quyền riêng tư'}
                 </button>
@@ -209,9 +300,34 @@ export default function ConsentPanel({ studentId, studentName }) {
 
 function ConsentCard({ icon, title, desc, checked, onChange }) {
     return (
-        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(109,40,217,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div
+            style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: '20px 22px',
+                boxShadow: '0 2px 10px rgba(109,40,217,0.06)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 16,
+            }}
+        >
             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{icon}</div>
+                <div
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        background: '#EDE9FE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
+                        flexShrink: 0,
+                    }}
+                >
+                    {icon}
+                </div>
                 <div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B' }}>{title}</div>
                     <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 3 }}>{desc}</div>
@@ -220,17 +336,60 @@ function ConsentCard({ icon, title, desc, checked, onChange }) {
             <button
                 type="button"
                 onClick={() => onChange(!checked)}
-                aria-label={checked ? 'Đang bật, nhấn để tắt' : 'Đang tắt, nhấn để bật'}
+                aria-pressed={checked}
+                aria-label={checked ? `${title}: đang bật, nhấn để tắt` : `${title}: đang tắt, nhấn để bật`}
                 style={{
-                    flexShrink: 0, width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer',
-                    background: checked ? '#6D28D9' : '#D1D5DB', position: 'relative', transition: 'background 0.2s',
+                    flexShrink: 0,
+                    width: 86,
+                    height: 38,
+                    borderRadius: 999,
+                    border: `1.5px solid ${checked ? '#7C3AED' : '#CBD5E1'}`,
+                    cursor: 'pointer',
+                    background: checked ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#F1F5F9',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    boxShadow: checked ? '0 8px 18px rgba(109,40,217,0.26)' : 'inset 0 0 0 1px rgba(148,163,184,0.22)',
+                    padding: 0,
                 }}
             >
-                <span style={{
-                    position: 'absolute', top: 3, left: checked ? 24 : 3,
-                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                }} />
+                <span
+                    aria-hidden="true"
+                    style={{
+                        position: 'absolute',
+                        top: 4,
+                        left: checked ? 52 : 4,
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 3px 9px rgba(15,23,42,0.22)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: checked ? '#6D28D9' : '#64748B',
+                        fontSize: 13,
+                        fontWeight: 900,
+                    }}
+                >
+                    {checked ? '✓' : '×'}
+                </span>
+                <span
+                    aria-hidden="true"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: checked ? 12 : 40,
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: checked ? '#fff' : '#64748B',
+                        fontSize: 12,
+                        fontWeight: 900,
+                    }}
+                >
+                    {checked ? 'Bật' : 'Tắt'}
+                </span>
             </button>
         </div>
     )

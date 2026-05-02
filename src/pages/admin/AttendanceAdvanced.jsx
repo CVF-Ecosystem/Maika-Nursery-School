@@ -194,12 +194,14 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const now = new Date().toTimeString().slice(0, 5)
             if (supabaseMode) {
                 const student = students.find(s => s.id === studentId)
+                const profile = await getCurrentProfile().catch(() => null)
                 const optimistic = {
                     studentId,
-                    facilityId: student?.facilityId,
+                    facilityId: student?.facilityId || profile?.facility_id || selectedFacilityId,
                     date,
                     status,
                     checkInTime: status !== 'absent' ? now : '',
+                    recordedBy: profile?.id || '',
                 }
                 setRecords(prev => {
                     const next = { ...prev, [studentId]: { ...(prev[studentId] || {}), ...optimistic } }
@@ -241,9 +243,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         try {
             if (supabaseMode) {
                 const student = students.find(s => s.id === input.studentId)
+                const profile = await getCurrentProfile().catch(() => null)
                 const optimistic = {
                     studentId: input.studentId,
-                    facilityId: student?.facilityId,
+                    facilityId: student?.facilityId || profile?.facility_id || selectedFacilityId,
                     date,
                     status: input.status,
                     checkInTime: input.checkInTime,
@@ -253,6 +256,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     lateReason: input.lateReason,
                     earlyPickupReason: input.earlyPickupReason,
                     note: input.note,
+                    recordedBy: profile?.id || '',
                 }
                 setRecords(prev => {
                     const next = { ...prev, [input.studentId]: { ...(prev[input.studentId] || {}), ...optimistic } }
@@ -287,10 +291,6 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         setSaving(false)
     }
 
-    const visibleRecords = useMemo(
-        () => filteredStudents.map(student => records[student.id]).filter(Boolean),
-        [filteredStudents, records],
-    )
     const classRecords = useMemo(
         () => classFilteredStudents.map(student => records[student.id]).filter(Boolean),
         [classFilteredStudents, records],
@@ -301,9 +301,9 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         ? Math.round((totalMarked / classFilteredStudents.length) * 100)
         : 0
     const failedCount = getFailedActions().filter(action => action.type === 'attendance').length
-    const totalPresent = visibleRecords.filter(record => record.status === 'present').length
-    const totalAbsent = visibleRecords.filter(record => record.status === 'absent').length
-    const totalLate = visibleRecords.filter(record => record.status === 'late').length
+    const totalPresent = classRecords.filter(record => record.status === 'present').length
+    const totalAbsent = classRecords.filter(record => record.status === 'absent').length
+    const totalLate = classRecords.filter(record => record.status === 'late').length
 
     return (
         <div>

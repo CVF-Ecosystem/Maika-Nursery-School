@@ -1,4 +1,5 @@
 import { requireSupabase } from '../../lib/supabaseClient'
+import { getCurrentProfile } from '../auth/authService'
 
 const ATTENDANCE_COLUMNS = `
     id,
@@ -40,10 +41,7 @@ export function mapAttendanceFromSupabase(row) {
 
 export async function listAttendanceByFacilityDate({ facilityId, date }) {
     const client = requireSupabase()
-    let query = client
-        .from('attendance')
-        .select(ATTENDANCE_COLUMNS)
-        .eq('attendance_date', date)
+    let query = client.from('attendance').select(ATTENDANCE_COLUMNS).eq('attendance_date', date)
 
     if (facilityId) query = query.eq('facility_id', facilityId)
 
@@ -54,6 +52,7 @@ export async function listAttendanceByFacilityDate({ facilityId, date }) {
 
 export async function upsertAttendance(record) {
     const client = requireSupabase()
+    const profile = record.recordedBy ? null : await getCurrentProfile().catch(() => null)
     const payload = {
         student_id: record.studentId,
         facility_id: record.facilityId,
@@ -62,7 +61,7 @@ export async function upsertAttendance(record) {
         note: record.note || null,
         meal_photo_url: record.mealPhotoUrl || null,
         meal_photo_path: record.mealPhotoPath || null,
-        recorded_by: record.recordedBy || null,
+        recorded_by: record.recordedBy || profile?.id || null,
         check_in_time: record.checkInTime || null,
         check_out_time: record.checkOutTime || null,
         pickup_person: record.pickupPerson || null,

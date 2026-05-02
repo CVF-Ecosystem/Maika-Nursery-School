@@ -421,7 +421,7 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
                 setIncidents(body.data || [])
             }
         } catch (err) {
-            setError(err.message)
+            setError(readOnly ? 'Chưa tải được dữ liệu sự cố. Vui lòng thử lại sau.' : err.message)
         } finally {
             setLoading(false)
         }
