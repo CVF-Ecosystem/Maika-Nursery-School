@@ -288,20 +288,6 @@ export default function Landing() {
                         >
                             Đăng ký tham quan
                         </a>
-                        <button
-                            onClick={() => navigate('/login')}
-                            style={{
-                                padding: '15px 32px',
-                                borderRadius: 50,
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1.5px solid rgba(255,255,255,0.28)',
-                                color: '#fff',
-                                fontWeight: 700,
-                                fontSize: 15,
-                            }}
-                        >
-                            Admin / Giáo viên đăng nhập
-                        </button>
                     </div>
                 </div>
                 {/* Hero stats cards */}
