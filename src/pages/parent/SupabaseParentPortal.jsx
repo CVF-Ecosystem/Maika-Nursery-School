@@ -111,6 +111,42 @@ function PushBanner({ students }) {
     )
 }
 
+function PWAInstallBanner() {
+    const [prompt, setPrompt] = useState(null)
+    const [show, setShow] = useState(false)
+
+    useEffect(() => {
+        const count = Number(localStorage.getItem('maika-visit-count') || 0)
+        if (count < 2 || localStorage.getItem('maika-pwa-dismissed')) return
+        const handler = e => { e.preventDefault(); setPrompt(e); setShow(true) }
+        window.addEventListener('beforeinstallprompt', handler)
+        return () => window.removeEventListener('beforeinstallprompt', handler)
+    }, [])
+
+    if (!show || !prompt) return null
+
+    async function install() {
+        prompt.prompt()
+        const { outcome } = await prompt.userChoice
+        if (outcome === 'accepted') localStorage.setItem('maika-pwa-dismissed', '1')
+        setShow(false)
+    }
+
+    return (
+        <div style={{ background: '#fff', border: '1.5px solid #DDD6FE', borderRadius: 14, padding: '14px 16px', marginBottom: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ fontSize: 28 }}>📱</div>
+            <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: '#1E1B4B' }}>Thêm vào màn hình chính</div>
+                <div style={{ fontSize: 12, color: '#7C6D9B' }}>Truy cập nhanh như app thật, không cần qua trình duyệt</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={install} style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Cài đặt</button>
+                <button onClick={() => { localStorage.setItem('maika-pwa-dismissed', '1'); setShow(false) }} style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid #DDD6FE', background: '#fff', color: '#9B93C9', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>✕</button>
+            </div>
+        </div>
+    )
+}
+
 export default function SupabaseParentPortal() {
     const navigate = useNavigate()
     const [students, setStudents] = useState([])
@@ -118,14 +154,33 @@ export default function SupabaseParentPortal() {
     const [tab, setTab] = useState('overview')
     const [err, setErr] = useState('')
     const [loading, setLoading] = useState(true)
+    const [online, setOnline] = useState(navigator.onLine)
+
+    useEffect(() => {
+        const up = () => setOnline(true)
+        const down = () => setOnline(false)
+        window.addEventListener('online', up)
+        window.addEventListener('offline', down)
+        return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down) }
+    }, [])
 
     useEffect(() => {
         listMyLinkedStudents()
             .then(items => {
                 setStudents(items)
                 setStudentId(items[0]?.id || '')
+                localStorage.setItem('maika-parent-students', JSON.stringify(items))
             })
-            .catch(error => setErr(error.message))
+            .catch(error => {
+                const cached = localStorage.getItem('maika-parent-students')
+                if (cached) {
+                    const items = JSON.parse(cached)
+                    setStudents(items)
+                    setStudentId(items[0]?.id || '')
+                } else {
+                    setErr(error.message)
+                }
+            })
             .finally(() => setLoading(false))
     }, [])
 
@@ -141,6 +196,11 @@ export default function SupabaseParentPortal() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F3FF' }}>
+            {!online && (
+                <div style={{ background: '#FFFBEB', borderBottom: '1px solid #FCD34D', padding: '8px 16px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#92400E', zIndex: 100 }}>
+                    📡 Đang xem dữ liệu offline — kết nối lại để cập nhật mới nhất
+                </div>
+            )}
             <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px clamp(12px, 4vw, 20px)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
@@ -166,6 +226,7 @@ export default function SupabaseParentPortal() {
             </header>
             <main style={{ maxWidth: 980, margin: '0 auto', padding: 'clamp(12px, 4vw, 20px)' }}>
                 {err && <div style={{ background: '#FEF2F2', color: '#DC2626', borderRadius: 12, padding: 12, fontWeight: 800 }}>{err}</div>}
+                <PWAInstallBanner />
                 {students.length > 0 && <PushBanner students={students} />}
                 {!student && !err && <div style={{ background: '#fff', borderRadius: 16, padding: 28, color: '#7C6D9B', fontWeight: 800 }}>Tài khoản phụ huynh chưa được liên kết học sinh.</div>}
                 {student && tab === 'overview' && (
