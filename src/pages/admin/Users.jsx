@@ -19,6 +19,52 @@ const ROLE_LABEL = { admin: 'Admin', teacher: 'Giáo viên', parent: 'Phụ huyn
 const STATUS_LABEL = { active: 'Đang hoạt động', locked: 'Đã khóa' }
 const MANAGED_ROLES = ['teacher', 'parent']
 
+function validateAccountForm(form, isNew) {
+    const role = form.role
+    const fullName = form.fullName?.trim()
+    const email = form.email?.trim()
+    const password = form.password?.trim()
+
+    if (!fullName) return 'Vui lòng nhập tên tài khoản.'
+    if (!email || !email.includes('@')) return 'Vui lòng nhập email đăng nhập hợp lệ.'
+    if (isNew && (!password || password.length < 8)) return 'Mật khẩu tạm thời cần ít nhất 8 ký tự.'
+    if (!isNew && password && password.length < 8) return 'Mật khẩu mới cần ít nhất 8 ký tự.'
+    if (role === 'teacher' && !form.facilityId) return 'Giáo viên cần được gán cơ sở.'
+    if (role === 'parent' && !form.studentId) return 'Phụ huynh cần được liên kết với học sinh.'
+    return ''
+}
+
+function AccountRulesPanel() {
+    const items = [
+        ['Giáo viên', 'Chọn cơ sở để giới hạn dữ liệu giáo viên được xem và nhập.'],
+        ['Phụ huynh', 'Chọn học sinh; tài khoản sẽ đi theo cơ sở của học sinh đó.'],
+        ['Email', 'Mỗi email chỉ tạo được một tài khoản đăng nhập trong toàn hệ thống.'],
+        ['Mật khẩu', 'Khi tạo mới cần mật khẩu tạm thời tối thiểu 8 ký tự.'],
+    ]
+
+    return (
+        <div
+            style={{
+                background: '#FFF7ED',
+                border: '1px solid #FED7AA',
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 14,
+                color: '#7C2D12',
+            }}
+        >
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Quy tắc tạo tài khoản</div>
+            <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {items.map(([title, text]) => (
+                    <div key={title} style={{ fontSize: 12, lineHeight: 1.45 }}>
+                        <strong>{title}:</strong> {text}
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
 function UserModal({ user, students, onClose, onSave }) {
     const [form, setForm] = useState({
         role: user?.role || 'teacher',
@@ -218,6 +264,7 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
     const [profiles, setProfiles] = useState([])
     const [currentProfile, setCurrentProfile] = useState(null)
     const [students, setStudents] = useState([])
+    const [allStudents, setAllStudents] = useState([])
     const [facilities, setFacilities] = useState([])
     const [links, setLinks] = useState([])
     const [editing, setEditing] = useState(null)
@@ -230,13 +277,18 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
             const [me, nextProfiles, nextStudents, nextFacilities, nextLinks] = await Promise.all([
                 getCurrentProfile(),
                 listProfiles(),
-                listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
+                listStudents({ status: 'active' }),
                 listFacilities(),
                 listParentLinks(),
             ])
             setCurrentProfile(me)
             setProfiles(nextProfiles)
-            setStudents(nextStudents)
+            setAllStudents(nextStudents)
+            setStudents(
+                selectedFacilityId
+                    ? nextStudents.filter(student => student.facilityId === selectedFacilityId)
+                    : nextStudents,
+            )
             setFacilities(nextFacilities)
             setLinks(nextLinks)
         } catch (ex) {
@@ -250,13 +302,26 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
 
     async function save(form) {
         try {
+            const validationError = validateAccountForm(form, !form.id)
+            if (validationError) {
+                setErr(validationError)
+                return
+            }
+
             const email = form.email?.trim().toLowerCase()
             const duplicate = email
                 ? profiles.find(profile => profile.email?.trim().toLowerCase() === email && profile.id !== form.id)
                 : null
             if (duplicate) {
-                const facility = facilities.find(item => item.id === duplicate.facilityId)
-                const facilityLabel = duplicate.role === 'teacher' ? facility?.code || 'cơ sở khác' : 'hệ thống'
+                const link = linkFor(duplicate.id)
+                const linkedStudent = allStudents.find(student => student.id === link?.student_id)
+                const facility = facilities.find(
+                    item => item.id === (duplicate.facilityId || linkedStudent?.facilityId),
+                )
+                const facilityLabel =
+                    duplicate.role === 'parent'
+                        ? `${facility?.code || 'cơ sở khác'}${linkedStudent ? ` - ${linkedStudent.name}` : ''}`
+                        : facility?.code || 'cơ sở khác'
                 setErr(
                     `Email này đã có tài khoản ${duplicate.fullName || duplicate.email} ở ${facilityLabel}. Hãy chuyển sang đúng cơ sở để sửa tài khoản, hoặc dùng email khác.`,
                 )
@@ -353,6 +418,7 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
                     + Tạo tài khoản
                 </button>
             </div>
+            <AccountRulesPanel />
             {err && (
                 <div
                     style={{

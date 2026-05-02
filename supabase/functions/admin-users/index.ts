@@ -48,6 +48,7 @@ function validatePayload(input: Record<string, unknown>, isCreate: boolean) {
     if (!email || !email.includes('@')) return 'Email không hợp lệ.'
     if (!fullName) return 'Thiếu họ tên.'
     if (role === 'teacher' && !cleanText(input.facilityId)) return 'Giáo viên cần được gán cơ sở.'
+    if (role === 'parent' && !cleanText(input.studentId)) return 'Phụ huynh cần được liên kết học sinh.'
     if (isCreate && password.length < 8) return 'Mật khẩu tạm thời cần ít nhất 8 ký tự.'
     if (!isCreate && password && password.length < 8) return 'Mật khẩu mới cần ít nhất 8 ký tự.'
     return ''
