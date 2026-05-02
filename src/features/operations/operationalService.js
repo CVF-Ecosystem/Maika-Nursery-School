@@ -2,7 +2,7 @@ import { getCurrentProfile } from '../auth/authService'
 import { requireSupabase } from '../../lib/supabaseClient'
 
 const NOTIFICATION_COLUMNS = 'id, title, body, type, priority, target_role, target_class_id, target_student_id, channel, status, scheduled_at, sent_at, created_by, created_at, updated_at'
-const SETTINGS_COLUMNS = 'id, school_name, logo_url, address, phone, email, hours_open, hours_close, pickup_start, pickup_end, timezone, current_academic_year_id, updated_at'
+const SETTINGS_COLUMNS = 'id, school_name, logo_url, address, phone, email, hours_open, hours_close, pickup_start, pickup_end, timezone, current_academic_year_id, zalo_oa_token, zalo_zns_invoice_template, zalo_zns_incident_template, updated_at'
 const ACADEMIC_YEAR_COLUMNS = 'id, name, start_date, end_date, is_current, created_at'
 const HOLIDAY_COLUMNS = 'id, name, date, is_recurring, note, created_at'
 const TUITION_COLUMNS = 'id, name, class_id, amount, currency, billing_cycle, description, is_active, created_at, updated_at'
@@ -147,8 +147,12 @@ export async function saveSchoolSettings(input) {
         pickup_end: input.pickupEnd || '18:00',
         timezone: input.timezone || 'Asia/Ho_Chi_Minh',
         current_academic_year_id: input.currentAcademicYearId || null,
+        zalo_oa_token: input.zaloOaToken !== undefined ? (input.zaloOaToken || null) : undefined,
+        zalo_zns_invoice_template: input.zaloZnsInvoiceTemplate !== undefined ? (input.zaloZnsInvoiceTemplate || null) : undefined,
+        zalo_zns_incident_template: input.zaloZnsIncidentTemplate !== undefined ? (input.zaloZnsIncidentTemplate || null) : undefined,
         updated_at: new Date().toISOString(),
     }
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
     const { data, error } = await client
         .from('school_settings')
         .upsert(payload, { onConflict: 'id' })

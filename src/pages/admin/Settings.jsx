@@ -37,6 +37,7 @@ const TABS = [
     { id: 'academic', label: '📅 Năm học & Ngày nghỉ' },
     { id: 'tuition', label: '💰 Mức học phí' },
     { id: 'consents', label: '🔒 Đồng ý dữ liệu' },
+    { id: 'zalo', label: '🟦 Zalo OA' },
 ]
 
 const CYCLE_LABEL = { monthly: 'Hàng tháng', term: 'Học kỳ', yearly: 'Cả năm' }
@@ -560,6 +561,85 @@ function Toggle({ value, onChange, loading }) {
     )
 }
 
+function ZaloTab() {
+    const supabaseMode = isSupabaseSession()
+    const [form, setForm] = useState({ zaloOaToken: '', zaloZnsInvoiceTemplate: '', zaloZnsIncidentTemplate: '' })
+    const [saving, setSaving] = useState(false)
+    const [testing, setTesting] = useState(false)
+    const [msg, setMsg] = useState('')
+
+    useEffect(() => {
+        if (!supabaseMode) return
+        getSchoolSettings().then(d => setForm({
+            zaloOaToken: d.zalo_oa_token || '',
+            zaloZnsInvoiceTemplate: d.zalo_zns_invoice_template || '',
+            zaloZnsIncidentTemplate: d.zalo_zns_incident_template || '',
+        })).catch(() => {})
+    }, [supabaseMode])
+
+    async function handleSave(e) {
+        e.preventDefault()
+        setSaving(true)
+        setMsg('')
+        try {
+            await saveSchoolSettings(form)
+            setMsg('✅ Đã lưu cấu hình Zalo OA.')
+        } catch (err) { setMsg(`❌ ${err.message}`) } finally { setSaving(false) }
+    }
+
+    async function handleTest() {
+        const phone = prompt('Nhập số điện thoại Zalo để test (VD: 0901234567):')
+        if (!phone) return
+        setTesting(true)
+        setMsg('')
+        try {
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+            const { data: { session } } = await (await import('../../lib/supabaseClient')).requireSupabase().auth.getSession()
+            const res = await fetch(`${supabaseUrl}/functions/v1/send-zalo-zns`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}`, 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '' },
+                body: JSON.stringify({ phone, templateId: form.zaloZnsInvoiceTemplate, templateData: { student_name: 'Test', amount: '100.000 đ', due_date: '01/06/2026', invoice_number: 'TEST-001' }, refType: 'test' }),
+            })
+            const result = await res.json()
+            setMsg(result.sent ? '✅ Gửi test thành công!' : `❌ ${result.error || 'Gửi thất bại'}`)
+        } catch (err) { setMsg(`❌ ${err.message}`) } finally { setTesting(false) }
+    }
+
+    const inp = (label, field, placeholder = '') => (
+        <div style={{ marginBottom: 16 }}>
+            <label style={lblStyle}>{label}</label>
+            <input type="text" value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} placeholder={placeholder} style={inpStyle} />
+        </div>
+    )
+
+    return (
+        <div>
+            <div style={sectionTitle}>🟦 Zalo Official Account (ZNS)</div>
+            <div style={{ background: '#F0F9FF', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#0369A1' }}>
+                <strong>Hướng dẫn:</strong> Đăng ký Zalo Official Account tại <em>oa.zalo.me</em> → Lấy <strong>OA Access Token</strong> trong phần API → Tạo ZNS Template → Nhập Template ID vào đây.
+            </div>
+            <form onSubmit={handleSave} style={{ maxWidth: 560 }}>
+                <div>
+                    <label style={lblStyle}>🔑 Zalo OA Access Token</label>
+                    <input type="password" value={form.zaloOaToken} onChange={e => setForm(f => ({ ...f, zaloOaToken: e.target.value }))} placeholder="Dán Access Token từ Zalo OA Dashboard..." style={inpStyle} />
+                    <div style={{ fontSize: 11, color: '#7C6D9B', marginTop: 4, marginBottom: 16 }}>Token được mã hóa khi lưu, không hiển thị lại</div>
+                </div>
+                {inp('📄 ZNS Template ID — Hóa đơn học phí', 'zaloZnsInvoiceTemplate', 'VD: 320145')}
+                {inp('🚨 ZNS Template ID — Sự cố (tùy chọn)', 'zaloZnsIncidentTemplate', 'VD: 320146')}
+                {msg && <div style={{ marginBottom: 12, fontSize: 13, color: msg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{msg}</div>}
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button type="submit" disabled={saving} style={btnStyle}>{saving ? 'Đang lưu...' : '💾 Lưu cấu hình'}</button>
+                    {form.zaloZnsInvoiceTemplate && (
+                        <button type="button" onClick={handleTest} disabled={testing} style={{ ...btnStyle, background: 'linear-gradient(135deg,#0369A1,#0284C7)' }}>
+                            {testing ? 'Đang gửi...' : '🧪 Gửi test ZNS'}
+                        </button>
+                    )}
+                </div>
+            </form>
+        </div>
+    )
+}
+
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const lblStyle = { fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }
@@ -583,6 +663,7 @@ export default function Settings() {
         academic: <AcademicTab />,
         tuition: <TuitionTab />,
         consents: <ConsentsTab />,
+        zalo: <ZaloTab />,
     }
 
     return (

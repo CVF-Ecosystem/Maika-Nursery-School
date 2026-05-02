@@ -9,6 +9,7 @@ import { buildReceiptNumber, studentCodeFromReceiptNumber } from '../../features
 import { fmtMoney, fmtDate } from '../../utils/format'
 import { sanitizeText } from '../../utils/security'
 import { normalizeImportDate, normalizeImportKey, pickImportValue, readObjectsFromTable, readWorkbookTables } from '../../utils/tabularImport'
+import { sendInvoiceZns } from '../../features/zalo/zaloService'
 
 const STATUS_MAP = {
     pending: ['#D97706', '#FFFBEB', 'Chưa đóng'],
@@ -685,7 +686,21 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
 
         try {
             if (supabaseMode) {
-                await saveSupabaseInvoice({ ...payload, id: editingInvoice?.id, invoiceNumber })
+                const saved = await saveSupabaseInvoice({ ...payload, id: editingInvoice?.id, invoiceNumber })
+                if (!editingInvoice) {
+                    const student = students.find(s => s.id === payload.studentId)
+                    if (student?.parentPhone) {
+                        sendInvoiceZns({
+                            phone: student.parentPhone,
+                            studentName: student.name,
+                            amount: payload.amount,
+                            dueDate: payload.dueDate,
+                            invoiceNumber,
+                            facilityId: student.facilityId,
+                            invoiceId: saved?.id,
+                        }).catch(() => {})
+                    }
+                }
                 setMessage(editingInvoice ? 'Đã cập nhật hóa đơn.' : 'Đã tạo hóa đơn mới.')
             } else if (localMode) {
                 const ndb = getDB()
