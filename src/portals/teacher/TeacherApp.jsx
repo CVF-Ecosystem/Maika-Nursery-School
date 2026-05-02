@@ -18,10 +18,16 @@ function Loading() {
 
 export default function TeacherApp() {
     const [tab, setTab] = useState('attendance')
+    const [mountedTabs, setMountedTabs] = useState(() => new Set(['attendance']))
     const [online, setOnline] = useState(isOnline())
     const [pending, setPending] = useState(getOfflineQueueCount())
     const navigate = useNavigate()
     const current = TABS.find(item => item.id === tab) || TABS[0]
+
+    function selectTab(nextTab) {
+        setTab(nextTab)
+        setMountedTabs(prev => new Set([...prev, nextTab]))
+    }
 
     function logout() {
         sessionStorage.removeItem('maika_role')
@@ -53,16 +59,39 @@ export default function TeacherApp() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#F5F3FF' }}>
-            <header style={{ position: 'sticky', top: 0, zIndex: 50, background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)', color: '#fff', padding: '14px 16px 10px' }}>
+            <header
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 50,
+                    background: 'linear-gradient(135deg,#1E1B4B,#4C1D95)',
+                    color: '#fff',
+                    padding: '14px 16px 10px',
+                }}
+            >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 900, fontSize: 18 }}>Cổng giáo viên</div>
-                        <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>Công cụ hằng ngày cho giáo viên</div>
+                        <div style={{ color: '#C4B5FD', fontSize: 12, fontWeight: 700 }}>
+                            Công cụ hằng ngày cho giáo viên
+                        </div>
                         <div style={{ color: '#DDD6FE', fontSize: 11, fontWeight: 800, marginTop: 2 }}>
-                            {online ? 'Online' : 'Offline'}{pending > 0 ? ` · ${pending} mục chờ đồng bộ` : ' · Đã đồng bộ'}
+                            {online ? 'Online' : 'Offline'}
+                            {pending > 0 ? ` · ${pending} mục chờ đồng bộ` : ' · Đã đồng bộ'}
                         </div>
                     </div>
-                    <button onClick={logout} style={{ border: '1px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 10, padding: '8px 10px', fontWeight: 800, fontSize: 12 }}>
+                    <button
+                        onClick={logout}
+                        style={{
+                            border: '1px solid rgba(255,255,255,0.28)',
+                            background: 'rgba(255,255,255,0.1)',
+                            color: '#fff',
+                            borderRadius: 10,
+                            padding: '8px 10px',
+                            fontWeight: 800,
+                            fontSize: 12,
+                        }}
+                    >
                         Đăng xuất
                     </button>
                 </div>
@@ -70,7 +99,7 @@ export default function TeacherApp() {
                     {TABS.map(item => (
                         <button
                             key={item.id}
-                            onClick={() => setTab(item.id)}
+                            onClick={() => selectTab(item.id)}
                             style={{
                                 border: 'none',
                                 borderRadius: 12,
@@ -92,7 +121,19 @@ export default function TeacherApp() {
                     <div style={{ color: '#1E1B4B', fontSize: 20, fontWeight: 900 }}>{current.label}</div>
                 </div>
                 <Suspense fallback={<Loading />}>
-                    {current.component}
+                    {TABS.map(item => {
+                        if (!mountedTabs.has(item.id)) return null
+                        return (
+                            <section
+                                key={item.id}
+                                hidden={tab !== item.id}
+                                aria-hidden={tab !== item.id}
+                                style={{ display: tab === item.id ? 'block' : 'none' }}
+                            >
+                                {item.component}
+                            </section>
+                        )
+                    })}
                 </Suspense>
             </main>
         </div>
