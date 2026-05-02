@@ -271,7 +271,7 @@ export default function Landing() {
                     >
                         Môi trường chăm sóc, học tập và kết nối phụ huynh dành cho trẻ mầm non.
                     </p>
-                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                         <a
                             href="#cta"
                             style={{
@@ -290,6 +290,22 @@ export default function Landing() {
                         >
                             Đăng ký tham quan
                         </a>
+                        <button
+                            onClick={() => navigate('/parent')}
+                            className="landing-hero-parent-btn"
+                            style={{
+                                display: 'none',
+                                padding: '14px 26px',
+                                borderRadius: 50,
+                                background: 'rgba(255,255,255,0.15)',
+                                border: '1.5px solid rgba(255,255,255,0.5)',
+                                color: '#fff',
+                                fontWeight: 800,
+                                fontSize: 15,
+                            }}
+                        >
+                            Phụ huynh đăng nhập
+                        </button>
                     </div>
                 </div>
                 {/* Hero stats cards */}

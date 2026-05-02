@@ -194,9 +194,15 @@ input:focus, textarea:focus, select:focus {
     letter-spacing: -0.5px !important;
   }
 
-  /* Hide parent login button in navbar — too cramped */
+  /* Navbar parent btn hidden on small phones — shown in hero instead */
   .landing-nav-parent-btn {
     display: none !important;
+  }
+
+  /* Hero parent login button — only visible on mobile */
+  .landing-hero-parent-btn {
+    display: inline-flex !important;
+    align-items: center;
   }
 
   .landing-gallery-grid {
