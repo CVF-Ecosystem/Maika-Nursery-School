@@ -14,6 +14,7 @@ const REPORT_COLUMNS = `
     activities,
     note,
     health,
+    photo_paths,
     recorded_by,
     created_at,
     updated_at
@@ -33,6 +34,7 @@ export function mapDailyReport(row) {
         activities: row.activities || [],
         note: row.note || '',
         health: row.health || '',
+        photoPaths: row.photo_paths || [],
         recordedBy: row.recorded_by || '',
         updatedAt: row.updated_at,
     }
@@ -51,6 +53,29 @@ export async function listDailyReportsByFacilityDate({ facilityId, date }) {
     return (data || []).map(mapDailyReport)
 }
 
+export function subscribeDailyReports({ facilityId, date, onChange }) {
+    const client = requireSupabase()
+    const channel = client
+        .channel(`daily_reports:${facilityId || 'all'}:${date || 'any'}`)
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'daily_reports', filter: date ? `report_date=eq.${date}` : undefined },
+            payload => {
+                const row = payload.new?.id ? payload.new : null
+                const old = payload.old?.id ? payload.old : null
+                const rowFacilityId = row?.facility_id || old?.facility_id || ''
+                if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
+                onChange({
+                    eventType: payload.eventType,
+                    record: row ? mapDailyReport(row) : null,
+                    oldRecord: old ? mapDailyReport(old) : null,
+                })
+            },
+        )
+        .subscribe()
+    return () => client.removeChannel(channel)
+}
+
 export async function saveDailyReport(record) {
     const client = requireSupabase()
     const profile = await getCurrentProfile()
@@ -66,6 +91,7 @@ export async function saveDailyReport(record) {
         activities: Array.isArray(record.activities) ? record.activities : [],
         note: record.note || null,
         health: record.health || null,
+        photo_paths: Array.isArray(record.photoPaths) ? record.photoPaths : [],
         recorded_by: record.recordedBy || profile?.id || null,
         updated_at: new Date().toISOString(),
     }

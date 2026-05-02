@@ -3,7 +3,7 @@ import { getDB } from '../../data/store'
 import { apiRequest, hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listStudents } from '../../features/students/studentService'
-import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident } from '../../features/sensitive/sensitiveService'
+import { acknowledgeIncident, listIncidents as listSupabaseIncidents, saveIncident as saveSupabaseIncident, subscribeIncidents } from '../../features/sensitive/sensitiveService'
 import { getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 import { sendPushForEvent } from '../../features/push/pushService'
 
@@ -221,6 +221,21 @@ export default function Incidents({ readOnly = false, filterStudentId = null, se
     }
 
     useEffect(() => { load() }, [filterStatus, filterStudentId, selectedFacilityId])
+
+    useEffect(() => {
+        if (!supabaseMode) return
+        return subscribeIncidents({
+            facilityId: filterStudentId ? undefined : selectedFacilityId || undefined,
+            onChange: ({ eventType, record, oldRecord }) => {
+                if (filterStudentId && record?.student_id !== filterStudentId && oldRecord?.student_id !== filterStudentId) return
+                if (eventType === 'DELETE') {
+                    const id = oldRecord?.id; if (id) setIncidents(prev => prev.filter(i => i.id !== id))
+                } else if (record) {
+                    setIncidents(prev => prev.some(i => i.id === record.id) ? prev.map(i => i.id === record.id ? record : i) : [record, ...prev])
+                }
+            },
+        })
+    }, [supabaseMode, filterStudentId, selectedFacilityId])
 
     async function handleSave(form) {
         setError('')

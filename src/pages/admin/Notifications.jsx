@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
-import { createNotification, listNotifications, updateNotification } from '../../features/operations/operationalService'
+import { createNotification, listNotifications, subscribeNotifications, updateNotification } from '../../features/operations/operationalService'
 import { sendPushForEvent } from '../../features/push/pushService'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -82,6 +82,19 @@ export default function Notifications({ readOnly = false }) {
     }
 
     useEffect(reload, [filterStatus, supabaseMode])
+
+    useEffect(() => {
+        if (!supabaseMode) return
+        return subscribeNotifications({
+            onChange: ({ eventType, record, oldRecord }) => {
+                if (eventType === 'DELETE') {
+                    const id = oldRecord?.id; if (id) setItems(prev => prev.filter(i => i.id !== id))
+                } else if (record) {
+                    setItems(prev => prev.some(i => i.id === record.id) ? prev.map(i => i.id === record.id ? record : i) : [record, ...prev])
+                }
+            },
+        })
+    }, [supabaseMode])
 
     function openCreate() {
         setEditing(null)

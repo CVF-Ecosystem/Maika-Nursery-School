@@ -4,7 +4,7 @@ import { fmtDate } from '../../utils/format'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getCurrentProfile } from '../../features/auth/authService'
 import { listStudents } from '../../features/students/studentService'
-import { listDailyReportsByFacilityDate, saveDailyReport } from '../../features/reports/dailyReportService'
+import { listDailyReportsByFacilityDate, saveDailyReport, subscribeDailyReports } from '../../features/reports/dailyReportService'
 import { getSignedUrl, uploadReportPhoto } from '../../features/media/mediaService'
 import { cacheTeacherData, enqueueOfflineAction, isOnline, readCachedTeacherData, syncOfflineQueue } from '../../features/offline/offlineSyncService'
 
@@ -159,6 +159,22 @@ function SupabaseDailyReports({ selectedFacilityId = '' }) {
     }
 
     useEffect(() => { load() }, [date, selectedFacilityId])
+
+    useEffect(() => {
+        if (!date) return
+        return subscribeDailyReports({
+            facilityId: selectedFacilityId || undefined,
+            date,
+            onChange: ({ eventType, record, oldRecord }) => {
+                setReports(prev => {
+                    const next = { ...prev }
+                    if (eventType === 'DELETE' && oldRecord?.studentId) { delete next[oldRecord.studentId] }
+                    else if (record?.studentId) { next[record.studentId] = record }
+                    return next
+                })
+            },
+        })
+    }, [date, selectedFacilityId])
 
     useEffect(() => {
         const sync = () => syncOfflineQueue().then(load).catch(() => { })

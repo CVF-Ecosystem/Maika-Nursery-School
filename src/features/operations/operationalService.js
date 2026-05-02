@@ -330,3 +330,22 @@ export async function upsertMealMenu(input) {
     if (error) throw error
     return data
 }
+
+export function subscribeNotifications({ facilityId, onChange }) {
+    const client = requireSupabase()
+    const channel = client
+        .channel(`notifications:${facilityId || 'all'}`)
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'notifications' },
+            payload => {
+                const row = payload.new?.id ? payload.new : null
+                const old = payload.old?.id ? payload.old : null
+                const rowFacilityId = row?.facility_id || old?.facility_id || ''
+                if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
+                onChange({ eventType: payload.eventType, record: row, oldRecord: old })
+            },
+        )
+        .subscribe()
+    return () => client.removeChannel(channel)
+}
