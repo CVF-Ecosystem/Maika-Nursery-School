@@ -250,6 +250,19 @@ function SupabaseUsers({ selectedFacilityId = '' }) {
 
     async function save(form) {
         try {
+            const email = form.email?.trim().toLowerCase()
+            const duplicate = email
+                ? profiles.find(profile => profile.email?.trim().toLowerCase() === email && profile.id !== form.id)
+                : null
+            if (duplicate) {
+                const facility = facilities.find(item => item.id === duplicate.facilityId)
+                const facilityLabel = duplicate.role === 'teacher' ? facility?.code || 'cơ sở khác' : 'hệ thống'
+                setErr(
+                    `Email này đã có tài khoản ${duplicate.fullName || duplicate.email} ở ${facilityLabel}. Hãy chuyển sang đúng cơ sở để sửa tài khoản, hoặc dùng email khác.`,
+                )
+                return
+            }
+
             if (form.id) {
                 try {
                     await updateProfileAccount(form)
