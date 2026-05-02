@@ -35,7 +35,11 @@ export default function TourRequests() {
 
     function loadLocal() {
         const db = getDB()
-        setItems([...(db.tourRequests || [])].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))))
+        setItems(
+            [...(db.tourRequests || [])].sort((a, b) =>
+                String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
+            ),
+        )
     }
 
     function reload() {
@@ -92,7 +96,7 @@ export default function TourRequests() {
                 setError(error.message || 'Không cập nhật được trạng thái.')
                 return
             }
-            setItems(current => current.map(row => row.id === item.id ? mapSupabaseRequest(data) : row))
+            setItems(current => current.map(row => (row.id === item.id ? mapSupabaseRequest(data) : row)))
             return
         }
 
@@ -101,7 +105,7 @@ export default function TourRequests() {
                 method: 'PUT',
                 body: JSON.stringify({ ...item, status }),
             })
-            setItems(current => current.map(row => row.id === item.id ? payload.data : row))
+            setItems(current => current.map(row => (row.id === item.id ? payload.data : row)))
             return
         }
 
@@ -116,27 +120,65 @@ export default function TourRequests() {
 
     return (
         <div className="admin-page-pad" style={{ padding: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginBottom: 20 }}>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))',
+                    gap: 14,
+                    marginBottom: 20,
+                }}
+            >
                 {[
                     ['Tổng đăng ký', items.length, '#6D28D9'],
                     ['Chưa liên hệ', items.filter(i => i.status === 'new').length, '#D97706'],
                     ['Đã hẹn', items.filter(i => i.status === 'scheduled').length, '#2563EB'],
                 ].map(([label, value, color]) => (
-                    <div key={label} style={{ background: '#fff', border: '1.5px solid #EDE9FE', borderRadius: 16, padding: 18 }}>
+                    <div
+                        key={label}
+                        style={{ background: '#fff', border: '1.5px solid #EDE9FE', borderRadius: 16, padding: 18 }}
+                    >
                         <div style={{ fontSize: 12, color: '#7C6D9B', fontWeight: 800 }}>{label}</div>
                         <div style={{ fontSize: 30, color, fontWeight: 900, marginTop: 6 }}>{value}</div>
                     </div>
                 ))}
             </div>
 
-            {error && <div style={{ padding: 14, borderRadius: 14, background: '#FEF2F2', color: '#DC2626', fontWeight: 700, marginBottom: 16 }}>{error}</div>}
+            {error && (
+                <div
+                    style={{
+                        padding: 14,
+                        borderRadius: 14,
+                        background: '#FEF2F2',
+                        color: '#DC2626',
+                        fontWeight: 700,
+                        marginBottom: 16,
+                    }}
+                >
+                    {error}
+                </div>
+            )}
 
-            <div className="mobile-scroll-table" style={{ background: '#fff', border: '1.5px solid #EDE9FE', borderRadius: 18, overflow: 'hidden' }}>
+            <div
+                className="mobile-scroll-table"
+                style={{ background: '#fff', border: '1.5px solid #EDE9FE', borderRadius: 18, overflowY: 'hidden' }}
+            >
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#F8F7FF' }}>
                             {['Phụ huynh', 'Liên hệ', 'Độ tuổi', 'Ghi chú', 'Thời gian', 'Trạng thái'].map(h => (
-                                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#7C6D9B', borderBottom: '1.5px solid #DDD6FE' }}>{h}</th>
+                                <th
+                                    key={h}
+                                    style={{
+                                        padding: '12px 16px',
+                                        textAlign: 'left',
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        color: '#7C6D9B',
+                                        borderBottom: '1.5px solid #DDD6FE',
+                                    }}
+                                >
+                                    {h}
+                                </th>
                             ))}
                         </tr>
                     </thead>
@@ -145,14 +187,39 @@ export default function TourRequests() {
                             const status = STATUS[item.status] || STATUS.new
                             return (
                                 <tr key={item.id} style={{ borderBottom: '1px solid #F1EEFF' }}>
-                                    <td style={{ padding: '14px 16px', fontWeight: 800, color: '#1E1B4B' }}>{item.parentName || '—'}</td>
-                                    <td style={{ padding: '14px 16px', color: '#4B4899', fontWeight: 700 }}>{item.phone || '—'}</td>
-                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', fontWeight: 700 }}>{item.childAge || '—'}</td>
-                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', maxWidth: 260 }}>{item.note || '—'}</td>
-                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', fontWeight: 700 }}>{fmtDateTime(item.createdAt)}</td>
+                                    <td style={{ padding: '14px 16px', fontWeight: 800, color: '#1E1B4B' }}>
+                                        {item.parentName || '—'}
+                                    </td>
+                                    <td style={{ padding: '14px 16px', color: '#4B4899', fontWeight: 700 }}>
+                                        {item.phone || '—'}
+                                    </td>
+                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', fontWeight: 700 }}>
+                                        {item.childAge || '—'}
+                                    </td>
+                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', maxWidth: 260 }}>
+                                        {item.note || '—'}
+                                    </td>
+                                    <td style={{ padding: '14px 16px', color: '#7C6D9B', fontWeight: 700 }}>
+                                        {fmtDateTime(item.createdAt)}
+                                    </td>
                                     <td style={{ padding: '14px 16px' }}>
-                                        <select value={item.status || 'new'} onChange={e => setStatus(item, e.target.value)} style={{ padding: '8px 10px', borderRadius: 10, border: '1.5px solid #DDD6FE', background: status.bg, color: status.color, fontWeight: 800 }}>
-                                            {Object.entries(STATUS).map(([value, opt]) => <option key={value} value={value}>{opt.label}</option>)}
+                                        <select
+                                            value={item.status || 'new'}
+                                            onChange={e => setStatus(item, e.target.value)}
+                                            style={{
+                                                padding: '8px 10px',
+                                                borderRadius: 10,
+                                                border: '1.5px solid #DDD6FE',
+                                                background: status.bg,
+                                                color: status.color,
+                                                fontWeight: 800,
+                                            }}
+                                        >
+                                            {Object.entries(STATUS).map(([value, opt]) => (
+                                                <option key={value} value={value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
                                         </select>
                                     </td>
                                 </tr>
@@ -160,7 +227,12 @@ export default function TourRequests() {
                         })}
                         {!items.length && (
                             <tr>
-                                <td colSpan={6} style={{ padding: 28, textAlign: 'center', color: '#7C6D9B', fontWeight: 700 }}>Chưa có đăng ký tham quan.</td>
+                                <td
+                                    colSpan={6}
+                                    style={{ padding: 28, textAlign: 'center', color: '#7C6D9B', fontWeight: 700 }}
+                                >
+                                    Chưa có đăng ký tham quan.
+                                </td>
                             </tr>
                         )}
                     </tbody>

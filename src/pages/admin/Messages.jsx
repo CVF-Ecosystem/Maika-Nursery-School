@@ -36,6 +36,7 @@ function SupabaseMessages({ selectedFacilityId }) {
     const [sending, setSending] = useState(false)
     const [showCompose, setShowCompose] = useState(false)
     const [compose, setCompose] = useState({ subject: '', body: '' })
+    const [mobileView, setMobileView] = useState('list')
 
     useEffect(() => {
         let mounted = true
@@ -84,6 +85,7 @@ function SupabaseMessages({ selectedFacilityId }) {
 
     async function handleSelect(m) {
         setSelected({ ...m })
+        setMobileView('detail')
         if (!m.is_read && m.from_role === 'parent') {
             markMessageRead(m.id).catch(() => {})
             setMessages(prev => prev.map(x => (x.id === m.id ? { ...x, is_read: true } : x)))
@@ -280,6 +282,7 @@ function SupabaseMessages({ selectedFacilityId }) {
                 style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 16, minHeight: 400 }}
             >
                 <div
+                    className={mobileView === 'detail' ? 'hide-mobile' : ''}
                     style={{
                         background: '#fff',
                         borderRadius: 16,
@@ -373,6 +376,7 @@ function SupabaseMessages({ selectedFacilityId }) {
                 </div>
 
                 <div
+                    className={mobileView === 'list' ? 'hide-mobile' : ''}
                     style={{
                         background: '#fff',
                         borderRadius: 16,
@@ -384,6 +388,23 @@ function SupabaseMessages({ selectedFacilityId }) {
                     {selected ? (
                         <>
                             <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE9FE' }}>
+                                <button
+                                    onClick={() => setMobileView('list')}
+                                    className="show-mobile-only"
+                                    style={{
+                                        display: 'none',
+                                        marginBottom: 10,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#7C3AED',
+                                        fontWeight: 800,
+                                        fontSize: 14,
+                                        padding: 0,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    ← Danh sách tin nhắn
+                                </button>
                                 <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 4 }}>
                                     {selected.subject || '(Không có tiêu đề)'}
                                 </div>
@@ -497,6 +518,7 @@ function LegacyMessages() {
     const [reply, setReply] = useState('')
     const [showCompose, setShowCompose] = useState(false)
     const [compose, setCompose] = useState({ subject: '', content: '', broadcast: false })
+    const [mobileView, setMobileView] = useState('list')
 
     function markRead(id) {
         const ndb = getDB()
@@ -657,6 +679,7 @@ function LegacyMessages() {
                 style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 16, minHeight: 400 }}
             >
                 <div
+                    className={mobileView === 'detail' ? 'hide-mobile' : ''}
                     style={{
                         background: '#fff',
                         borderRadius: 16,
@@ -669,6 +692,7 @@ function LegacyMessages() {
                             key={m.id}
                             onClick={() => {
                                 setSelected(m)
+                                setMobileView('detail')
                                 markRead(m.id)
                             }}
                             style={{
@@ -740,6 +764,7 @@ function LegacyMessages() {
                     ))}
                 </div>
                 <div
+                    className={mobileView === 'list' ? 'hide-mobile' : ''}
                     style={{
                         background: '#fff',
                         borderRadius: 16,
@@ -751,6 +776,23 @@ function LegacyMessages() {
                     {selected ? (
                         <>
                             <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE9FE' }}>
+                                <button
+                                    onClick={() => setMobileView('list')}
+                                    className="show-mobile-only"
+                                    style={{
+                                        display: 'none',
+                                        marginBottom: 10,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#7C3AED',
+                                        fontWeight: 800,
+                                        fontSize: 14,
+                                        padding: 0,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    ← Danh sách tin nhắn
+                                </button>
                                 <div style={{ fontWeight: 800, fontSize: 16, color: '#1E1B4B', marginBottom: 4 }}>
                                     {selected.subject}
                                 </div>

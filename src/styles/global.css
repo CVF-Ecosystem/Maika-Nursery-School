@@ -71,6 +71,9 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 900px) {
   .hide-mobile { display: none !important; }
 
+  /* Show elements only on mobile (e.g. back buttons in master-detail views) */
+  .show-mobile-only { display: block !important; }
+
   /* Prevent fixed FAB (🌸 Trang chủ) from covering pagination at bottom */
   .admin-main-content {
     padding-bottom: 72px !important;
@@ -105,7 +108,19 @@ input:focus, textarea:focus, select:focus {
     min-width: 760px;
   }
 
+  /* Messages: collapse to single column on phones */
   .mobile-two-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modals: constrain height so they fit on short phone screens */
+  .modal-sheet {
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Card grids: collapse to single column */
+  .mobile-card-grid {
     grid-template-columns: 1fr !important;
   }
 
