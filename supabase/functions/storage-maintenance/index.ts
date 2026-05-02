@@ -27,7 +27,7 @@ function objectSize(row: Record<string, unknown>) {
     return Number(size || 0)
 }
 
-async function requireAdmin(request: Request, serviceClient: ReturnType<typeof createClient>) {
+async function requireAdmin(request: Request, serviceClient: any) {
     const authorization = request.headers.get('Authorization') || ''
     const token = authorization.replace(/^Bearer\s+/i, '')
     if (!token) throw new Response(JSON.stringify({ error: 'Phiên đăng nhập đã hết hạn.' }), { status: 401 })
@@ -38,11 +38,12 @@ async function requireAdmin(request: Request, serviceClient: ReturnType<typeof c
         throw new Response(JSON.stringify({ error: 'Phiên đăng nhập không hợp lệ.' }), { status: 401 })
     }
 
-    const { data: profile, error: profileError } = await serviceClient
+    const { data, error: profileError } = await serviceClient
         .from('profiles')
         .select('id, role, full_name, is_active')
         .eq('id', userData.user.id)
         .single()
+    const profile = data as { id: string; role: string; full_name?: string; is_active: boolean } | null
 
     if (profileError || !profile || profile.role !== 'admin' || profile.is_active !== true) {
         throw new Response(JSON.stringify({ error: 'Bạn không có quyền quản trị lưu trữ.' }), { status: 403 })
@@ -67,7 +68,7 @@ async function listStorageObjects(serviceClient: ReturnType<typeof createClient>
 
         for (const item of data) {
             const fullPath = prefix ? `${prefix}/${item.name}` : item.name
-            const metadata = item.metadata || {}
+        const metadata = (item.metadata || {}) as Record<string, unknown>
             if (item.id || metadata.size || metadata.mimetype) {
                 rows.push({ ...item, name: fullPath })
             } else {
@@ -82,7 +83,15 @@ async function listStorageObjects(serviceClient: ReturnType<typeof createClient>
     return rows
 }
 
-async function listArchivedAssets(serviceClient: ReturnType<typeof createClient>) {
+interface ArchivedAsset {
+    id: string
+    storage_path: string
+    original_name?: string | null
+    caption?: string | null
+    size_bytes?: number | null
+}
+
+async function listArchivedAssets(serviceClient: any): Promise<ArchivedAsset[]> {
     const { data, error } = await serviceClient
         .from('media_assets')
         .select('id, storage_path, original_name, caption, status, size_bytes, created_at')
@@ -91,10 +100,10 @@ async function listArchivedAssets(serviceClient: ReturnType<typeof createClient>
         .limit(500)
 
     if (error) throw error
-    return data || []
+    return (data || []) as ArchivedAsset[]
 }
 
-async function storageSummary(serviceClient: ReturnType<typeof createClient>) {
+async function storageSummary(serviceClient: any) {
     const [objects, archivedAssets] = await Promise.all([
         listStorageObjects(serviceClient),
         listArchivedAssets(serviceClient),
@@ -118,7 +127,7 @@ async function storageSummary(serviceClient: ReturnType<typeof createClient>) {
     }
 }
 
-async function downloadArchived(serviceClient: ReturnType<typeof createClient>) {
+async function downloadArchived(serviceClient: any) {
     const assets = await listArchivedAssets(serviceClient)
     const files = []
     for (const asset of assets) {
@@ -138,7 +147,7 @@ async function downloadArchived(serviceClient: ReturnType<typeof createClient>) 
     return { expiresInSeconds: 3600, files }
 }
 
-async function deleteArchived(serviceClient: ReturnType<typeof createClient>, input: Record<string, unknown>) {
+async function deleteArchived(serviceClient: any, input: Record<string, unknown>) {
     if (input.confirmText !== 'XOA ANH LUU TRU') {
         throw new Error('Thiếu xác nhận xóa ảnh lưu trữ.')
     }

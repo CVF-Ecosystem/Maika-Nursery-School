@@ -3,9 +3,20 @@ import { hasBackendAPI } from '../../data/api'
 import { isSupabaseSession } from '../../data/backendMode'
 import { getDB } from '../../data/store'
 import { getCurrentProfile } from '../../features/auth/authService'
-import { listAttendanceByFacilityDate, subscribeAttendanceByFacilityDate, upsertAttendance } from '../../features/attendance/attendanceService'
+import {
+    listAttendanceByFacilityDate,
+    subscribeAttendanceByFacilityDate,
+    upsertAttendance,
+} from '../../features/attendance/attendanceService'
 import { listStudents } from '../../features/students/studentService'
-import { cacheTeacherData, enqueueOfflineAction, isOnline, readCachedTeacherData, syncOfflineQueue } from '../../features/offline/offlineSyncService'
+import {
+    cacheTeacherData,
+    enqueueOfflineAction,
+    getFailedActions,
+    isOnline,
+    readCachedTeacherData,
+    syncOfflineQueue,
+} from '../../features/offline/offlineSyncService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -27,7 +38,25 @@ const STATUS_CONFIG = {
     early_pickup: { label: 'Đón sớm', icon: '🚗', bg: '#EFF6FF', color: '#2563EB', border: '#93C5FD' },
 }
 
-function today() { return new Date().toISOString().split('T')[0] }
+function today() {
+    return new Date().toISOString().split('T')[0]
+}
+
+function SyncStatusIcon({ status }) {
+    if (!status) return null
+    const map = {
+        syncing: ['🔄', 'Đang đồng bộ', '#D97706'],
+        synced: ['✅', 'Đã đồng bộ', '#16A34A'],
+        queued: ['💾', 'Chờ đồng bộ', '#D97706'],
+        error: ['⚠️', 'Lỗi đồng bộ', '#DC2626'],
+    }
+    const [icon, label, color] = map[status] || map.synced
+    return (
+        <span title={label} aria-label={label} style={{ fontSize: 13, color, fontWeight: 900 }}>
+            {icon}
+        </span>
+    )
+}
 
 export default function AttendanceAdvanced({ readOnly = false, filterStudentId, selectedFacilityId = '' }) {
     const [date, setDate] = useState(today)
@@ -35,8 +64,11 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
     const [records, setRecords] = useState({})
     const [classes, setClasses] = useState([])
     const [classFilter, setClassFilter] = useState('')
+    const [statusFilter, setStatusFilter] = useState('')
     const [editModal, setEditModal] = useState(null)
     const [saving, setSaving] = useState(false)
+    const [savingIds, setSavingIds] = useState([])
+    const [syncStatus, setSyncStatus] = useState({})
     const [err, setErr] = useState('')
     const supabaseMode = isSupabaseSession()
 
@@ -58,7 +90,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         apiFetch(`/api/attendance-records?${qs}`)
             .then(res => {
                 const map = {}
-                for (const r of (res.data || [])) map[r.student_id] = r
+                for (const r of res.data || []) map[r.student_id] = r
                 setRecords(map)
             })
             .catch(() => setErr('Lỗi tải dữ liệu'))
@@ -66,7 +98,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
 
     useEffect(() => {
         if (!supabaseMode) return
-        const sync = () => syncOfflineQueue().then(() => loadSupabaseAttendance()).catch(() => { })
+        const sync = () =>
+            syncOfflineQueue()
+                .then(() => loadSupabaseAttendance())
+                .catch(() => {})
         window.addEventListener('online', sync)
         sync()
         return () => window.removeEventListener('online', sync)
@@ -90,6 +125,13 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const map = {}
             for (const record of attendance) map[record.studentId] = record
             setRecords(map)
+            setSyncStatus(prev => {
+                const next = { ...prev }
+                attendance.forEach(record => {
+                    next[record.studentId] = next[record.studentId] || 'synced'
+                })
+                return next
+            })
             cacheTeacherData(`attendance:${facilityId || 'all'}:${date}`, map)
         } catch (ex) {
             const facilityId = readCachedTeacherData('last-facility-id', selectedFacilityId || 'all')
@@ -97,7 +139,12 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             const cachedRecords = readCachedTeacherData(`attendance:${facilityId}:${date}`, {})
             if (cachedStudents.length) {
                 setStudents(filterStudentId ? cachedStudents.filter(s => s.id === filterStudentId) : cachedStudents)
-                setClasses([...new Set(cachedStudents.map(s => s.className).filter(Boolean))].map(name => ({ id: name, name })))
+                setClasses(
+                    [...new Set(cachedStudents.map(s => s.className).filter(Boolean))].map(name => ({
+                        id: name,
+                        name,
+                    })),
+                )
                 setRecords(cachedRecords)
                 setErr('Đang dùng dữ liệu offline. Thao tác sẽ tự đồng bộ khi có mạng.')
             } else {
@@ -122,17 +169,27 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     cacheTeacherData(`attendance:${facilityId || 'all'}:${date}`, next)
                     return next
                 })
+                if (record?.studentId) setSyncStatus(prev => ({ ...prev, [record.studentId]: 'synced' }))
             },
         })
     }, [supabaseMode, date, selectedFacilityId, students])
 
-    const filteredStudents = filterStudentId
+    const classFilteredStudents = filterStudentId
         ? students.filter(s => s.id === filterStudentId)
-        : (classFilter ? students.filter(s => (supabaseMode ? s.className : s.classId) === classFilter) : students)
+        : classFilter
+          ? students.filter(s => (supabaseMode ? s.className : s.classId) === classFilter)
+          : students
+    const filteredStudents = statusFilter
+        ? classFilteredStudents.filter(student => {
+              const rec = records[student.id]
+              if (statusFilter === 'missing') return !rec
+              return rec?.status === statusFilter
+          })
+        : classFilteredStudents
 
     async function quickMark(studentId, status) {
         if (readOnly) return
-        setSaving(true)
+        setSavingIds(prev => [...new Set([...prev, studentId])])
         try {
             const now = new Date().toTimeString().slice(0, 5)
             if (supabaseMode) {
@@ -149,19 +206,23 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     cacheTeacherData(`attendance:${student?.facilityId || selectedFacilityId || 'all'}:${date}`, next)
                     return next
                 })
+                setSyncStatus(prev => ({ ...prev, [studentId]: isOnline() ? 'syncing' : 'queued' }))
                 if (isOnline()) {
                     try {
                         const saved = await upsertAttendance(optimistic)
                         setRecords(prev => ({ ...prev, [studentId]: saved }))
+                        setSyncStatus(prev => ({ ...prev, [studentId]: 'synced' }))
                     } catch {
                         enqueueOfflineAction('attendance', optimistic)
+                        setSyncStatus(prev => ({ ...prev, [studentId]: 'queued' }))
                         setErr('Mất kết nối. Điểm danh đã lưu offline và sẽ tự đồng bộ.')
                     }
                 } else {
                     enqueueOfflineAction('attendance', optimistic)
+                    setSyncStatus(prev => ({ ...prev, [studentId]: 'queued' }))
                     setErr('Đang offline. Điểm danh đã lưu tạm trên máy.')
                 }
-                setSaving(false)
+                setSavingIds(prev => prev.filter(id => id !== studentId))
                 return
             }
             const res = await apiFetch(`/api/attendance-records/${studentId}/${date}`, {
@@ -169,8 +230,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 body: JSON.stringify({ status, checkInTime: status !== 'absent' ? now : null }),
             })
             setRecords(prev => ({ ...prev, [studentId]: res.data }))
-        } catch (ex) { setErr(ex.message) }
-        setSaving(false)
+        } catch (ex) {
+            setErr(ex.message)
+        }
+        setSavingIds(prev => prev.filter(id => id !== studentId))
     }
 
     async function saveDetail(input) {
@@ -218,11 +281,26 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
             })
             setRecords(prev => ({ ...prev, [input.studentId]: res.data }))
             setEditModal(null)
-        } catch (ex) { setErr(ex.message) }
+        } catch (ex) {
+            setErr(ex.message)
+        }
         setSaving(false)
     }
 
-    const visibleRecords = useMemo(() => filteredStudents.map(student => records[student.id]).filter(Boolean), [filteredStudents, records])
+    const visibleRecords = useMemo(
+        () => filteredStudents.map(student => records[student.id]).filter(Boolean),
+        [filteredStudents, records],
+    )
+    const classRecords = useMemo(
+        () => classFilteredStudents.map(student => records[student.id]).filter(Boolean),
+        [classFilteredStudents, records],
+    )
+    const totalMarked = classRecords.length
+    const missingCount = Math.max(0, classFilteredStudents.length - totalMarked)
+    const progressPct = classFilteredStudents.length
+        ? Math.round((totalMarked / classFilteredStudents.length) * 100)
+        : 0
+    const failedCount = getFailedActions().filter(action => action.type === 'attendance').length
     const totalPresent = visibleRecords.filter(record => record.status === 'present').length
     const totalAbsent = visibleRecords.filter(record => record.status === 'absent').length
     const totalLate = visibleRecords.filter(record => record.status === 'late').length
@@ -231,15 +309,114 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
         <div>
             {/* Date + filter bar */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 14, fontWeight: 700, color: '#1E1B4B' }} />
+                <input
+                    type="date"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                    style={{
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: '1.5px solid #DDD6FE',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: '#1E1B4B',
+                    }}
+                />
                 {!filterStudentId && (
-                    <select value={classFilter} onChange={e => setClassFilter(e.target.value)} style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B' }}>
+                    <select
+                        value={classFilter}
+                        onChange={e => setClassFilter(e.target.value)}
+                        style={{
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: '1.5px solid #DDD6FE',
+                            fontSize: 13,
+                            color: '#1E1B4B',
+                        }}
+                    >
                         <option value="">Tất cả lớp</option>
-                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {classes.map(c => (
+                            <option key={c.id} value={c.id}>
+                                {c.name}
+                            </option>
+                        ))}
                     </select>
                 )}
                 {err && <span style={{ fontSize: 13, color: '#DC2626' }}>{err}</span>}
             </div>
+
+            {!readOnly && (
+                <div
+                    style={{
+                        background: '#fff',
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 16,
+                        boxShadow: '0 2px 14px rgba(109,40,217,0.07)',
+                    }}
+                >
+                    <div
+                        className="mobile-stack"
+                        style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}
+                    >
+                        <div style={{ flex: 1, minWidth: 220 }}>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: '#1E1B4B' }}>Tiến độ điểm danh</div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#6B6494', marginTop: 3 }}>
+                                {totalMarked}/{classFilteredStudents.length} bé đã điểm danh · còn {missingCount} bé
+                            </div>
+                            <div
+                                style={{
+                                    height: 8,
+                                    background: '#EDE9FE',
+                                    borderRadius: 999,
+                                    overflow: 'hidden',
+                                    marginTop: 10,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: `${progressPct}%`,
+                                        height: '100%',
+                                        background: 'linear-gradient(135deg,#16A34A,#34D399)',
+                                        borderRadius: 999,
+                                    }}
+                                />
+                            </div>
+                            {failedCount > 0 && (
+                                <div style={{ color: '#DC2626', fontSize: 12, fontWeight: 800, marginTop: 8 }}>
+                                    Có {failedCount} điểm danh lỗi sync cần thử lại.
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            {[
+                                ['', 'Tất cả'],
+                                ['missing', 'Chưa điểm danh'],
+                                ['present', 'Có mặt'],
+                                ['absent', 'Vắng'],
+                                ['late', 'Đi trễ'],
+                            ].map(([value, label]) => (
+                                <button
+                                    key={value || 'all'}
+                                    onClick={() => setStatusFilter(value)}
+                                    style={{
+                                        padding: '9px 11px',
+                                        borderRadius: 10,
+                                        border: '1.5px solid #DDD6FE',
+                                        background: statusFilter === value ? '#EDE9FE' : '#fff',
+                                        color: statusFilter === value ? '#7C3AED' : '#5B5490',
+                                        fontWeight: 900,
+                                        fontSize: 12,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Summary */}
             {!readOnly && (
@@ -250,7 +427,16 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                         { label: 'Đi trễ', count: totalLate, color: '#D97706', bg: '#FFFBEB' },
                         { label: 'Tổng', count: filteredStudents.length, color: '#6D28D9', bg: '#EDE9FE' },
                     ].map(s => (
-                        <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '12px 20px', textAlign: 'center', minWidth: 90 }}>
+                        <div
+                            key={s.label}
+                            style={{
+                                background: s.bg,
+                                borderRadius: 12,
+                                padding: '12px 20px',
+                                textAlign: 'center',
+                                minWidth: 90,
+                            }}
+                        >
                             <div style={{ fontWeight: 900, fontSize: 24, color: s.color }}>{s.count}</div>
                             <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
                         </div>
@@ -265,11 +451,39 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     const status = rec?.status || null
                     const cfg = status ? STATUS_CONFIG[status] : null
                     const cls = supabaseMode ? { name: student.className } : classes.find(c => c.id === student.classId)
+                    const rowSaving = savingIds.includes(student.id)
 
                     return (
-                        <div className="mobile-stack" key={student.id} style={{ background: cfg ? cfg.bg : '#fff', borderRadius: 14, padding: '14px 18px', boxShadow: '0 2px 8px rgba(109,40,217,0.07)', border: `1.5px solid ${cfg ? cfg.border : '#EDE9FE'}`, display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div
+                            className="mobile-stack"
+                            key={student.id}
+                            style={{
+                                background: cfg ? cfg.bg : '#fff',
+                                borderRadius: 14,
+                                padding: '14px 18px',
+                                boxShadow: '0 2px 8px rgba(109,40,217,0.07)',
+                                border: `1.5px solid ${cfg ? cfg.border : '#EDE9FE'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 14,
+                            }}
+                        >
                             {/* Avatar */}
-                            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6D28D9,#A78BFA)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
+                            <div
+                                style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 12,
+                                    background: 'linear-gradient(135deg,#6D28D9,#A78BFA)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontWeight: 900,
+                                    fontSize: 16,
+                                    flexShrink: 0,
+                                }}
+                            >
                                 {student.name?.charAt(0)}
                             </div>
                             {/* Info */}
@@ -277,10 +491,21 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                                 <div style={{ fontWeight: 800, fontSize: 15, color: '#1E1B4B' }}>{student.name}</div>
                                 <div style={{ fontSize: 12, color: '#7C6D9B' }}>
                                     {cls?.name || student.classId || ''}
-                                    {rec?.checkInTime && <span style={{ marginLeft: 8, color: '#059669' }}>⏱ Vào {rec.checkInTime}</span>}
-                                    {rec?.checkOutTime && <span style={{ marginLeft: 8, color: '#2563EB' }}>⏱ Ra {rec.checkOutTime}</span>}
+                                    {rec?.checkInTime && (
+                                        <span style={{ marginLeft: 8, color: '#059669' }}>⏱ Vào {rec.checkInTime}</span>
+                                    )}
+                                    {rec?.checkOutTime && (
+                                        <span style={{ marginLeft: 8, color: '#2563EB' }}>⏱ Ra {rec.checkOutTime}</span>
+                                    )}
+                                    <span style={{ marginLeft: 8 }}>
+                                        <SyncStatusIcon status={syncStatus[student.id] || (rec ? 'synced' : '')} />
+                                    </span>
                                 </div>
-                                {rec?.pickupPerson && <div style={{ fontSize: 11, color: '#9CA3AF' }}>🚗 {rec.pickupPerson} ({rec.pickupPhone || '—'})</div>}
+                                {rec?.pickupPerson && (
+                                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                                        🚗 {rec.pickupPerson} ({rec.pickupPhone || '—'})
+                                    </div>
+                                )}
                             </div>
                             {/* Quick actions */}
                             {!readOnly && (
@@ -289,13 +514,19 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                                         <button
                                             key={key}
                                             onClick={() => quickMark(student.id, key)}
-                                            disabled={saving}
+                                            disabled={rowSaving}
                                             aria-label={`Đánh dấu ${conf.label}`}
                                             title={conf.label}
                                             style={{
-                                                width: 38, height: 38, borderRadius: 10, border: `2px solid ${status === key ? conf.color : '#E5E7EB'}`,
-                                                background: status === key ? conf.bg : '#fff', cursor: saving ? 'wait' : 'pointer',
-                                                fontSize: 16, fontWeight: 700, transition: 'all 0.15s',
+                                                width: 38,
+                                                height: 38,
+                                                borderRadius: 10,
+                                                border: `2px solid ${status === key ? conf.color : '#E5E7EB'}`,
+                                                background: status === key ? conf.bg : '#fff',
+                                                cursor: rowSaving ? 'wait' : 'pointer',
+                                                fontSize: 16,
+                                                fontWeight: 700,
+                                                transition: 'all 0.15s',
                                             }}
                                         >
                                             {conf.icon}
@@ -305,15 +536,21 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                                         onClick={() => setEditModal({ student, rec })}
                                         aria-label="Ghi chi tiết"
                                         title="Ghi chi tiết"
-                                        style={{ width: 38, height: 38, borderRadius: 10, border: '2px solid #DDD6FE', background: '#F5F3FF', cursor: 'pointer', fontSize: 14 }}
+                                        style={{
+                                            width: 38,
+                                            height: 38,
+                                            borderRadius: 10,
+                                            border: '2px solid #DDD6FE',
+                                            background: '#F5F3FF',
+                                            cursor: 'pointer',
+                                            fontSize: 14,
+                                        }}
                                     >
                                         ✏️
                                     </button>
                                 </div>
                             )}
-                            {readOnly && cfg && (
-                                <span style={{ fontSize: 22 }}>{cfg.icon}</span>
-                            )}
+                            {readOnly && cfg && <span style={{ fontSize: 22 }}>{cfg.icon}</span>}
                         </div>
                     )
                 })}
@@ -353,37 +590,148 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
     })
 
     return (
-        <div role="dialog" aria-modal="true" aria-label="Chi tiết điểm danh" style={{ position: 'fixed', inset: 0, background: 'rgba(30,27,75,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, padding: '24px 24px 32px', boxShadow: '0 -8px 40px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chi tiết điểm danh"
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(30,27,75,0.5)',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                zIndex: 1000,
+            }}
+        >
+            <div
+                style={{
+                    background: '#fff',
+                    borderRadius: '20px 20px 0 0',
+                    width: '100%',
+                    maxWidth: 560,
+                    padding: '24px 24px 32px',
+                    boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                }}
+            >
+                <div
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}
+                >
                     <div style={{ fontWeight: 900, fontSize: 16, color: '#1E1B4B' }}>📋 Điểm danh: {student.name}</div>
-                    <button onClick={onClose} style={{ background: '#F5F3FF', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: '#F5F3FF',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '6px 12px',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                        }}
+                    >
+                        ✕
+                    </button>
                 </div>
                 <div style={{ fontSize: 13, color: '#7C6D9B', marginBottom: 16 }}>Ngày: {date}</div>
 
                 <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
                     {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
-                        <button key={key} onClick={() => setForm(f => ({ ...f, status: key }))}
-                            style={{ padding: '8px 16px', borderRadius: 20, border: `2px solid ${form.status === key ? conf.color : '#E5E7EB'}`, background: form.status === key ? conf.bg : '#fff', color: form.status === key ? conf.color : '#6B7280', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                        <button
+                            key={key}
+                            onClick={() => setForm(f => ({ ...f, status: key }))}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: 20,
+                                border: `2px solid ${form.status === key ? conf.color : '#E5E7EB'}`,
+                                background: form.status === key ? conf.bg : '#fff',
+                                color: form.status === key ? conf.color : '#6B7280',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: 'pointer',
+                            }}
+                        >
                             {conf.icon} {conf.label}
                         </button>
                     ))}
                 </div>
 
-                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                    <LabelInput label="Giờ vào" type="time" value={form.checkInTime} onChange={v => setForm(f => ({ ...f, checkInTime: v }))} />
-                    <LabelInput label="Giờ ra" type="time" value={form.checkOutTime} onChange={v => setForm(f => ({ ...f, checkOutTime: v }))} />
+                <div
+                    className="mobile-two-col"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}
+                >
+                    <LabelInput
+                        label="Giờ vào"
+                        type="time"
+                        value={form.checkInTime}
+                        onChange={v => setForm(f => ({ ...f, checkInTime: v }))}
+                    />
+                    <LabelInput
+                        label="Giờ ra"
+                        type="time"
+                        value={form.checkOutTime}
+                        onChange={v => setForm(f => ({ ...f, checkOutTime: v }))}
+                    />
                 </div>
-                <div className="mobile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                    <LabelInput label="Người đón" value={form.pickupPerson} onChange={v => setForm(f => ({ ...f, pickupPerson: v }))} placeholder="Tên người đón" />
-                    <LabelInput label="Điện thoại người đón" value={form.pickupPhone} onChange={v => setForm(f => ({ ...f, pickupPhone: v }))} placeholder="0901..." />
+                <div
+                    className="mobile-two-col"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}
+                >
+                    <LabelInput
+                        label="Người đón"
+                        value={form.pickupPerson}
+                        onChange={v => setForm(f => ({ ...f, pickupPerson: v }))}
+                        placeholder="Tên người đón"
+                    />
+                    <LabelInput
+                        label="Điện thoại người đón"
+                        value={form.pickupPhone}
+                        onChange={v => setForm(f => ({ ...f, pickupPhone: v }))}
+                        placeholder="0901..."
+                    />
                 </div>
-                {form.status === 'late' && <LabelInput label="Lý do đến trễ" value={form.lateReason} onChange={v => setForm(f => ({ ...f, lateReason: v }))} placeholder="Tắc đường, ốm..." style={{ marginBottom: 12 }} />}
-                {form.status === 'early_pickup' && <LabelInput label="Lý do đón sớm" value={form.earlyPickupReason} onChange={v => setForm(f => ({ ...f, earlyPickupReason: v }))} placeholder="Lý do..." style={{ marginBottom: 12 }} />}
-                <LabelInput label="Ghi chú" value={form.note} onChange={v => setForm(f => ({ ...f, note: v }))} placeholder="Ghi chú thêm..." style={{ marginBottom: 18 }} />
+                {form.status === 'late' && (
+                    <LabelInput
+                        label="Lý do đến trễ"
+                        value={form.lateReason}
+                        onChange={v => setForm(f => ({ ...f, lateReason: v }))}
+                        placeholder="Tắc đường, ốm..."
+                        style={{ marginBottom: 12 }}
+                    />
+                )}
+                {form.status === 'early_pickup' && (
+                    <LabelInput
+                        label="Lý do đón sớm"
+                        value={form.earlyPickupReason}
+                        onChange={v => setForm(f => ({ ...f, earlyPickupReason: v }))}
+                        placeholder="Lý do..."
+                        style={{ marginBottom: 12 }}
+                    />
+                )}
+                <LabelInput
+                    label="Ghi chú"
+                    value={form.note}
+                    onChange={v => setForm(f => ({ ...f, note: v }))}
+                    placeholder="Ghi chú thêm..."
+                    style={{ marginBottom: 18 }}
+                />
 
-                <button onClick={() => onSave({ studentId: student.id, ...form })} disabled={saving}
-                    style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: saving ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)', color: saving ? '#7C6D9B' : '#fff', fontWeight: 800, fontSize: 15, cursor: saving ? 'wait' : 'pointer' }}>
+                <button
+                    onClick={() => onSave({ studentId: student.id, ...form })}
+                    disabled={saving}
+                    style={{
+                        width: '100%',
+                        padding: '14px',
+                        borderRadius: 14,
+                        border: 'none',
+                        background: saving ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                        color: saving ? '#7C6D9B' : '#fff',
+                        fontWeight: 800,
+                        fontSize: 15,
+                        cursor: saving ? 'wait' : 'pointer',
+                    }}
+                >
                     {saving ? 'Đang lưu...' : '💾 Lưu điểm danh'}
                 </button>
             </div>
@@ -394,9 +742,24 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
 function LabelInput({ label, value, onChange, type = 'text', placeholder = '', style = {} }) {
     return (
         <div style={style}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }}>{label}</label>
-            <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #DDD6FE', fontSize: 13, color: '#1E1B4B', boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#5B5490', display: 'block', marginBottom: 4 }}>
+                {label}
+            </label>
+            <input
+                type={type}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder={placeholder}
+                style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid #DDD6FE',
+                    fontSize: 13,
+                    color: '#1E1B4B',
+                    boxSizing: 'border-box',
+                }}
+            />
         </div>
     )
 }

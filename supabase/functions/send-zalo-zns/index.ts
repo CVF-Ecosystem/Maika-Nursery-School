@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeadersFor } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const ZNS_API = 'https://business.openapi.zalo.me/message/template'
 
@@ -33,6 +34,35 @@ interface ZnsRequest {
     facilityId?: string
 }
 
+async function requireSender(request: Request, serviceClient: any, facilityId?: string) {
+    const authorization = request.headers.get('Authorization') || ''
+    const token = authorization.replace(/^Bearer\s+/i, '')
+    if (!token) throw new Response(JSON.stringify({ error: 'Phiên đăng nhập đã hết hạn.' }), { status: 401 })
+
+    const userClient = createClient(supabaseUrl, anonKey)
+    const { data: userData, error: userError } = await userClient.auth.getUser(token)
+    if (userError || !userData.user) {
+        throw new Response(JSON.stringify({ error: 'Phiên đăng nhập không hợp lệ.' }), { status: 401 })
+    }
+
+    const { data, error: profileError } = await serviceClient
+        .from('profiles')
+        .select('id, role, facility_id, is_active')
+        .eq('id', userData.user.id)
+        .single()
+    const profile = data as { id: string; role: string; facility_id: string | null; is_active: boolean } | null
+
+    if (profileError || !profile || !profile.is_active || !['admin', 'teacher'].includes(profile.role)) {
+        throw new Response(JSON.stringify({ error: 'Bạn không có quyền gửi ZNS.' }), { status: 403 })
+    }
+
+    if (profile.role === 'teacher' && (!facilityId || facilityId !== profile.facility_id)) {
+        throw new Response(JSON.stringify({ error: 'Bạn không có quyền gửi ZNS cho cơ sở này.' }), { status: 403 })
+    }
+
+    return profile
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeadersFor(request) })
@@ -48,6 +78,13 @@ Deno.serve(async (request) => {
     const serviceClient = createClient(supabaseUrl, serviceKey, {
         auth: { autoRefreshToken: false, persistSession: false },
     })
+
+    try {
+        await requireSender(request, serviceClient, facilityId)
+    } catch (response) {
+        if (response instanceof Response) return response
+        return fail(request, 'Không xác thực được quyền gửi ZNS.', 403)
+    }
 
     // Get OA token from school settings (use facilityId if provided)
     let settingsQuery = serviceClient.from('school_settings').select('zalo_oa_token').limit(1)

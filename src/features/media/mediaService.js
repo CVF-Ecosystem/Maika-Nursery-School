@@ -4,7 +4,8 @@ import { requireSupabase } from '../../lib/supabaseClient'
 const BUCKET = 'maika-media'
 
 const ALBUM_COLUMNS = 'id, facility_id, title, description, status, created_by, created_at'
-const ASSET_COLUMNS = 'id, album_id, facility_id, student_id, storage_path, public_url, original_name, mime_type, caption, status, size_bytes, created_by, created_at'
+const ASSET_COLUMNS =
+    'id, album_id, facility_id, student_id, storage_path, public_url, original_name, mime_type, caption, status, size_bytes, created_by, created_at'
 const SIGNED_URL_TTL_SECONDS = 600
 
 export function mapAlbum(row) {
@@ -40,9 +41,7 @@ export function mapAsset(row) {
 export async function getSignedUrl(storagePath, expiresInSeconds = SIGNED_URL_TTL_SECONDS) {
     if (!storagePath) return ''
     const client = requireSupabase()
-    const { data, error } = await client.storage
-        .from(BUCKET)
-        .createSignedUrl(storagePath, expiresInSeconds)
+    const { data, error } = await client.storage.from(BUCKET).createSignedUrl(storagePath, expiresInSeconds)
     if (error) throw error
     return data?.signedUrl || ''
 }
@@ -83,10 +82,14 @@ export async function listAssets({ albumId, facilityId } = {}) {
     if (facilityId) query = query.eq('facility_id', facilityId)
     const { data, error } = await query
     if (error) throw error
-    return Promise.all((data || []).map(async row => mapAsset({
-        ...row,
-        signed_url: await getSignedUrl(row.storage_path),
-    })))
+    return Promise.all(
+        (data || []).map(async row =>
+            mapAsset({
+                ...row,
+                signed_url: await getSignedUrl(row.storage_path),
+            }),
+        ),
+    )
 }
 
 export async function updateAssetStatus(id, status) {
@@ -136,6 +139,52 @@ export async function uploadMediaAsset({ file, albumId, facilityId, studentId, c
     return mapAsset({ ...data, signed_url: await getSignedUrl(data.storage_path) })
 }
 
+export async function compressImage(file, { maxSize = 800, quality = 0.8 } = {}) {
+    if (!file?.type?.startsWith('image/') || typeof document === 'undefined') return file
+
+    const imageUrl = URL.createObjectURL(file)
+    try {
+        const image = await new Promise((resolve, reject) => {
+            const img = new window.Image()
+            img.onload = () => resolve(img)
+            img.onerror = reject
+            img.src = imageUrl
+        })
+
+        const ratio = Math.min(1, maxSize / Math.max(image.width, image.height))
+        const width = Math.round(image.width * ratio)
+        const height = Math.round(image.height * ratio)
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return file
+        ctx.drawImage(image, 0, 0, width, height)
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
+        if (!blob) return file
+
+        const safeName = file.name?.replace(/\.[^.]+$/, '.jpg') || `photo-${Date.now()}.jpg`
+        return new File([blob], safeName, { type: 'image/jpeg', lastModified: Date.now() })
+    } finally {
+        URL.revokeObjectURL(imageUrl)
+    }
+}
+
+export async function uploadReportPhoto({ file, facilityId, studentId }) {
+    const client = requireSupabase()
+    const safeName = file.name.replace(/[^\w.-]+/g, '-')
+    const path = `reports/${facilityId || 'shared'}/${studentId || 'general'}/${Date.now()}-${safeName}`
+    const { error } = await client.storage.from(BUCKET).upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+    })
+    if (error) throw error
+    return path
+}
+
 export async function deleteMediaAsset(id) {
     const client = requireSupabase()
     const { data: asset, error: assetError } = await client
@@ -150,10 +199,7 @@ export async function deleteMediaAsset(id) {
         if (storageError) throw storageError
     }
 
-    const { error } = await client
-        .from('media_assets')
-        .delete()
-        .eq('id', id)
+    const { error } = await client.from('media_assets').delete().eq('id', id)
     if (error) throw error
     return true
 }

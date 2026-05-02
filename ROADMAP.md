@@ -68,105 +68,88 @@
 
 ## Tier 2 — Impact cao, effort lớn hơn
 
-### T2-1: Tích hợp Zalo OA
-**Vấn đề:** PH VN dùng Zalo nhiều hơn email. Hóa đơn, thông báo gửi qua Zalo = tỷ lệ đọc cao hơn.
+### ✅ T2-1: Tích hợp Zalo OA
 
-Việc cần làm:
-- [ ] Đăng ký Zalo Official Account
-- [ ] Supabase Edge Function: gọi Zalo API gửi ZNS (Zalo Notification Service) khi hóa đơn mới
-- [ ] Settings: admin config Zalo OA token
-- [ ] Lưu `zalo_user_id` trong profiles khi PH liên kết tài khoản
-- [ ] Fallback sang app notification nếu PH chưa liên kết
+- [x] Supabase Edge Function `send-zalo-zns`: gọi Zalo ZNS API
+- [x] Migration 015: cột zalo_oa_token, zalo_zns_*_template, bảng zns_logs
+- [x] Settings → tab Zalo: config token + template IDs + nút test
+- [x] Gửi ZNS tự động khi tạo hóa đơn mới (Invoices.jsx)
+- [x] Gửi ZNS tự động khi tạo sự cố mới (Incidents.jsx)
 
-**Effort:** ~1 tuần | **Impact:** Rất cao cho tỷ lệ thanh toán đúng hạn
+> **Việc còn lại thủ công:** Đăng ký Zalo Official Account, lấy OA token thật
 
 ---
 
-### T2-2: Dashboard Alerts thông minh
-**Vấn đề:** Dashboard hiện chỉ hiển thị số tổng, không có alerts hành động.
+### ✅ T2-2: Dashboard Alerts thông minh
 
-Việc cần làm:
-- [ ] Alert: hóa đơn quá hạn > 3 ngày (danh sách + liên hệ nhanh)
-- [ ] Alert: học sinh vắng ≥ 3 ngày liên tiếp (chưa có phép)
-- [ ] Alert: sự cố status = 'open' chưa xử lý > 24h
-- [ ] Alert: báo cáo ngày chưa nộp (GV nào chưa gửi hôm nay)
-- [ ] Widget "Việc cần làm hôm nay" trên Dashboard
-
-**Effort:** ~3 ngày | **Impact:** Cao cho admin
+- [x] Alert: hóa đơn quá hạn > 3 ngày
+- [x] Alert: sự cố open chưa xử lý > 24h
+- [x] Alert: báo cáo ngày chưa nộp hôm nay
+- [x] Alert: học sinh vắng 2 ngày liên tiếp
+- [x] Skeleton + "Tất cả ổn 🎉" khi không có alert
+- [x] Component `SupabaseAlerts` trong Dashboard.jsx
 
 ---
 
-### T2-3: Two-way Chat Realtime PH ↔ GV
-**Vấn đề:** Messages module đã có nhưng chưa realtime. PH phải reload để thấy tin mới.
+### ✅ T2-3: Two-way Chat Realtime PH ↔ GV
 
-Việc cần làm:
-- [ ] Supabase realtime subscription cho bảng `messages`
-- [ ] Optimistic send (tin hiển thị ngay, không chờ server)
-- [ ] Unread badge realtime trên tab/sidebar
-- [ ] Push notification khi có tin nhắn mới (dùng T1-1)
-- [ ] Typing indicator (tùy chọn)
-
-**Effort:** ~3 ngày | **Impact:** Cao — giảm gọi điện
+- [x] Migration 016: bảng `messages` + RLS + realtime
+- [x] `messageService.js`: listMessages, sendMessage, sendReply, markMessageRead, subscribeMessages
+- [x] Messages.jsx: Supabase branch với realtime + optimistic send
+- [x] Unread badge realtime trong sidebar (AdminApp.jsx)
+- [x] Push notification khi reply/broadcast (sendPushForEvent)
 
 ---
 
-### T2-4: Accessibility cho Phụ Huynh lớn tuổi
-**Vấn đề:** Ông bà đưa cháu đi học, font nhỏ, contrast yếu, khó nhìn.
+### ✅ T2-4: Accessibility cho Phụ Huynh lớn tuổi
 
-Việc cần làm:
-- [ ] Parent portal: font-size mặc định 17px (hiện 13-14px)
-- [ ] Kiểm tra contrast ratio — tất cả text đạt WCAG AA (4.5:1)
-- [ ] Focus ring rõ ràng (outline 2px solid)
-- [ ] Tất cả button/icon có aria-label
-- [ ] Tăng tap target size ≥ 44×44px trên mobile
-
-**Effort:** ~2 ngày | **Impact:** Trung bình nhưng quan trọng cho UX thực tế
+- [x] CSS class `.parent-portal` với font-size 17px, line-height 1.6
+- [x] Focus ring `:focus-visible` toàn cục — 2px solid #7C3AED
+- [x] Tất cả button trong parent portal có aria-label
+- [x] Tap target ≥ 44×44px via `.parent-portal button` CSS
+- [x] Text muted đổi từ #7C6D9B sang #4C4376 (đạt WCAG AA 5.5:1)
+- [x] `role="tablist"/"tab"`, `aria-selected`, `role="alert"` cho offline banner
+- [x] Tăng font trong header, tab buttons, banners, overview cards
 
 ---
 
-### T2-5: Template báo cáo nhanh cho Giáo Viên
-**Vấn đề:** GV phải gõ tay từng báo cáo ngày. Mobile rất mất thời gian.
+### ✅ T2-5: Template báo cáo nhanh cho Giáo Viên
 
-Việc cần làm:
-- [ ] Dropdown "Tâm trạng hôm nay": Vui vẻ / Bình thường / Quấy khóc / Ốm
-- [ ] Dropdown "Bữa sáng/trưa": Ăn hết / Ăn được / Không ăn
-- [ ] Dropdown "Giấc ngủ": Ngủ tốt / Ngủ ít / Không ngủ
-- [ ] Text "Ghi chú thêm" cho GV tùy chỉnh
-- [ ] Auto-generate summary từ dropdowns (hiển thị cho PH)
-
-**Effort:** ~2 ngày | **Impact:** Cao cho GV, PH thấy thông tin chuẩn hơn
+- [x] Dropdown tâm trạng, bữa ăn, sức khỏe, hoạt động (đã có từ trước)
+- [x] Nút "✨ Tạo tóm tắt" trong EditModal: tự sinh câu tiếng Việt từ các dropdown vào ô ghi chú
+- [x] GV có thể chỉnh sửa sau khi tạo tóm tắt tự động
 
 ---
 
 ## Tier 3 — Kỹ thuật, gián tiếp cho user
 
-### T3-1: ESLint + Prettier + Pre-commit hooks
-- [ ] Cài `eslint` + `eslint-plugin-react` + `eslint-plugin-react-hooks`
-- [ ] Cài `prettier` với config chuẩn
-- [ ] `lint-staged` + `husky` pre-commit
-- [ ] Sửa các lỗi lint hiện có
+### ✅ T3-1: ESLint + Prettier + Pre-commit hooks
 
-**Effort:** ~4 giờ
+- [x] Cài `eslint@10` + `eslint-plugin-react` + `eslint-plugin-react-hooks`
+- [x] Cài `prettier@3` với config: singleQuote, semi:false, tabWidth:4
+- [x] `lint-staged` + `husky` pre-commit: chạy `eslint --fix` + `prettier --write` trên staged files
+- [x] `eslint.config.js` flat config, 0 errors
+- [x] Scripts: `npm run lint`, `npm run format`
 
----
-
-### T3-2: Tách Invoices.jsx (1083 dòng)
-- [ ] `InvoiceList.jsx` — table + filter
-- [ ] `InvoiceModal.jsx` — form tạo/sửa (đã tách)
-- [ ] `InvoiceSummary.jsx` — 3 ô tổng tiền
-- [ ] `InvoiceImportExport.jsx` — logic import/export Excel
-- [ ] `ReceiptPrint.jsx` — component in biên lai (đã có)
-
-**Effort:** ~3 giờ
+> **Lưu ý:** `react-hooks/rules-of-hooks` đã được refactor ở T3-5; các warning còn lại chủ yếu là `exhaustive-deps`/unused cũ.
 
 ---
 
-### T3-3: Error Boundary log vào audit_logs
-- [ ] Khi ErrorBoundary catch, gọi `insertAuditLog({ action: 'client_error', ... })`
-- [ ] Hiển thị "Đã có lỗi, đang báo cáo..." thay vì màn hình trắng
-- [ ] Nút "Tải lại trang"
+### ✅ T3-2: Tách Invoices.jsx (1113 → 912 dòng)
 
-**Effort:** ~2 giờ
+- [x] `src/pages/admin/invoices/invoiceTypes.js` — STATUS_MAP + TYPE_MAP constants
+- [x] `src/pages/admin/invoices/InvoiceModal.jsx` — form modal tạo/sửa hóa đơn
+- [x] `src/pages/admin/invoices/ReceiptPrint.jsx` — component in biên lai + QR
+
+> Invoices đã tách component riêng; pattern này được áp dụng tiếp cho các module Supabase/legacy ở T3-5.
+
+---
+
+### ✅ T3-3: Error Boundary log vào audit_logs
+
+- [x] `componentDidCatch` gọi `logClientError()` (fire-and-forget) → insert vào `audit_logs` bảng Supabase
+- [x] Log chỉ chạy trong PROD, không trong dev
+- [x] Nút "Tải lại" và "Về trang chủ" đã có sẵn
 
 ---
 
@@ -175,31 +158,82 @@ Việc cần làm:
 - [ ] Sau đó migrate từng service sang `.ts`
 - [ ] Không cần migrate toàn bộ cùng lúc
 
-**Effort:** Ongoing
+**Effort:** Ongoing, không chặn production. Làm dần khi đụng vào service để tránh tạo một đợt refactor lớn.
 
 ---
 
-## Tier 4 — Strategic (sau khi Tier 1-3 xong)
+### ✅ T3-5: Refactor React Hooks / Split Supabase branches
+
+- [x] Tách wrapper Supabase và component legacy để không gọi hooks sau early return
+- [x] Dọn `react-hooks/rules-of-hooks` trong Attendance, Backups, DailyReports, MediaLibrary, Students, Teachers, Users
+- [x] Thêm Deno check cho Supabase Edge Functions: `npm run deno:check:functions`
+
+---
+
+## Production focus — ưu tiên hiện tại
+
+Hệ thống hiện đã đủ nền tảng để chạy production sau khi hoàn tất các việc thủ công ở cuối file. Ưu tiên nâng cấp sau production không phải thêm nhiều module mới, mà là giảm thao tác cho giáo viên trong các luồng dùng hằng ngày: điểm danh, nhật ký ngày, báo sự cố, ảnh.
+
+### ✅ P1: Teacher-first UX cho điểm danh / nhật ký
+
+- [x] Nhật ký: thanh tiến độ hôm nay, hiển thị đã ghi/còn thiếu
+- [x] Nhật ký: chế độ làm hàng loạt cho nhiều học sinh rồi sửa ngoại lệ
+- [x] Nhật ký: cảnh báo trạng thái sync từng học sinh: đang đồng bộ, đã đồng bộ, chờ đồng bộ
+- [x] Nhật ký: quick action cập nhật tâm trạng ngay trên card, giảm mở modal
+- [x] Nhật ký: lọc nhanh học sinh chưa có nhật ký
+- [x] Nhật ký: nén ảnh trước khi upload để giảm thời gian chờ trên mobile
+- [x] Nhật ký: tự lưu nháp khi đang nhập form dài, trước khi bấm lưu
+- [x] Điểm danh: thao tác một chạm, nút lớn, phản hồi tức thì theo từng bé
+- [x] Điểm danh: thanh tiến độ trong ngày: còn bao nhiêu bé chưa điểm danh
+- [x] Điểm danh: bộ lọc nhanh Chưa điểm danh, Vắng, Đi trễ
+- [x] Điểm danh: trạng thái sync theo từng học sinh, không khóa cả danh sách khi bấm một bé
+
+### ✅ P2: Giám sát vận hành sau go-live
+
+- [x] Offline queue lưu attempts, lastError, failedAt cho các action lỗi
+- [x] Nhật ký: tổng kết cuối ngày gửi notification cho admin/hiệu trưởng
+- [x] Dashboard hiệu trưởng: lớp nào còn thiếu điểm danh/nhật ký hôm nay
+- [x] Dashboard hiệu trưởng: hiển thị sync lỗi trên thiết bị hiện tại để xử lý nhanh
+- [x] Báo cáo cuối ngày đầy đủ: điểm danh, nhật ký, sự cố mở trong cùng một bản tổng kết
+
+---
+
+## Tier 4 — Strategic (làm sau khi production ổn định)
 
 | # | Việc | Điều kiện |
 |---|---|---|
-| T4-1 | AI tóm tắt daily report tự động (Claude API) | Sau khi T1-3 xong ✅ |
-| T4-2 | Voice-to-text tiếng Việt cho GV | Sau T4-1 |
+| T4-1 | AI gợi ý/tóm tắt daily report tự động | Sau khi UX giáo viên ổn định |
+| T4-2 | Dictation tiếng Việt trong app cho GV | Khi cần nhập nhanh nhật ký/sự cố trong Maika; không thay thế voice chat Zalo |
 | T4-3 | Dự báo doanh thu / tỷ lệ đi học | Khi có đủ dữ liệu 3 tháng |
 | T4-4 | Native app (Expo) | Khi mở rộng quy mô hoặc cần iOS push |
 | T4-5 | Multi-tenant SaaS cho nhà trẻ khác | Kiến trúc facility đã sẵn |
 
+> Giao tiếp voice với phụ huynh nên tận dụng Zalo/Zalo OA vì Zalo đã có voice message. T4-2 chỉ dành cho nhập liệu có cấu trúc trong hệ thống Maika.
+
 ---
 
-## Thứ tự làm tiếp (sprint hiện tại)
+## Thứ tự làm tiếp
 
 ```
-T2-1 (Zalo OA)          ~1 tuần  ← đang làm
-T2-2 (Dashboard Alerts) ~3 ngày
-T2-3 (Chat Realtime)    ~3 ngày
-T2-4 (Accessibility)    ~2 ngày
-T2-5 (Teacher templates)~2 ngày
-T3-1 (ESLint)           ~4 giờ
-T3-2 (Split Invoices)   ~3 giờ
-T3-3 (Error Boundary)   ~2 giờ
+✅ T2-1 (Zalo OA)
+✅ T2-2 (Dashboard Alerts)
+✅ T2-3 (Chat Realtime)
+✅ T2-4 (Accessibility)
+✅ T2-5 (Teacher templates)
+✅ T3-1 (ESLint + Prettier + Husky)
+✅ T3-2 (Split Invoices)
+✅ T3-3 (Error Boundary)
+✅ T3-5 (React Hooks split)
+✅ P1 (Teacher-first UX)
+✅ P2 (Giám sát vận hành)
+⏳ T3-4 (TypeScript) — làm dần khi sửa service
+⏳ Tier 4 — sau khi ổn định production
 ```
+
+**Còn lại cần làm thủ công:**
+
+- Apply migration 016 lên Supabase production
+- Apply migration 017 lên Supabase production
+- Generate VAPID keys (`npx web-push generate-vapid-keys`)
+- Đăng ký Zalo Official Account, lấy OA token thật
+- Deploy lại Edge Functions `send-push`, `send-zalo-zns`, `storage-maintenance`

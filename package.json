@@ -16,7 +16,19 @@
     "api:import": "node server/import-snapshot.js",
     "backup:supabase": "node scripts/backup-supabase.mjs",
     "supabase:migrate": "node scripts/apply-supabase-migration.mjs",
-    "supabase:reset-test-users": "node scripts/reset-supabase-test-users.mjs"
+    "supabase:reset-test-users": "node scripts/reset-supabase-test-users.mjs",
+    "deno:check:functions": "deno check --node-modules-dir=auto --no-lock supabase/functions/send-push/index.ts && deno check --node-modules-dir=auto --no-lock supabase/functions/send-zalo-zns/index.ts && deno check --node-modules-dir=auto --no-lock supabase/functions/storage-maintenance/index.ts",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
@@ -34,16 +46,25 @@
     "pg": "^8.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.57.0",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
   }

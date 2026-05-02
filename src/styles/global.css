@@ -38,6 +38,29 @@ input:focus, textarea:focus, select:focus {
 @keyframes shimmer { from { background-position: -400px 0 } to { background-position: 400px 0 } }
 .skeleton { background: linear-gradient(90deg,#EDE9FE 25%,#F5F3FF 50%,#EDE9FE 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; border-radius: 6px; }
 
+/* Parent portal accessibility — larger text, better contrast, clear focus */
+.parent-portal { font-size: 17px; }
+.parent-portal p, .parent-portal span, .parent-portal label, .parent-portal div { line-height: 1.6; }
+.parent-portal button, .parent-portal a {
+  min-height: 44px;
+  min-width: 44px;
+}
+.parent-portal button:focus-visible,
+.parent-portal a:focus-visible,
+.parent-portal input:focus-visible,
+.parent-portal select:focus-visible,
+.parent-portal textarea:focus-visible {
+  outline: 2px solid #7C3AED !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+/* Global focus ring — keyboard users */
+:focus-visible {
+  outline: 2px solid #7C3AED;
+  outline-offset: 2px;
+}
+
 /* Reveal animation */
 .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
 .reveal.in { opacity: 1; transform: none; }

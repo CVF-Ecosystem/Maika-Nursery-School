@@ -55,10 +55,7 @@ export async function listStudentsForFacility(facilityId) {
 
 export async function listStudents({ facilityId, status } = {}) {
     const client = requireSupabase()
-    let query = client
-        .from('students')
-        .select(STUDENT_COLUMNS)
-        .order('full_name', { ascending: true })
+    let query = client.from('students').select(STUDENT_COLUMNS).order('full_name', { ascending: true })
 
     if (facilityId) query = query.eq('facility_id', facilityId)
     if (status) query = query.eq('status', status)
@@ -105,4 +102,11 @@ export async function markStudentInactive(id) {
 
     if (error) throw error
     return mapStudentFromSupabase(data)
+}
+
+export async function deleteStudent(id) {
+    const client = requireSupabase()
+    const { error } = await client.from('students').delete().eq('id', id)
+
+    if (error) throw error
 }

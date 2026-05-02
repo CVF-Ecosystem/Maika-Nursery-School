@@ -3,6 +3,7 @@ import webpush from 'npm:web-push'
 import { corsHeadersFor } from '../_shared/cors.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || ''
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY') || ''
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY') || ''
@@ -32,6 +33,58 @@ interface SendRequest {
     payload: PushPayload
 }
 
+async function requireSender(request: Request, serviceClient: any) {
+    const authorization = request.headers.get('Authorization') || ''
+    const token = authorization.replace(/^Bearer\s+/i, '')
+    if (!token) throw new Response(JSON.stringify({ error: 'Phiên đăng nhập đã hết hạn.' }), { status: 401 })
+
+    const userClient = createClient(supabaseUrl, anonKey)
+    const { data: userData, error: userError } = await userClient.auth.getUser(token)
+    if (userError || !userData.user) {
+        throw new Response(JSON.stringify({ error: 'Phiên đăng nhập không hợp lệ.' }), { status: 401 })
+    }
+
+    const { data, error: profileError } = await serviceClient
+        .from('profiles')
+        .select('id, role, facility_id, is_active')
+        .eq('id', userData.user.id)
+        .single()
+    const profile = data as { id: string; role: string; facility_id: string | null; is_active: boolean } | null
+
+    if (profileError || !profile || !profile.is_active || !['admin', 'teacher'].includes(profile.role)) {
+        throw new Response(JSON.stringify({ error: 'Bạn không có quyền gửi thông báo.' }), { status: 403 })
+    }
+
+    return profile
+}
+
+async function requireTargetAccess(
+    request: Request,
+    serviceClient: any,
+    actor: Record<string, string | boolean | null>,
+    facilityId?: string,
+    studentId?: string,
+) {
+    if (actor.role === 'admin') return
+
+    const actorFacilityId = String(actor.facility_id || '')
+    if (facilityId && facilityId !== actorFacilityId) {
+        throw new Response(JSON.stringify({ error: 'Bạn không có quyền gửi thông báo cho cơ sở này.' }), { status: 403 })
+    }
+
+    if (studentId) {
+        const { data, error } = await serviceClient
+            .from('students')
+            .select('facility_id')
+            .eq('id', studentId)
+            .single()
+        const student = data as { facility_id: string } | null
+        if (error || !student || student.facility_id !== actorFacilityId) {
+            throw new Response(JSON.stringify({ error: 'Bạn không có quyền gửi thông báo cho học sinh này.' }), { status: 403 })
+        }
+    }
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeadersFor(request) })
@@ -55,6 +108,14 @@ Deno.serve(async (request) => {
     const serviceClient = createClient(supabaseUrl, serviceKey, {
         auth: { autoRefreshToken: false, persistSession: false },
     })
+
+    try {
+        const actor = await requireSender(request, serviceClient)
+        await requireTargetAccess(request, serviceClient, actor, facilityId, studentId)
+    } catch (response) {
+        if (response instanceof Response) return response
+        return fail(request, 'Không xác thực được quyền gửi thông báo.', 403)
+    }
 
     // Find subscriptions: by studentId (parent of specific student) or facilityId (all parents)
     let subsQuery = serviceClient.from('push_subscriptions').select('endpoint, p256dh, auth_key')

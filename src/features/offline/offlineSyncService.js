@@ -11,7 +11,9 @@ function readJson(key, fallback) {
 }
 
 function writeJson(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)) } catch { }
+    try {
+        localStorage.setItem(key, JSON.stringify(value))
+    } catch {}
 }
 
 function notify() {
@@ -30,9 +32,21 @@ export function getOfflineQueueCount() {
     return getOfflineQueue().length
 }
 
+export function getFailedActions() {
+    return getOfflineQueue().filter(action => action.lastError)
+}
+
 export function enqueueOfflineAction(type, payload) {
     const queue = getOfflineQueue()
-    queue.push({ id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type, payload, createdAt: new Date().toISOString() })
+    queue.push({
+        id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        type,
+        payload,
+        createdAt: new Date().toISOString(),
+        attempts: 0,
+        lastError: '',
+        failedAt: '',
+    })
     writeJson(QUEUE_KEY, queue)
     notify()
 }
@@ -66,8 +80,13 @@ export async function syncOfflineQueue() {
         try {
             await runAction(action)
             synced += 1
-        } catch {
-            remaining.push(action)
+        } catch (error) {
+            remaining.push({
+                ...action,
+                attempts: (action.attempts || 0) + 1,
+                lastError: error?.message || 'Không đồng bộ được dữ liệu.',
+                failedAt: new Date().toISOString(),
+            })
         }
     }
     writeJson(QUEUE_KEY, remaining)
