@@ -1,5 +1,4 @@
 import { requireSupabase } from '../../lib/supabaseClient'
-import { getCurrentProfile } from '../auth/authService'
 
 const ATTENDANCE_COLUMNS = `
     id,
@@ -52,29 +51,20 @@ export async function listAttendanceByFacilityDate({ facilityId, date }) {
 
 export async function upsertAttendance(record) {
     const client = requireSupabase()
-    const profile = record.recordedBy ? null : await getCurrentProfile().catch(() => null)
-    const payload = {
-        student_id: record.studentId,
-        facility_id: record.facilityId,
-        attendance_date: record.date,
-        status: record.status,
-        note: record.note || null,
-        meal_photo_url: record.mealPhotoUrl || null,
-        meal_photo_path: record.mealPhotoPath || null,
-        recorded_by: record.recordedBy || profile?.id || null,
-        check_in_time: record.checkInTime || null,
-        check_out_time: record.checkOutTime || null,
-        pickup_person: record.pickupPerson || null,
-        pickup_phone: record.pickupPhone || null,
-        late_reason: record.lateReason || null,
-        early_pickup_reason: record.earlyPickupReason || null,
-    }
-
-    const { data, error } = await client
-        .from('attendance')
-        .upsert(payload, { onConflict: 'student_id,attendance_date' })
-        .select(ATTENDANCE_COLUMNS)
-        .single()
+    const { data, error } = await client.rpc('mark_attendance', {
+        p_student_id: record.studentId,
+        p_attendance_date: record.date,
+        p_status: record.status,
+        p_note: record.note || null,
+        p_check_in_time: record.checkInTime || null,
+        p_check_out_time: record.checkOutTime || null,
+        p_pickup_person: record.pickupPerson || null,
+        p_pickup_phone: record.pickupPhone || null,
+        p_late_reason: record.lateReason || null,
+        p_early_pickup_reason: record.earlyPickupReason || null,
+        p_meal_photo_url: record.mealPhotoUrl || null,
+        p_meal_photo_path: record.mealPhotoPath || null,
+    })
 
     if (error) throw error
     return mapAttendanceFromSupabase(data)

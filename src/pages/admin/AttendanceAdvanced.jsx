@@ -214,10 +214,10 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                         const saved = await upsertAttendance(optimistic)
                         setRecords(prev => ({ ...prev, [studentId]: saved }))
                         setSyncStatus(prev => ({ ...prev, [studentId]: 'synced' }))
-                    } catch {
+                    } catch (error) {
                         enqueueOfflineAction('attendance', optimistic)
                         setSyncStatus(prev => ({ ...prev, [studentId]: 'queued' }))
-                        setErr('Mất kết nối. Điểm danh đã lưu offline và sẽ tự đồng bộ.')
+                        setErr(error.message || 'Chưa lưu được lên máy chủ. Điểm danh đã lưu offline và sẽ tự đồng bộ.')
                     }
                 } else {
                     enqueueOfflineAction('attendance', optimistic)
@@ -267,9 +267,12 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     try {
                         const saved = await upsertAttendance(optimistic)
                         setRecords(prev => ({ ...prev, [input.studentId]: saved }))
-                    } catch {
+                    } catch (error) {
                         enqueueOfflineAction('attendance', optimistic)
-                        setErr('Mất kết nối. Chi tiết điểm danh đã lưu offline và sẽ tự đồng bộ.')
+                        setErr(
+                            error.message ||
+                                'Chưa lưu được chi tiết lên máy chủ. Điểm danh đã lưu offline và sẽ tự đồng bộ.',
+                        )
                     }
                 } else {
                     enqueueOfflineAction('attendance', optimistic)
