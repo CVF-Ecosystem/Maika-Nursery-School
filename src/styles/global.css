@@ -140,17 +140,9 @@ input:focus, textarea:focus, select:focus {
     min-height: auto !important;
   }
 
-  /* Hero cards: pull out of absolute, show inline below hero text */
+  /* Hero cards: floating decoration for desktop only — hide on mobile, stats strip handles it */
   .landing-hero-cards {
-    position: static !important;
-    transform: none !important;
-    width: 100% !important;
-    margin-top: 28px;
-    gap: 10px !important;
-  }
-
-  .landing-hero-cards > div {
-    min-height: 110px !important;
+    display: none !important;
   }
 }
 
