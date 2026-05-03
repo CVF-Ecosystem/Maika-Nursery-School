@@ -153,10 +153,6 @@ input:focus, textarea:focus, select:focus {
     min-height: 110px !important;
   }
 
-  /* Stats strip: same info as hero cards — hide on mobile to avoid duplication */
-  .landing-stats-strip {
-    display: none !important;
-  }
 }
 
 @media (max-width: 640px) {
@@ -174,30 +170,6 @@ input:focus, textarea:focus, select:focus {
     grid-template-columns: 1fr !important;
   }
 
-  /* Stats strip: 2×2 grid, compact */
-  .landing-stats-strip {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .landing-stats-strip > div {
-    padding: 22px 12px !important;
-    border-right: none !important;
-    border-bottom: 1px solid #EDE9FE !important;
-  }
-
-  .landing-stats-strip > div:nth-child(odd) {
-    border-right: 1px solid #EDE9FE !important;
-  }
-
-  .landing-stats-strip > div:nth-last-child(-n+2) {
-    border-bottom: none !important;
-  }
-
-  /* Shrink stat numbers on mobile */
-  .landing-stats-strip > div > div:nth-child(2) {
-    font-size: 30px !important;
-    letter-spacing: -0.5px !important;
-  }
 
   /* Navbar parent btn hidden on small phones — shown in hero instead */
   .landing-nav-parent-btn {

@@ -356,55 +356,6 @@ export default function Landing() {
                 </div>
             </section>
 
-            {/* STATS STRIP */}
-            <div
-                className="landing-section-grid landing-stats-strip"
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))',
-                    background: '#fff',
-                    boxShadow: '0 4px 28px rgba(109,40,217,0.08)',
-                }}
-            >
-                {landingData.statStrip.map(([num, lbl], i) => (
-                    <div
-                        key={i}
-                        {...rv(`d${i}`)}
-                        style={{
-                            textAlign: 'center',
-                            padding: '42px 20px',
-                            borderRight: i < 3 ? '1px solid #EDE9FE' : 'none',
-                            position: 'relative',
-                        }}
-                    >
-                        <div
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                width: 56,
-                                height: 3,
-                                background: 'linear-gradient(90deg,#6D28D9,#A78BFA)',
-                                borderRadius: '0 0 4px 4px',
-                            }}
-                        />
-                        <div
-                            style={{
-                                fontSize: 44,
-                                fontWeight: 900,
-                                color: '#6D28D9',
-                                letterSpacing: -2,
-                                lineHeight: 1,
-                            }}
-                        >
-                            {num}
-                        </div>
-                        <div style={{ fontSize: 14, color: '#7C6D9B', fontWeight: 700, marginTop: 8 }}>{lbl}</div>
-                    </div>
-                ))}
-            </div>
-
             {/* PROGRAMS */}
             <section
                 id="programs"
