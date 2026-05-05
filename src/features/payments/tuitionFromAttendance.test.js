@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { buildAttendanceMonthRows, buildTuitionRows, monthDays, summarizeTuitionRows } from './tuitionFromAttendance'
+import {
+    buildAttendanceMonthRows,
+    buildTuitionRows,
+    monthDays,
+    summarizeTuitionRows,
+    tuitionInvoiceNumber,
+} from './tuitionFromAttendance'
 
 describe('tuitionFromAttendance', () => {
     it('counts August 2025 school days like the Maika workbook', () => {
@@ -54,5 +60,15 @@ describe('tuitionFromAttendance', () => {
 
         expect(model.rows[0].marks['2025-08-01']).toBe('K')
         expect(model.rows[0].marks['2025-08-02']).toBe('P')
+    })
+
+    it('creates a unique invoice number when a receipt already exists', () => {
+        const row = {
+            dueDate: '2025-08-01',
+            studentCode: 'MC_01',
+            studentId: 'student-1',
+        }
+
+        expect(tuitionInvoiceNumber(row, ['HP-202508-MC_01'])).toBe('HP-202508-MC_01-02')
     })
 })

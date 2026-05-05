@@ -63,7 +63,7 @@ function numberInputStyle(width = 132) {
         borderRadius: 10,
         border: '1.5px solid #DDD6FE',
         fontSize: 13,
-        fontWeight: 800,
+        fontWeight: 600,
         color: '#1E1B4B',
         background: '#fff',
         lineHeight: 1.25,
@@ -78,11 +78,16 @@ function buttonStyle({ primary = false, danger = false, disabled = false } = {})
         background: disabled ? '#F8F7FF' : primary ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#fff',
         color: disabled ? '#A8A0C8' : primary ? '#fff' : danger ? '#DC2626' : '#6D28D9',
         fontSize: 13,
-        fontWeight: 800,
+        fontWeight: 700,
         lineHeight: 1.25,
         cursor: disabled ? 'not-allowed' : 'pointer',
         whiteSpace: 'nowrap',
     }
+}
+
+function isDuplicateInvoiceNumberError(error) {
+    const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+    return text.includes('duplicate key') || text.includes('invoices_invoice_number_key')
 }
 
 async function exportWorkbook({ yearMonth, days, attendanceRows, tuitionRows, summary, classLabel }) {
@@ -374,35 +379,68 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
 
             if (supabaseMode) {
                 const existing = await listSupabaseInvoices({ facilityId: selectedFacilityId || undefined })
-                const existingNumbers = new Set(existing.map(invoice => invoice.invoice_number))
+                const existingNumbers = new Set(existing.map(invoice => invoice.invoice_number).filter(Boolean))
+                const existingTuitionKeys = new Set(
+                    existing
+                        .filter(invoice => invoice.type === 'tuition' && invoice.student_id && invoice.due_date)
+                        .map(invoice => `${invoice.student_id}:${invoice.due_date}`),
+                )
                 let created = 0
+                let skipped = 0
                 for (const row of payableRows) {
-                    const invoiceNumber = tuitionInvoiceNumber(row)
-                    if (existingNumbers.has(invoiceNumber)) continue
-                    await saveSupabaseInvoice({
-                        studentId: row.studentId,
-                        invoiceNumber,
-                        type: 'tuition',
-                        description: row.description,
-                        amount: row.amountDue,
-                        dueDate: row.dueDate,
-                        status: 'pending',
-                        notes: `Từ bảng điểm danh tháng ${yearMonth}. Đi học ${row.actualDays}/${row.schoolDayCount} ngày, vắng phép ${row.permittedAbsences}, vắng không phép ${row.unpermittedAbsences}.`,
-                    })
-                    existingNumbers.add(invoiceNumber)
-                    created += 1
+                    const tuitionKey = `${row.studentId}:${row.dueDate}`
+                    if (existingTuitionKeys.has(tuitionKey)) {
+                        skipped += 1
+                        continue
+                    }
+                    let saved = false
+                    for (let attempt = 0; attempt < 10 && !saved; attempt += 1) {
+                        const invoiceNumber = tuitionInvoiceNumber(row, [...existingNumbers])
+                        try {
+                            await saveSupabaseInvoice({
+                                studentId: row.studentId,
+                                invoiceNumber,
+                                type: 'tuition',
+                                description: row.description,
+                                amount: row.amountDue,
+                                dueDate: row.dueDate,
+                                status: 'pending',
+                                notes: `Từ bảng điểm danh tháng ${yearMonth}. Đi học ${row.actualDays}/${row.schoolDayCount} ngày, vắng phép ${row.permittedAbsences}, vắng không phép ${row.unpermittedAbsences}.`,
+                            })
+                            existingNumbers.add(invoiceNumber)
+                            existingTuitionKeys.add(tuitionKey)
+                            created += 1
+                            saved = true
+                        } catch (ex) {
+                            if (!isDuplicateInvoiceNumberError(ex)) throw ex
+                            existingNumbers.add(invoiceNumber)
+                        }
+                    }
+                    if (!saved) throw new Error('Không tạo được mã biên lai không trùng. Vui lòng thử lại.')
                 }
-                setMessage(`Đã tạo ${created} khoản thu học phí. Các khoản đã tồn tại được bỏ qua.`)
+                setMessage(
+                    `Đã tạo ${created} khoản thu học phí${skipped ? `, bỏ qua ${skipped} khoản đã tồn tại` : ''}.`,
+                )
                 return
             }
 
             const db = getDB()
             if (!Array.isArray(db.finance)) db.finance = []
             const existingNumbers = new Set((db.finance || []).map(item => item.invoiceNumber).filter(Boolean))
+            const existingTuitionKeys = new Set(
+                (db.finance || [])
+                    .filter(item => item.type === 'tuition' && item.studentId && item.date)
+                    .map(item => `${item.studentId}:${item.date}`),
+            )
             let created = 0
+            let skipped = 0
             payableRows.forEach(row => {
-                const invoiceNumber = tuitionInvoiceNumber(row)
-                if (existingNumbers.has(invoiceNumber)) return
+                const tuitionKey = `${row.studentId}:${row.dueDate}`
+                if (existingTuitionKeys.has(tuitionKey)) {
+                    skipped += 1
+                    return
+                }
+                const invoiceNumber = tuitionInvoiceNumber(row, [...existingNumbers])
                 db.finance.push({
                     id: `tuition-${yearMonth}-${row.studentId}`,
                     studentId: row.studentId,
@@ -416,10 +454,11 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     notes: `Từ bảng điểm danh tháng ${yearMonth}.`,
                 })
                 existingNumbers.add(invoiceNumber)
+                existingTuitionKeys.add(tuitionKey)
                 created += 1
             })
             commit()
-            setMessage(`Đã tạo ${created} khoản thu học phí. Các khoản đã tồn tại được bỏ qua.`)
+            setMessage(`Đã tạo ${created} khoản thu học phí${skipped ? `, bỏ qua ${skipped} khoản đã tồn tại` : ''}.`)
         } catch (ex) {
             setError(ex.message || 'Không tạo được khoản thu học phí.')
         } finally {
@@ -440,7 +479,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 }}
             >
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
                         Tháng tính phí
                         <input
                             type="month"
@@ -449,22 +488,24 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             style={numberInputStyle(150)}
                         />
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
                         Lớp
                         <select
                             value={classFilter}
                             onChange={event => setClassFilter(event.target.value)}
                             style={numberInputStyle(170)}
                         >
-                            <option value="">Tất cả lớp</option>
+                            <option value="" style={{ fontWeight: 400 }}>
+                                Tất cả lớp
+                            </option>
                             {classOptions.map(item => (
-                                <option key={item.id} value={item.id}>
+                                <option key={item.id} value={item.id} style={{ fontWeight: 400 }}>
                                     {item.name}
                                 </option>
                             ))}
                         </select>
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
                         Học phí tháng
                         <input
                             type="number"
@@ -474,7 +515,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             style={numberInputStyle()}
                         />
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
                         Hoàn/vắng phép
                         <input
                             type="number"
@@ -496,7 +537,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             background: '#fff',
                             color: '#5B5490',
                             fontSize: 12,
-                            fontWeight: 700,
+                            fontWeight: 600,
                         }}
                     >
                         <input
@@ -591,12 +632,12 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     ['Phải thu', fmtMoney(summary.amountDue), '#059669', '#ECFDF5'],
                 ].map(([label, value, color, bg]) => (
                     <div key={label} style={{ background: bg, borderRadius: 12, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 11, color, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
+                        <div style={{ fontSize: 11, color, fontWeight: 700, textTransform: 'uppercase' }}>{label}</div>
                         <div
                             style={{
                                 fontSize: typeof value === 'string' ? 16 : 22,
                                 color,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 marginTop: 4,
                             }}
                         >
@@ -664,7 +705,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                                 textAlign: 'left',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -675,35 +716,35 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
             </thead>
             <tbody>
                 <tr style={{ background: '#FAFAFF', borderBottom: '1px solid #EDE9FE' }}>
-                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 800, color: '#1E1B4B' }}>
+                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 700, color: '#1E1B4B' }}>
                         Tổng cộng
                     </td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{fmtMoney(summary.monthlyTuition)}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.actualDays}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.unpermittedAbsences}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.permittedAbsences}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{fmtMoney(summary.totalCredit)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.monthlyTuition)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.actualDays}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.unpermittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.permittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.totalCredit)}</td>
                     <td />
-                    <td style={{ padding: '10px 14px', fontWeight: 800, color: '#059669' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: '#059669' }}>
                         {fmtMoney(summary.amountDue)}
                     </td>
                     <td />
                 </tr>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 700 }}>{index + 1}</td>
-                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 800 }}>{row.studentCode}</td>
-                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 700 }}>{row.studentName}</td>
-                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 700 }}>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 600 }}>{index + 1}</td>
+                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 700 }}>{row.studentCode}</td>
+                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 600 }}>{row.studentName}</td>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 600 }}>
                             {row.className || '-'}
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{fmtMoney(row.monthlyTuition)}</td>
-                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{row.actualDays}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>{fmtMoney(row.monthlyTuition)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>{row.actualDays}</td>
                         <td
                             style={{
                                 padding: '11px 14px',
                                 color: row.unpermittedAbsences ? '#DC2626' : '#6B6494',
-                                fontWeight: 700,
+                                fontWeight: 600,
                             }}
                         >
                             {row.unpermittedAbsences}
@@ -712,12 +753,12 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                             style={{
                                 padding: '11px 14px',
                                 color: row.permittedAbsences ? '#B45309' : '#6B6494',
-                                fontWeight: 700,
+                                fontWeight: 600,
                             }}
                         >
                             {row.permittedAbsences}
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{fmtMoney(row.refundAmount)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>{fmtMoney(row.refundAmount)}</td>
                         <td style={{ padding: '9px 14px' }}>
                             <input
                                 type="number"
@@ -728,10 +769,10 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                                 aria-label={`Tiền thừa tháng trước của ${row.studentName}`}
                             />
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 800 }}>
+                        <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 700 }}>
                             {fmtMoney(row.amountDue)}
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 700 }}>
+                        <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 600 }}>
                             {row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : ''}
                         </td>
                     </tr>
@@ -755,7 +796,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'left',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -771,7 +812,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 borderBottom: '1px solid #EDE9FE',
                             }}
                         >
@@ -787,7 +828,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'center',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -816,9 +857,9 @@ function AttendanceMatrix({ days, rows }) {
             <tbody>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 700 }}>{index + 1}</td>
-                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 800 }}>{row.studentCode}</td>
-                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 700, minWidth: 190 }}>
+                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 600 }}>{index + 1}</td>
+                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 700 }}>{row.studentCode}</td>
+                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 600, minWidth: 190 }}>
                             {row.studentName}
                         </td>
                         {days.map(day => {
@@ -844,7 +885,7 @@ function AttendanceMatrix({ days, rows }) {
                                             background: bg,
                                             color,
                                             fontSize: 11,
-                                            fontWeight: 800,
+                                            fontWeight: 700,
                                         }}
                                     >
                                         {symbol}
@@ -852,16 +893,16 @@ function AttendanceMatrix({ days, rows }) {
                                 </td>
                             )
                         })}
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.fullDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.halfDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.actualDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.fullDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.halfDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.actualDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
                             {row.permittedAbsences}
                         </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
                             {row.holidayAbsences}
                         </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
                             {row.unpermittedAbsences}
                         </td>
                     </tr>

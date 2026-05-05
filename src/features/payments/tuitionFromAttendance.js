@@ -217,11 +217,12 @@ export function summarizeTuitionRows(rows = []) {
     )
 }
 
-export function tuitionInvoiceNumber(row) {
+export function tuitionInvoiceNumber(row, existingNumbers = []) {
     return buildReceiptNumber({
         type: 'tuition',
         dueDate: row.dueDate,
         studentCode: row.studentCode,
         fallbackCode: row.studentId,
+        existingNumbers,
     })
 }
