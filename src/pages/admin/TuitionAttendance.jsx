@@ -259,6 +259,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const [saving, setSaving] = useState(false)
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
+    const [showPreview, setShowPreview] = useState(false)
 
     useEffect(() => {
         const next = loadSavedSettings(yearMonth)
@@ -401,8 +402,18 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         }
     }
 
+    function handleGenerateClick() {
+        const payableRows = tuitionRows.filter(row => row.studentId && row.amountDue > 0)
+        if (!payableRows.length) {
+            setMessage('Không có khoản học phí cần tạo.')
+            return
+        }
+        setShowPreview(true)
+    }
+
     async function generateInvoices() {
         setSaving(true)
+        setShowPreview(false)
         setMessage('')
         setError('')
         try {
@@ -413,14 +424,6 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             }
 
             if (supabaseMode) {
-                const missingRows = payableRows.filter(row => row.missingSchoolDays > 0)
-                if (missingRows.length) {
-                    const ok = window.confirm(
-                        `${missingRows.length} học sinh còn ngày chưa điểm danh. Vẫn tạo phiếu thông báo để kiểm tra/cập nhật sau?`,
-                    )
-                    if (!ok) return
-                }
-
                 const result = await saveMonthlyFeeNotices({
                     rows: payableRows,
                     yearMonth,
@@ -569,7 +572,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         Xuất Excel
                     </button>
                     <button
-                        onClick={generateInvoices}
+                        onClick={handleGenerateClick}
                         disabled={saving || loading || !tuitionRows.length}
                         style={buttonStyle({ primary: true, disabled: saving || loading || !tuitionRows.length })}
                     >
@@ -645,6 +648,15 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     </>
                 )}
             </div>
+
+            {showPreview && (
+                <PreviewModal
+                    rows={tuitionRows.filter(row => row.studentId && row.amountDue > 0)}
+                    yearMonth={yearMonth}
+                    onConfirm={generateInvoices}
+                    onClose={() => setShowPreview(false)}
+                />
+            )}
 
             <div
                 className="mobile-scroll-table"
@@ -794,6 +806,253 @@ function SummaryChip({ label, value, color }) {
         >
             <span style={{ color: '#7C6D9B', fontSize: 11, fontWeight: 600 }}>{label}</span>
             <span style={{ color, fontSize: 13, fontWeight: 700 }}>{value}</span>
+        </div>
+    )
+}
+
+function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
+    const missingCount = rows.filter(row => row.missingSchoolDays > 0).length
+    const totalDue = rows.reduce((sum, row) => sum + row.amountDue, 0)
+    const range = monthRange(yearMonth)
+
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(30,27,74,0.45)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 20,
+            }}
+            onClick={e => {
+                if (e.target === e.currentTarget) onClose()
+            }}
+        >
+            <div
+                style={{
+                    background: '#fff',
+                    borderRadius: 18,
+                    boxShadow: '0 8px 40px rgba(109,40,217,0.18)',
+                    width: '100%',
+                    maxWidth: 700,
+                    maxHeight: '88vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                }}
+            >
+                {/* Header */}
+                <div
+                    style={{
+                        padding: '18px 22px',
+                        borderBottom: '1px solid #EDE9FE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
+                    <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#1E1B4B' }}>
+                            Xác nhận tạo phiếu báo thu
+                        </div>
+                        <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 2 }}>
+                            Tháng {String(range.month).padStart(2, '0')}/{range.year} · {rows.length} học sinh
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 8,
+                            border: '1.5px solid #DDD6FE',
+                            background: '#fff',
+                            color: '#6B6494',
+                            fontWeight: 700,
+                            fontSize: 16,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
+
+                {/* Summary chips */}
+                <div
+                    style={{
+                        padding: '12px 22px',
+                        display: 'flex',
+                        gap: 10,
+                        flexWrap: 'wrap',
+                        borderBottom: '1px solid #F0EEFF',
+                    }}
+                >
+                    <div
+                        style={{
+                            padding: '7px 14px',
+                            borderRadius: 999,
+                            background: '#F8F7FF',
+                            border: '1px solid #EDE9FE',
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        <span style={{ color: '#7C6D9B' }}>Tổng phiếu: </span>
+                        <span style={{ color: '#6D28D9' }}>{rows.length}</span>
+                    </div>
+                    <div
+                        style={{
+                            padding: '7px 14px',
+                            borderRadius: 999,
+                            background: '#ECFDF5',
+                            border: '1px solid #A7F3D0',
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        <span style={{ color: '#065F46' }}>Tổng thu: </span>
+                        <span style={{ color: '#059669' }}>{fmtMoney(totalDue)}</span>
+                    </div>
+                    {missingCount > 0 && (
+                        <div
+                            style={{
+                                padding: '7px 14px',
+                                borderRadius: 999,
+                                background: '#FEF2F2',
+                                border: '1px solid #FCA5A5',
+                                fontSize: 12,
+                                fontWeight: 700,
+                            }}
+                        >
+                            <span style={{ color: '#DC2626' }}>⚠ {missingCount} bé chưa đủ điểm danh</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bảng preview */}
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ background: '#F8F7FF', position: 'sticky', top: 0 }}>
+                                {['Học sinh', 'Lớp', 'Học phí', 'Vắng P', 'Hoàn', 'Thừa trước', 'Phải thu', ''].map(
+                                    h => (
+                                        <th
+                                            key={h}
+                                            style={{
+                                                padding: '9px 12px',
+                                                textAlign: 'left',
+                                                color: '#7C6D9B',
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                borderBottom: '1.5px solid #DDD6FE',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {h}
+                                        </th>
+                                    ),
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map(row => (
+                                <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                                    <td style={{ padding: '9px 12px', color: '#1E1B4B', fontWeight: 600 }}>
+                                        {row.studentName}
+                                    </td>
+                                    <td style={{ padding: '9px 12px', color: '#6B6494' }}>{row.className || '—'}</td>
+                                    <td style={{ padding: '9px 12px', fontWeight: 600 }}>
+                                        {fmtMoney(row.monthlyTuition)}
+                                    </td>
+                                    <td
+                                        style={{
+                                            padding: '9px 12px',
+                                            color: row.permittedAbsences ? '#B45309' : '#9B93C9',
+                                        }}
+                                    >
+                                        {row.permittedAbsences}
+                                    </td>
+                                    <td
+                                        style={{ padding: '9px 12px', color: row.refundAmount ? '#059669' : '#9B93C9' }}
+                                    >
+                                        {row.refundAmount ? `-${fmtMoney(row.refundAmount)}` : '—'}
+                                    </td>
+                                    <td
+                                        style={{
+                                            padding: '9px 12px',
+                                            color: row.previousCredit ? '#2563EB' : '#9B93C9',
+                                        }}
+                                    >
+                                        {row.previousCredit ? `-${fmtMoney(row.previousCredit)}` : '—'}
+                                    </td>
+                                    <td style={{ padding: '9px 12px', color: '#059669', fontWeight: 700 }}>
+                                        {fmtMoney(row.amountDue)}
+                                    </td>
+                                    <td style={{ padding: '9px 12px' }}>
+                                        {row.missingSchoolDays > 0 && (
+                                            <span
+                                                title={`Còn ${row.missingSchoolDays} ngày chưa điểm danh`}
+                                                style={{ color: '#DC2626', fontSize: 14 }}
+                                            >
+                                                ⚠
+                                            </span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Footer actions */}
+                <div
+                    style={{
+                        padding: '14px 22px',
+                        borderTop: '1px solid #EDE9FE',
+                        display: 'flex',
+                        gap: 10,
+                        justifyContent: 'flex-end',
+                        background: '#fff',
+                    }}
+                >
+                    <button
+                        onClick={onClose}
+                        style={{
+                            padding: '10px 18px',
+                            borderRadius: 10,
+                            border: '1.5px solid #DDD6FE',
+                            background: '#fff',
+                            color: '#6D28D9',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        style={{
+                            padding: '10px 20px',
+                            borderRadius: 10,
+                            border: 'none',
+                            background: 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                            color: '#fff',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {missingCount > 0 ? `Xác nhận tạo (bỏ qua ${missingCount} cảnh báo)` : 'Xác nhận tạo phiếu'}
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

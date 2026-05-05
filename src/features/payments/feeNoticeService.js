@@ -130,6 +130,26 @@ function attendanceSummary(row) {
     }
 }
 
+export async function listFeeNoticeItems({ noticeId } = {}) {
+    const client = requireSupabase()
+    const { data, error } = await client
+        .from('fee_notice_items')
+        .select(NOTICE_ITEM_COLUMNS)
+        .eq('notice_id', noticeId)
+        .order('display_order', { ascending: true })
+    if (error) throw error
+    return data || []
+}
+
+export async function updateFeeNoticeStatus({ noticeId, status }) {
+    const client = requireSupabase()
+    const { error } = await client
+        .from('fee_notices')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', noticeId)
+    if (error) throw error
+}
+
 export async function saveMonthlyFeeNotices({ rows = [], yearMonth, facilityId } = {}) {
     const client = requireSupabase()
     const profile = await getCurrentProfile().catch(() => null)
