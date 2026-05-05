@@ -17,6 +17,7 @@ const Teachers = lazy(() => import('./Teachers'))
 const Attendance = lazy(() => import('./Attendance'))
 const DailyReports = lazy(() => import('./DailyReports'))
 const Finance = lazy(() => import('./Finance'))
+const TuitionAttendance = lazy(() => import('./TuitionAttendance'))
 const Messages = lazy(() => import('./Messages'))
 const CalendarView = lazy(() => import('./CalendarView'))
 const Analytics = lazy(() => import('./Analytics'))
@@ -54,6 +55,11 @@ const PAGE_MAP = {
         component: (_nav, scope) => <DailyReports {...scope} />,
     },
     finance: { title: 'Học phí & Biên lai', subtitle: null, component: (_nav, scope) => <Finance {...scope} /> },
+    tuitionAttendance: {
+        title: 'Bảng học phí từ điểm danh',
+        subtitle: 'Bảng điểm danh tháng · Tự tính khoản phải thu',
+        component: (_nav, scope) => <TuitionAttendance {...scope} />,
+    },
     messages: {
         title: 'Tin nhắn',
         subtitle: 'Giao tiếp với phụ huynh',

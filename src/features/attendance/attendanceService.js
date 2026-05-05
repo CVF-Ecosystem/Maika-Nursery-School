@@ -49,6 +49,23 @@ export async function listAttendanceByFacilityDate({ facilityId, date }) {
     return (data || []).map(mapAttendanceFromSupabase)
 }
 
+export async function listAttendanceByFacilityDateRange({ facilityId, startDate, endDate }) {
+    const client = requireSupabase()
+    let query = client
+        .from('attendance')
+        .select(ATTENDANCE_COLUMNS)
+        .gte('attendance_date', startDate)
+        .lte('attendance_date', endDate)
+
+    if (facilityId) query = query.eq('facility_id', facilityId)
+
+    const { data, error } = await query
+        .order('attendance_date', { ascending: true })
+        .order('created_at', { ascending: false })
+    if (error) throw error
+    return (data || []).map(mapAttendanceFromSupabase)
+}
+
 export async function upsertAttendance(record) {
     const client = requireSupabase()
     const { data, error } = await client.rpc('mark_attendance', {

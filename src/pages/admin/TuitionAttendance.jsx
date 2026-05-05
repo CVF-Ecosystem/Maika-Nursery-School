@@ -1,0 +1,870 @@
+import { useEffect, useMemo, useState } from 'react'
+import { isSupabaseSession } from '../../data/backendMode'
+import { commit, getDB } from '../../data/store'
+import { listAttendanceByFacilityDateRange } from '../../features/attendance/attendanceService'
+import {
+    listInvoices as listSupabaseInvoices,
+    saveInvoice as saveSupabaseInvoice,
+} from '../../features/sensitive/sensitiveService'
+import { listStudents } from '../../features/students/studentService'
+import { fmtMoney } from '../../utils/format'
+import {
+    DEFAULT_TUITION_SETTINGS,
+    buildAttendanceMonthRows,
+    buildTuitionRows,
+    monthRange,
+    normalizeTuitionNumber,
+    summarizeTuitionRows,
+    tuitionInvoiceNumber,
+} from '../../features/payments/tuitionFromAttendance'
+
+function currentYearMonth() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function storageKey(yearMonth) {
+    return `maika_tuition_attendance_${yearMonth}`
+}
+
+function loadSavedSettings(yearMonth) {
+    try {
+        const saved = JSON.parse(localStorage.getItem(storageKey(yearMonth)) || '{}')
+        return {
+            settings: { ...DEFAULT_TUITION_SETTINGS, ...(saved.settings || {}) },
+            credits: saved.credits || {},
+        }
+    } catch {
+        return { settings: DEFAULT_TUITION_SETTINGS, credits: {} }
+    }
+}
+
+function saveLocalSettings(yearMonth, settings, credits) {
+    localStorage.setItem(storageKey(yearMonth), JSON.stringify({ settings, credits }))
+}
+
+function classValue(student, supabaseMode) {
+    return supabaseMode ? student.className || '' : student.classId || ''
+}
+
+function statusColor(symbol) {
+    if (symbol === 'x') return ['#ECFDF5', '#059669']
+    if (symbol === 'x/2') return ['#EFF6FF', '#2563EB']
+    if (symbol === 'P') return ['#FFFBEB', '#B45309']
+    if (symbol === 'K') return ['#FEF2F2', '#DC2626']
+    if (symbol === 'L') return ['#F5F5F4', '#6B7280']
+    return ['transparent', '#9B93C9']
+}
+
+function numberInputStyle(width = 132) {
+    return {
+        width,
+        padding: '9px 11px',
+        borderRadius: 10,
+        border: '1.5px solid #DDD6FE',
+        fontSize: 13,
+        fontWeight: 800,
+        color: '#1E1B4B',
+        background: '#fff',
+    }
+}
+
+function buttonStyle({ primary = false, danger = false, disabled = false } = {}) {
+    return {
+        padding: '10px 14px',
+        borderRadius: 12,
+        border: primary ? 'none' : `1.5px solid ${danger ? '#FCA5A5' : '#DDD6FE'}`,
+        background: disabled ? '#F8F7FF' : primary ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#fff',
+        color: disabled ? '#A8A0C8' : primary ? '#fff' : danger ? '#DC2626' : '#6D28D9',
+        fontSize: 13,
+        fontWeight: 900,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        whiteSpace: 'nowrap',
+    }
+}
+
+async function exportWorkbook({ yearMonth, days, attendanceRows, tuitionRows, summary, classLabel }) {
+    const XLSX = await import('@e965/xlsx')
+    const range = monthRange(yearMonth)
+    const titleMonth = `Tháng ${String(range.month).padStart(2, '0')} năm ${range.year}`
+    const sundayCount = days.filter(day => day.isSunday).length
+    const attendanceSheet = [
+        ['MẦM NON THIÊN THẦN MAIKA', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'BẢNG ĐIỂM DANH'],
+        ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', titleMonth],
+        [],
+        ['', 'Tháng', range.month],
+        ['', 'Năm', range.year],
+        ['', 'Số ngày trong tháng', range.daysInMonth],
+        [],
+        [
+            'STT',
+            'MSHS',
+            'HỌ VÀ TÊN',
+            titleMonth,
+            ...days.slice(1).map(() => ''),
+            'Đủ ngày',
+            'Nửa ngày',
+            'Tổng ngày học',
+            'Nghỉ có phép',
+            'Nghỉ Lễ',
+            'Nghỉ không phép',
+        ],
+        ['', '', '', ...days.map(day => day.day), '', '', '', '', '', ''],
+        ['', '', '', ...days.map(day => day.weekdayLabel), '', '', '', '', '', ''],
+        ...attendanceRows.map((row, index) => [
+            index + 1,
+            row.studentCode,
+            row.studentName,
+            ...days.map(day => row.marks[day.date] || ''),
+            row.fullDays,
+            row.halfDays,
+            row.actualDays,
+            row.permittedAbsences,
+            row.holidayAbsences,
+            row.unpermittedAbsences,
+        ]),
+        [],
+        ['Quy ước'],
+        ['1. Đi học đủ ngày kí hiệu: x'],
+        ['2. Đi học nửa ngày kí hiệu: x/2'],
+        ['3. Nghỉ lễ kí hiệu: L'],
+        ['4. Nghỉ có xin phép: P'],
+        ['5. Nghỉ không xin phép: K'],
+    ]
+    const tuitionSheet = [
+        ['MẦM NON THIÊN THẦN MAIKA', '', '', '', 'BẢNG THEO DÕI HỌC PHÍ'],
+        [],
+        ['', 'Tháng', range.month, '', titleMonth],
+        ['', 'Năm', range.year],
+        ['', 'Ngày học chuẩn trong tháng', attendanceRows[0]?.schoolDayCount || 0],
+        [
+            'STT',
+            'MSHS',
+            'Họ và tên',
+            'Lớp',
+            'Học phí',
+            'Số ngày đi học thực tế',
+            'Số ngày vắng không phép',
+            'Số ngày vắng có phép',
+            'Tiền hoàn lại',
+            'Tiền thừa tháng trước',
+            'Tiền phải thu trong tháng',
+            'Ngày nộp tiền',
+            'Họ & Tên người nộp tiền',
+            'Số tiền nộp',
+            'Ghi chú',
+            '',
+            'Số ngày chủ nhật',
+            sundayCount,
+        ],
+        [
+            '',
+            '',
+            '',
+            '',
+            summary.monthlyTuition,
+            summary.actualDays,
+            summary.unpermittedAbsences,
+            summary.permittedAbsences,
+            summary.totalCredit,
+            '',
+            summary.amountDue,
+        ],
+        ...tuitionRows.map((row, index) => [
+            index + 1,
+            row.studentCode,
+            row.studentName,
+            row.className,
+            row.monthlyTuition,
+            row.actualDays,
+            row.unpermittedAbsences,
+            row.permittedAbsences,
+            row.refundAmount,
+            row.previousCredit,
+            row.amountDue,
+            '',
+            row.student.parentName || '',
+            '',
+            row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : '',
+        ]),
+    ]
+
+    const workbook = XLSX.utils.book_new()
+    const wsAttendance = XLSX.utils.aoa_to_sheet(attendanceSheet)
+    const wsTuition = XLSX.utils.aoa_to_sheet(tuitionSheet)
+    wsAttendance['!cols'] = [
+        { wch: 6 },
+        { wch: 12 },
+        { wch: 28 },
+        ...days.map(() => ({ wch: 6 })),
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 14 },
+    ]
+    wsTuition['!cols'] = [
+        { wch: 6 },
+        { wch: 12 },
+        { wch: 28 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 24 },
+        { wch: 14 },
+        { wch: 32 },
+    ]
+    XLSX.utils.book_append_sheet(workbook, wsAttendance, 'Bảng điểm danh học sinh')
+    XLSX.utils.book_append_sheet(workbook, wsTuition, 'Bảng học phí_nội bộ')
+    const suffix = classLabel ? classLabel.toLowerCase().replace(/\s+/g, '-') : 'tat-ca'
+    XLSX.writeFile(workbook, `bang-hoc-phi-diem-danh-${suffix}-${yearMonth}.xlsx`)
+}
+
+export default function TuitionAttendance({ selectedFacilityId = '' }) {
+    const supabaseMode = isSupabaseSession()
+    const [yearMonth, setYearMonth] = useState(currentYearMonth)
+    const loaded = useMemo(() => loadSavedSettings(yearMonth), [yearMonth])
+    const [settings, setSettings] = useState(loaded.settings)
+    const [credits, setCredits] = useState(loaded.credits)
+    const [students, setStudents] = useState([])
+    const [classes, setClasses] = useState([])
+    const [attendance, setAttendance] = useState([])
+    const [classFilter, setClassFilter] = useState('')
+    const [view, setView] = useState('tuition')
+    const [loading, setLoading] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [message, setMessage] = useState('')
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        const next = loadSavedSettings(yearMonth)
+        setSettings(next.settings)
+        setCredits(next.credits)
+    }, [yearMonth])
+
+    useEffect(() => {
+        saveLocalSettings(yearMonth, settings, credits)
+    }, [yearMonth, settings, credits])
+
+    useEffect(() => {
+        let mounted = true
+        async function load() {
+            setLoading(true)
+            setError('')
+            try {
+                const range = monthRange(yearMonth)
+                if (supabaseMode) {
+                    const [studentItems, attendanceItems] = await Promise.all([
+                        listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
+                        listAttendanceByFacilityDateRange({
+                            facilityId: selectedFacilityId || undefined,
+                            startDate: range.startDate,
+                            endDate: range.endDate,
+                        }),
+                    ])
+                    if (!mounted) return
+                    setStudents(studentItems)
+                    setClasses([...new Set(studentItems.map(student => student.className).filter(Boolean))])
+                    setAttendance(attendanceItems)
+                    return
+                }
+
+                const db = getDB()
+                const localStudents = (db.students || []).filter(student => student.status === 'active')
+                const localAttendance = (db.attendance || []).filter(
+                    record => record.date >= range.startDate && record.date <= range.endDate,
+                )
+                if (!mounted) return
+                setStudents(localStudents)
+                setClasses(db.classes || [])
+                setAttendance(localAttendance)
+            } catch (ex) {
+                if (mounted) setError(ex.message || 'Không tải được dữ liệu điểm danh.')
+            } finally {
+                if (mounted) setLoading(false)
+            }
+        }
+        load()
+        return () => {
+            mounted = false
+        }
+    }, [supabaseMode, selectedFacilityId, yearMonth])
+
+    const filteredStudents = useMemo(() => {
+        if (!classFilter) return students
+        return students.filter(student => classValue(student, supabaseMode) === classFilter)
+    }, [students, classFilter, supabaseMode])
+
+    const attendanceModel = useMemo(
+        () =>
+            buildAttendanceMonthRows({
+                students: filteredStudents,
+                classes: supabaseMode ? [] : classes,
+                attendance,
+                yearMonth,
+                includeSaturday: settings.includeSaturday,
+            }),
+        [attendance, classes, filteredStudents, settings.includeSaturday, supabaseMode, yearMonth],
+    )
+
+    const tuitionRows = useMemo(
+        () =>
+            buildTuitionRows({
+                attendanceRows: attendanceModel.rows,
+                yearMonth,
+                settings,
+                previousCredits: credits,
+            }),
+        [attendanceModel.rows, credits, settings, yearMonth],
+    )
+    const summary = useMemo(() => summarizeTuitionRows(tuitionRows), [tuitionRows])
+    const classOptions = supabaseMode
+        ? classes.map(name => ({ id: name, name }))
+        : classes.map(item => ({ id: item.id, name: item.name }))
+    const classLabel = classOptions.find(item => item.id === classFilter)?.name || ''
+
+    function updateSetting(name, value) {
+        setSettings(prev => ({
+            ...prev,
+            [name]: name === 'includeSaturday' ? value : normalizeTuitionNumber(value),
+        }))
+    }
+
+    function updateCredit(studentId, value) {
+        setCredits(prev => ({ ...prev, [studentId]: normalizeTuitionNumber(value) }))
+    }
+
+    async function handleExport() {
+        setError('')
+        setMessage('')
+        try {
+            await exportWorkbook({
+                yearMonth,
+                days: attendanceModel.days,
+                attendanceRows: attendanceModel.rows,
+                tuitionRows,
+                summary,
+                classLabel,
+            })
+            setMessage('Đã xuất file Excel theo mẫu bảng điểm danh và bảng học phí.')
+        } catch (ex) {
+            setError(ex.message || 'Không xuất được Excel.')
+        }
+    }
+
+    async function generateInvoices() {
+        setSaving(true)
+        setMessage('')
+        setError('')
+        try {
+            const payableRows = tuitionRows.filter(row => row.studentId && row.amountDue > 0)
+            if (!payableRows.length) {
+                setMessage('Không có khoản học phí cần tạo.')
+                return
+            }
+
+            if (supabaseMode) {
+                const existing = await listSupabaseInvoices({ facilityId: selectedFacilityId || undefined })
+                const existingNumbers = new Set(existing.map(invoice => invoice.invoice_number))
+                let created = 0
+                for (const row of payableRows) {
+                    const invoiceNumber = tuitionInvoiceNumber(row)
+                    if (existingNumbers.has(invoiceNumber)) continue
+                    await saveSupabaseInvoice({
+                        studentId: row.studentId,
+                        invoiceNumber,
+                        type: 'tuition',
+                        description: row.description,
+                        amount: row.amountDue,
+                        dueDate: row.dueDate,
+                        status: 'pending',
+                        notes: `Từ bảng điểm danh tháng ${yearMonth}. Đi học ${row.actualDays}/${row.schoolDayCount} ngày, vắng phép ${row.permittedAbsences}, vắng không phép ${row.unpermittedAbsences}.`,
+                    })
+                    existingNumbers.add(invoiceNumber)
+                    created += 1
+                }
+                setMessage(`Đã tạo ${created} khoản thu học phí. Các khoản đã tồn tại được bỏ qua.`)
+                return
+            }
+
+            const db = getDB()
+            if (!Array.isArray(db.finance)) db.finance = []
+            const existingNumbers = new Set((db.finance || []).map(item => item.invoiceNumber).filter(Boolean))
+            let created = 0
+            payableRows.forEach(row => {
+                const invoiceNumber = tuitionInvoiceNumber(row)
+                if (existingNumbers.has(invoiceNumber)) return
+                db.finance.push({
+                    id: `tuition-${yearMonth}-${row.studentId}`,
+                    studentId: row.studentId,
+                    invoiceNumber,
+                    type: 'tuition',
+                    desc: row.description,
+                    amount: row.amountDue,
+                    date: row.dueDate,
+                    status: 'pending',
+                    method: '',
+                    notes: `Từ bảng điểm danh tháng ${yearMonth}.`,
+                })
+                existingNumbers.add(invoiceNumber)
+                created += 1
+            })
+            commit()
+            setMessage(`Đã tạo ${created} khoản thu học phí. Các khoản đã tồn tại được bỏ qua.`)
+        } catch (ex) {
+            setError(ex.message || 'Không tạo được khoản thu học phí.')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="admin-page-pad" style={{ padding: '28px 36px' }}>
+            <div
+                className="mobile-stack"
+                style={{
+                    display: 'flex',
+                    gap: 12,
+                    alignItems: 'flex-end',
+                    justifyContent: 'space-between',
+                    marginBottom: 18,
+                }}
+            >
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                        Tháng tính phí
+                        <input
+                            type="month"
+                            value={yearMonth}
+                            onChange={event => setYearMonth(event.target.value)}
+                            style={numberInputStyle(150)}
+                        />
+                    </label>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                        Lớp
+                        <select
+                            value={classFilter}
+                            onChange={event => setClassFilter(event.target.value)}
+                            style={numberInputStyle(170)}
+                        >
+                            <option value="">Tất cả lớp</option>
+                            {classOptions.map(item => (
+                                <option key={item.id} value={item.id}>
+                                    {item.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                        Học phí tháng
+                        <input
+                            type="number"
+                            min="0"
+                            value={settings.monthlyTuition}
+                            onChange={event => updateSetting('monthlyTuition', event.target.value)}
+                            style={numberInputStyle()}
+                        />
+                    </label>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                        Hoàn/vắng phép
+                        <input
+                            type="number"
+                            min="0"
+                            value={settings.refundPerPermittedAbsence}
+                            onChange={event => updateSetting('refundPerPermittedAbsence', event.target.value)}
+                            style={numberInputStyle()}
+                        />
+                    </label>
+                    <label
+                        style={{
+                            display: 'flex',
+                            gap: 8,
+                            alignItems: 'center',
+                            height: 40,
+                            padding: '0 12px',
+                            borderRadius: 10,
+                            border: '1.5px solid #DDD6FE',
+                            background: '#fff',
+                            color: '#5B5490',
+                            fontSize: 12,
+                            fontWeight: 900,
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={settings.includeSaturday}
+                            onChange={event => updateSetting('includeSaturday', event.target.checked)}
+                        />
+                        Tính thứ bảy
+                    </label>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button onClick={handleExport} disabled={loading || !tuitionRows.length} style={buttonStyle()}>
+                        Xuất Excel
+                    </button>
+                    <button
+                        onClick={generateInvoices}
+                        disabled={saving || loading || !tuitionRows.length}
+                        style={buttonStyle({ primary: true, disabled: saving || loading || !tuitionRows.length })}
+                    >
+                        {saving ? 'Đang tạo...' : 'Tạo khoản thu'}
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {[
+                    ['tuition', 'Bảng học phí'],
+                    ['attendance', 'Bảng điểm danh tháng'],
+                ].map(([id, label]) => (
+                    <button
+                        key={id}
+                        onClick={() => setView(id)}
+                        style={{
+                            padding: '9px 13px',
+                            borderRadius: 10,
+                            border: `1.5px solid ${view === id ? '#7C3AED' : '#DDD6FE'}`,
+                            background: view === id ? '#EDE9FE' : '#fff',
+                            color: view === id ? '#6D28D9' : '#6B6494',
+                            fontWeight: 900,
+                            fontSize: 13,
+                        }}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            {message && (
+                <div
+                    style={{
+                        marginBottom: 14,
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        background: '#ECFDF5',
+                        color: '#047857',
+                        fontWeight: 800,
+                        fontSize: 13,
+                    }}
+                >
+                    {message}
+                </div>
+            )}
+            {error && (
+                <div
+                    style={{
+                        marginBottom: 14,
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        background: '#FEF2F2',
+                        color: '#DC2626',
+                        fontWeight: 800,
+                        fontSize: 13,
+                    }}
+                >
+                    {error}
+                </div>
+            )}
+
+            <div
+                className="landing-section-grid"
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+                    gap: 12,
+                    marginBottom: 18,
+                }}
+            >
+                {[
+                    ['Học sinh', tuitionRows.length, '#6D28D9', '#F5F3FF'],
+                    ['Ngày chuẩn', attendanceModel.schoolDayCount, '#2563EB', '#EFF6FF'],
+                    ['Vắng phép', summary.permittedAbsences, '#B45309', '#FFFBEB'],
+                    ['Phải thu', fmtMoney(summary.amountDue), '#059669', '#ECFDF5'],
+                ].map(([label, value, color, bg]) => (
+                    <div key={label} style={{ background: bg, borderRadius: 12, padding: '14px 16px' }}>
+                        <div style={{ fontSize: 11, color, fontWeight: 900, textTransform: 'uppercase' }}>{label}</div>
+                        <div
+                            style={{
+                                fontSize: typeof value === 'string' ? 17 : 24,
+                                color,
+                                fontWeight: 900,
+                                marginTop: 4,
+                            }}
+                        >
+                            {value}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div
+                className="mobile-scroll-table"
+                style={{
+                    background: '#fff',
+                    borderRadius: 16,
+                    boxShadow: '0 2px 16px rgba(109,40,217,0.08)',
+                    overflow: 'hidden',
+                }}
+            >
+                {loading ? (
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 800, textAlign: 'center' }}>
+                        Đang tải dữ liệu...
+                    </div>
+                ) : tuitionRows.length === 0 ? (
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 800, textAlign: 'center' }}>
+                        Chưa có học sinh hoặc dữ liệu phù hợp.
+                    </div>
+                ) : view === 'tuition' ? (
+                    <TuitionTable
+                        rows={tuitionRows}
+                        credits={credits}
+                        onCreditChange={updateCredit}
+                        summary={summary}
+                    />
+                ) : (
+                    <AttendanceMatrix days={attendanceModel.days} rows={attendanceModel.rows} />
+                )}
+            </div>
+        </div>
+    )
+}
+
+function TuitionTable({ rows, credits, onCreditChange, summary }) {
+    return (
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1120 }}>
+            <thead>
+                <tr style={{ background: '#F8F7FF' }}>
+                    {[
+                        'STT',
+                        'MSHS',
+                        'Họ và tên',
+                        'Lớp',
+                        'Học phí',
+                        'Ngày học',
+                        'Vắng K',
+                        'Vắng P',
+                        'Hoàn lại',
+                        'Thừa tháng trước',
+                        'Phải thu',
+                        'Ghi chú',
+                    ].map(header => (
+                        <th
+                            key={header}
+                            style={{
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                color: '#7C6D9B',
+                                fontSize: 11,
+                                fontWeight: 900,
+                                borderBottom: '1.5px solid #DDD6FE',
+                            }}
+                        >
+                            {header}
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody>
+                <tr style={{ background: '#FAFAFF', borderBottom: '1px solid #EDE9FE' }}>
+                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 900, color: '#1E1B4B' }}>
+                        Tổng cộng
+                    </td>
+                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{fmtMoney(summary.monthlyTuition)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.actualDays}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.unpermittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.permittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{fmtMoney(summary.totalCredit)}</td>
+                    <td />
+                    <td style={{ padding: '10px 14px', fontWeight: 900, color: '#059669' }}>
+                        {fmtMoney(summary.amountDue)}
+                    </td>
+                    <td />
+                </tr>
+                {rows.map((row, index) => (
+                    <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 800 }}>{index + 1}</td>
+                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 900 }}>{row.studentCode}</td>
+                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 900 }}>{row.studentName}</td>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 800 }}>
+                            {row.className || '-'}
+                        </td>
+                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{fmtMoney(row.monthlyTuition)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{row.actualDays}</td>
+                        <td
+                            style={{
+                                padding: '11px 14px',
+                                color: row.unpermittedAbsences ? '#DC2626' : '#6B6494',
+                                fontWeight: 900,
+                            }}
+                        >
+                            {row.unpermittedAbsences}
+                        </td>
+                        <td
+                            style={{
+                                padding: '11px 14px',
+                                color: row.permittedAbsences ? '#B45309' : '#6B6494',
+                                fontWeight: 900,
+                            }}
+                        >
+                            {row.permittedAbsences}
+                        </td>
+                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{fmtMoney(row.refundAmount)}</td>
+                        <td style={{ padding: '9px 14px' }}>
+                            <input
+                                type="number"
+                                min="0"
+                                value={credits[row.studentId] || 0}
+                                onChange={event => onCreditChange(row.studentId, event.target.value)}
+                                style={numberInputStyle(120)}
+                                aria-label={`Tiền thừa tháng trước của ${row.studentName}`}
+                            />
+                        </td>
+                        <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 900 }}>
+                            {fmtMoney(row.amountDue)}
+                        </td>
+                        <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 700 }}>
+                            {row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : ''}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    )
+}
+
+function AttendanceMatrix({ days, rows }) {
+    return (
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1260 }}>
+            <thead>
+                <tr style={{ background: '#F8F7FF' }}>
+                    {['STT', 'MSHS', 'Họ và tên'].map(header => (
+                        <th
+                            key={header}
+                            rowSpan={2}
+                            style={{
+                                padding: '12px 10px',
+                                textAlign: 'left',
+                                color: '#7C6D9B',
+                                fontSize: 11,
+                                fontWeight: 900,
+                                borderBottom: '1.5px solid #DDD6FE',
+                            }}
+                        >
+                            {header}
+                        </th>
+                    ))}
+                    {days.map(day => (
+                        <th
+                            key={day.date}
+                            style={{
+                                width: 36,
+                                padding: '8px 4px',
+                                textAlign: 'center',
+                                color: day.isSunday ? '#DC2626' : '#7C6D9B',
+                                fontSize: 11,
+                                fontWeight: 900,
+                                borderBottom: '1px solid #EDE9FE',
+                            }}
+                        >
+                            {day.day}
+                        </th>
+                    ))}
+                    {['Đủ', 'Nửa', 'Tổng', 'P', 'L', 'K'].map(header => (
+                        <th
+                            key={header}
+                            rowSpan={2}
+                            style={{
+                                padding: '12px 8px',
+                                textAlign: 'center',
+                                color: '#7C6D9B',
+                                fontSize: 11,
+                                fontWeight: 900,
+                                borderBottom: '1.5px solid #DDD6FE',
+                            }}
+                        >
+                            {header}
+                        </th>
+                    ))}
+                </tr>
+                <tr style={{ background: '#F8F7FF' }}>
+                    {days.map(day => (
+                        <th
+                            key={day.date}
+                            style={{
+                                padding: '6px 3px',
+                                textAlign: 'center',
+                                color: day.isSunday ? '#DC2626' : '#9B93C9',
+                                fontSize: 10,
+                                fontWeight: 800,
+                                borderBottom: '1.5px solid #DDD6FE',
+                            }}
+                        >
+                            {day.weekdayLabel.replace('Thứ ', 'T')}
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody>
+                {rows.map((row, index) => (
+                    <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
+                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 800 }}>{index + 1}</td>
+                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 900 }}>{row.studentCode}</td>
+                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 900, minWidth: 190 }}>
+                            {row.studentName}
+                        </td>
+                        {days.map(day => {
+                            const symbol = row.marks[day.date] || ''
+                            const [bg, color] = statusColor(symbol)
+                            return (
+                                <td
+                                    key={day.date}
+                                    style={{
+                                        padding: '7px 4px',
+                                        textAlign: 'center',
+                                        background: day.isSunday ? '#FAFAFA' : 'transparent',
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 30,
+                                            height: 26,
+                                            borderRadius: 7,
+                                            background: bg,
+                                            color,
+                                            fontSize: 11,
+                                            fontWeight: 900,
+                                        }}
+                                    >
+                                        {symbol}
+                                    </span>
+                                </td>
+                            )
+                        })}
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.fullDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.halfDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.actualDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                            {row.permittedAbsences}
+                        </td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                            {row.holidayAbsences}
+                        </td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                            {row.unpermittedAbsences}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    )
+}
