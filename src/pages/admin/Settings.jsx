@@ -1405,7 +1405,17 @@ const GUIDE_SECTIONS = [
         ],
     },
     {
-        title: '4. Chức Năng Giáo Viên',
+        title: '4. Bảng Thu Tháng',
+        bullets: [
+            'Cấu hình học phí theo cơ sở và lớp tại tab Mức học phí trước khi tạo phiếu báo thu.',
+            'Vắng P hoàn tiền ăn theo mức đã cấu hình; vắng K, nghỉ lễ và x/2 chỉ dùng để thống kê.',
+            'x/2 vẫn tính đủ một suất ăn.',
+            'Nếu còn ngày chưa điểm danh, hệ thống sẽ cảnh báo khi tạo phiếu báo thu.',
+            'Phiếu chưa thanh toán được cập nhật khi tính lại; phiếu đã thanh toán sẽ tạo bản điều chỉnh.',
+        ],
+    },
+    {
+        title: '5. Chức Năng Giáo Viên',
         bullets: [
             '✅ Điểm danh học sinh trong cơ sở được phân công.',
             '📓 Ghi nhật ký ngày: bữa ăn, giấc ngủ, hoạt động, ghi chú.',
@@ -1414,7 +1424,7 @@ const GUIDE_SECTIONS = [
         ],
     },
     {
-        title: '5. Chức Năng Phụ Huynh',
+        title: '6. Chức Năng Phụ Huynh',
         bullets: [
             'Xem hồ sơ, điểm danh, nhật ký ngày, thông báo, thực đơn, hình ảnh đã duyệt.',
             'Xem hồ sơ sức khỏe, báo cáo sự cố, hóa đơn học phí.',
@@ -1424,7 +1434,7 @@ const GUIDE_SECTIONS = [
         ],
     },
     {
-        title: '6. Lưu Ý & Hỗ Trợ',
+        title: '7. Lưu Ý & Hỗ Trợ',
         bullets: [
             'Không chia sẻ tài khoản. Đăng xuất sau khi dùng thiết bị công cộng.',
             'Báo ngay cho nhà trường nếu thông tin học sinh hoặc phụ huynh chưa chính xác.',

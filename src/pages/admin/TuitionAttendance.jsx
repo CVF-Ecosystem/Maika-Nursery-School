@@ -99,10 +99,6 @@ function buttonStyle({ primary = false, danger = false, disabled = false } = {})
     }
 }
 
-function monthTitle(range) {
-    return `Tháng ${String(range.month).padStart(2, '0')}/${range.year}`
-}
-
 async function exportWorkbook({ yearMonth, days, attendanceRows, tuitionRows, summary, classLabel }) {
     const XLSX = await import('@e965/xlsx')
     const range = monthRange(yearMonth)
@@ -359,12 +355,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         ? classes.map(name => ({ id: name, name }))
         : classes.map(item => ({ id: item.id, name: item.name }))
     const classLabel = classOptions.find(item => item.id === classFilter)?.name || ''
-    const period = monthRange(yearMonth)
-    const sundayCount = attendanceModel.days.filter(day => day.isSunday).length
-    const saturdayCount = attendanceModel.days.filter(day => day.isSaturday).length
-    const monthSummary = `${monthTitle(period)} có ${period.daysInMonth} ngày lịch, ${sundayCount} Chủ nhật${
-        settings.includeSaturday ? '' : `, ${saturdayCount} thứ bảy`
-    }. Tính học phí ${attendanceModel.schoolDayCount} ngày (${settings.includeSaturday ? 'thứ hai-thứ bảy' : 'thứ hai-thứ sáu'}).`
+    const missingAttendanceCount = tuitionRows.filter(row => row.missingSchoolDays > 0).length
 
     function updateSetting(name, value) {
         setSettings(prev => ({
@@ -641,37 +632,18 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 </div>
             )}
 
-            <div
-                className="mobile-stack"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 14,
-                    background: '#fff',
-                    border: '1px solid #EDE9FE',
-                    borderRadius: 14,
-                    padding: '13px 16px',
-                    marginBottom: 16,
-                    boxShadow: '0 2px 14px rgba(109,40,217,0.06)',
-                }}
-            >
-                <div style={{ minWidth: 0 }}>
-                    <div style={{ color: '#1E1B4B', fontSize: 13, fontWeight: 700 }}>{monthSummary}</div>
-                    <div style={{ color: '#7C6D9B', fontSize: 12, marginTop: 4 }}>
-                        Quy ước: x đi học, x/2 nửa ngày, P vắng có phép được hoàn tiền ăn, K không phép. x/2 vẫn tính đủ
-                        1 suất ăn.
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <SummaryChip label="Học sinh" value={tuitionRows.length} color="#6D28D9" />
-                    {view === 'tuition' && (
-                        <>
-                            <SummaryChip label="Vắng P" value={summary.permittedAbsences} color="#B45309" />
-                            <SummaryChip label="Phải thu" value={fmtMoney(summary.amountDue)} color="#059669" />
-                        </>
-                    )}
-                </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginBottom: 16 }}>
+                <SummaryChip label="Học sinh" value={tuitionRows.length} color="#6D28D9" />
+                <SummaryChip label="Ngày chuẩn" value={attendanceModel.schoolDayCount} color="#2563EB" />
+                {view === 'tuition' && (
+                    <>
+                        <SummaryChip label="Vắng P" value={summary.permittedAbsences} color="#B45309" />
+                        <SummaryChip label="Phải thu" value={fmtMoney(summary.amountDue)} color="#059669" />
+                        {missingAttendanceCount > 0 && (
+                            <SummaryChip label="Chưa điểm danh" value={missingAttendanceCount} color="#DC2626" />
+                        )}
+                    </>
+                )}
             </div>
 
             <div
@@ -724,7 +696,6 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                         'Hoàn lại',
                         'Thừa tháng trước',
                         'Phải thu',
-                        'Ghi chú',
                     ].map(header => (
                         <th
                             key={header}
@@ -753,11 +724,9 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.unpermittedAbsences}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.permittedAbsences}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.totalCredit)}</td>
-                    <td />
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: '#059669' }}>
                         {fmtMoney(summary.amountDue)}
                     </td>
-                    <td />
                 </tr>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
@@ -801,14 +770,6 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                         </td>
                         <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 700 }}>
                             {fmtMoney(row.amountDue)}
-                        </td>
-                        <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 600 }}>
-                            {[
-                                row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : '',
-                                row.tuitionRuleSource === 'fallback' ? 'Chưa có cấu hình lớp, dùng mặc định' : '',
-                            ]
-                                .filter(Boolean)
-                                .join('. ')}
                         </td>
                     </tr>
                 ))}
