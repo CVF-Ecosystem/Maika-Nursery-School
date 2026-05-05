@@ -9,6 +9,7 @@ const NOTICE_COLUMNS =
 const NOTICE_ITEM_COLUMNS =
     'id, notice_id, fee_item_id, name, quantity, unit, unit_price, amount, item_type, display_order, created_at'
 const CREDIT_COLUMNS = 'id, student_id, facility_id, year_month, amount, note, updated_by, created_at, updated_at'
+const OVERRIDE_COLUMNS = 'id, student_id, facility_id, year_month, amount, reason, updated_by, created_at, updated_at'
 
 function nextMonth(yearMonth) {
     const [year, month] = String(yearMonth).split('-').map(Number)
@@ -77,6 +78,50 @@ export async function upsertStudentTuitionCredit({ studentId, facilityId, yearMo
     return data
 }
 
+export async function listStudentTuitionOverrides({ facilityId, yearMonth } = {}) {
+    const client = requireSupabase()
+    let query = client
+        .from('student_tuition_overrides')
+        .select(OVERRIDE_COLUMNS)
+        .order('updated_at', { ascending: false })
+    if (facilityId) query = query.eq('facility_id', facilityId)
+    if (yearMonth) query = query.eq('year_month', yearMonth)
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+}
+
+export async function upsertStudentTuitionOverride({ studentId, facilityId, yearMonth, amount, reason }) {
+    const client = requireSupabase()
+    const profile = await getCurrentProfile().catch(() => null)
+    const payload = {
+        student_id: studentId,
+        facility_id: facilityId,
+        year_month: yearMonth,
+        amount: Number(amount || 0),
+        reason: reason || null,
+        updated_by: profile?.id || null,
+        updated_at: new Date().toISOString(),
+    }
+    const { data, error } = await client
+        .from('student_tuition_overrides')
+        .upsert(payload, { onConflict: 'student_id,year_month' })
+        .select(OVERRIDE_COLUMNS)
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function deleteStudentTuitionOverride({ studentId, yearMonth }) {
+    const client = requireSupabase()
+    const { error } = await client
+        .from('student_tuition_overrides')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('year_month', yearMonth)
+    if (error) throw error
+}
+
 function feeNoticeItems(row) {
     const items = [
         {
@@ -111,6 +156,20 @@ function feeNoticeItems(row) {
             display_order: 90,
         })
     }
+    ;(row.extraFeeItems || []).forEach((item, index) => {
+        const amount = Number(item.default_amount ?? item.defaultAmount ?? item.amount ?? 0)
+        if (amount <= 0) return
+        items.push({
+            fee_item_id: item.id,
+            name: item.name,
+            quantity: 1,
+            unit: item.unit || 'tháng',
+            unit_price: amount,
+            amount,
+            item_type: 'charge',
+            display_order: Number(item.display_order || item.displayOrder || 100) + index,
+        })
+    })
     return items
 }
 
@@ -127,6 +186,12 @@ function attendanceSummary(row) {
         refundPerPermittedAbsence: row.refundPerPermittedAbsence,
         refundAmount: row.refundAmount,
         previousCredit: row.previousCredit,
+        baseMonthlyTuition: row.baseMonthlyTuition,
+        tuitionOverrideAmount: row.tuitionOverrideAmount,
+        isProrated: row.isProrated,
+        billableSchoolDays: row.billableSchoolDays,
+        enrollmentDate: row.enrollmentDate,
+        optionalFeeTotal: row.optionalFeeTotal || 0,
     }
 }
 

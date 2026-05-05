@@ -55,6 +55,33 @@ export function normalizeTuitionNumber(value) {
     return Math.max(0, Math.round(Number(digits || 0)))
 }
 
+function isDateInMonth(dateValue, yearMonth) {
+    return typeof dateValue === 'string' && dateValue.slice(0, 7) === yearMonth
+}
+
+function prorateTuitionByEnrollment({ monthlyTuition, row, yearMonth, includeSaturday = true }) {
+    const enrollmentDate = row.student?.enrollmentDate || row.student?.enrollment_date || ''
+    if (!isDateInMonth(enrollmentDate, yearMonth) || !row.schoolDayCount) {
+        return {
+            amount: monthlyTuition,
+            isProrated: false,
+            billableSchoolDays: row.schoolDayCount,
+            enrollmentDate,
+        }
+    }
+
+    const billableSchoolDays = monthDays(yearMonth, includeSaturday).filter(
+        day => day.isSchoolDay && day.date >= enrollmentDate,
+    ).length
+    const ratio = Math.min(1, Math.max(0, billableSchoolDays / row.schoolDayCount))
+    return {
+        amount: normalizeTuitionNumber(monthlyTuition * ratio),
+        isProrated: true,
+        billableSchoolDays,
+        enrollmentDate,
+    }
+}
+
 function normalizeText(value = '') {
     return String(value || '')
         .normalize('NFD')
@@ -209,14 +236,28 @@ export function buildAttendanceMonthRows({
     return { days, rows, schoolDayCount }
 }
 
-export function buildTuitionRows({ attendanceRows = [], yearMonth, settings = {}, previousCredits = {} }) {
+export function buildTuitionRows({
+    attendanceRows = [],
+    yearMonth,
+    settings = {},
+    previousCredits = {},
+    tuitionOverrides = {},
+}) {
     const mergedSettings = { ...DEFAULT_TUITION_SETTINGS, ...settings }
     const range = monthRange(yearMonth)
     const dueDate = `${range.year}-${String(range.month).padStart(2, '0')}-01`
 
     return attendanceRows.map(row => {
         const rule = resolveTuitionRuleForRow(row, mergedSettings)
-        const monthlyTuition = rule.monthlyTuition
+        const baseMonthlyTuition = rule.monthlyTuition
+        const override = tuitionOverrides[row.studentId] || null
+        const prorated = prorateTuitionByEnrollment({
+            monthlyTuition: baseMonthlyTuition,
+            row,
+            yearMonth,
+            includeSaturday: mergedSettings.includeSaturday,
+        })
+        const monthlyTuition = override ? normalizeTuitionNumber(override.amount ?? override) : prorated.amount
         const refundPerPermittedAbsence = rule.refundPerPermittedAbsence
         const previousCredit = normalizeTuitionNumber(previousCredits[row.studentId])
         const refundAmount = row.permittedAbsences * refundPerPermittedAbsence
@@ -225,7 +266,13 @@ export function buildTuitionRows({ attendanceRows = [], yearMonth, settings = {}
 
         return {
             ...row,
+            baseMonthlyTuition,
             monthlyTuition,
+            tuitionOverrideAmount: override ? monthlyTuition : 0,
+            tuitionOverrideReason: override?.reason || '',
+            isProrated: !override && prorated.isProrated,
+            billableSchoolDays: prorated.billableSchoolDays,
+            enrollmentDate: prorated.enrollmentDate,
             refundPerPermittedAbsence,
             mealPricePerDay: rule.mealPricePerDay,
             tuitionRuleId: rule.id,
@@ -249,6 +296,8 @@ export function summarizeTuitionRows(rows = []) {
             mealDays: sum.mealDays + row.mealDays,
             permittedAbsences: sum.permittedAbsences + row.permittedAbsences,
             unpermittedAbsences: sum.unpermittedAbsences + row.unpermittedAbsences,
+            refundAmount: sum.refundAmount + row.refundAmount,
+            previousCredit: sum.previousCredit + row.previousCredit,
             totalCredit: sum.totalCredit + row.totalCredit,
             amountDue: sum.amountDue + row.amountDue,
         }),
@@ -258,6 +307,8 @@ export function summarizeTuitionRows(rows = []) {
             mealDays: 0,
             permittedAbsences: 0,
             unpermittedAbsences: 0,
+            refundAmount: 0,
+            previousCredit: 0,
             totalCredit: 0,
             amountDue: 0,
         },

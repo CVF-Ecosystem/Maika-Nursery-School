@@ -21,6 +21,7 @@ import {
     updateTuitionPlan,
 } from '../../features/operations/operationalService'
 import { listFacilities } from '../../features/facilities/facilityService'
+import MoneyInput from '../../components/MoneyInput'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -702,36 +703,30 @@ function TuitionTab() {
                 >
                     <div>
                         <label style={lblStyle}>Số tiền (VND)</label>
-                        <input
-                            type="number"
+                        <MoneyInput
                             value={form.amount}
-                            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                            onChange={value => setForm(f => ({ ...f, amount: value }))}
                             placeholder="3000000"
                             style={inpStyle}
                             required
-                            min="0"
                         />
                     </div>
                     <div>
                         <label style={lblStyle}>Hoàn vắng P/ngày</label>
-                        <input
-                            type="number"
+                        <MoneyInput
                             value={form.refundPerPermittedAbsence}
-                            onChange={e => setForm(f => ({ ...f, refundPerPermittedAbsence: e.target.value }))}
+                            onChange={value => setForm(f => ({ ...f, refundPerPermittedAbsence: value }))}
                             placeholder="20000"
                             style={inpStyle}
-                            min="0"
                         />
                     </div>
                     <div>
                         <label style={lblStyle}>Tiền ăn/ngày</label>
-                        <input
-                            type="number"
+                        <MoneyInput
                             value={form.mealPricePerDay}
-                            onChange={e => setForm(f => ({ ...f, mealPricePerDay: e.target.value }))}
+                            onChange={value => setForm(f => ({ ...f, mealPricePerDay: value }))}
                             placeholder="0"
                             style={inpStyle}
-                            min="0"
                         />
                     </div>
                     <div>
@@ -898,11 +893,9 @@ function TuitionTab() {
                         </div>
                         <div>
                             <label style={lblStyle}>Số tiền mặc định</label>
-                            <input
-                                type="number"
-                                min="0"
+                            <MoneyInput
                                 value={feeItemForm.defaultAmount}
-                                onChange={e => setFeeItemForm(f => ({ ...f, defaultAmount: e.target.value }))}
+                                onChange={value => setFeeItemForm(f => ({ ...f, defaultAmount: value }))}
                                 style={inpStyle}
                             />
                         </div>
@@ -1347,99 +1340,93 @@ function ZaloTab() {
 
 const GUIDE_SECTIONS = [
     {
-        title: '1. Đăng Nhập',
+        title: '1. Đăng nhập',
         items: [
             {
-                role: 'Admin / Ban giám hiệu',
+                role: 'Admin',
                 steps: [
-                    'Nhấn Admin / Giáo viên trên thanh điều hướng trang chủ.',
+                    'Nhấn Admin / Giáo viên trên trang đăng nhập.',
                     'Nhập email quản trị và mật khẩu được cấp.',
-                    'Hệ thống chuyển đến trang quản trị.',
+                    'Chọn cơ sở ở thanh trên nếu tài khoản được quyền xem nhiều cơ sở.',
                 ],
             },
             {
                 role: 'Giáo viên',
                 steps: [
-                    'Nhấn Admin / Giáo viên trên trang chủ.',
+                    'Nhấn Admin / Giáo viên trên trang đăng nhập.',
                     'Nhập email và mật khẩu được cấp.',
-                    'Giáo viên chỉ thấy dữ liệu của cơ sở được phân công.',
+                    'Giáo viên chỉ thao tác với cơ sở được phân công.',
                 ],
             },
             {
                 role: 'Phụ huynh',
                 steps: [
-                    'Nhấn Phụ huynh đăng nhập trên trang chủ.',
+                    'Nhấn Phụ huynh đăng nhập.',
                     'Nhập email và mật khẩu nhà trường cấp.',
-                    'Nếu có nhiều bé, chọn bé cần xem ở thanh đầu trang.',
+                    'Nếu có nhiều bé, chọn bé cần xem trong cổng phụ huynh.',
                 ],
             },
         ],
     },
     {
-        title: '2. Chức Năng Admin',
+        title: '2. Admin',
         bullets: [
-            '🏠 Tổng quan: xem số học sinh, giáo viên, điểm danh và chỉ số vận hành theo thời gian thực.',
-            '👦 Học sinh: xem danh sách, thêm/cập nhật hồ sơ, lọc theo cơ sở và lớp.',
-            '👩‍🏫 Giáo viên: quản lý danh sách, thông tin liên hệ, phân công cơ sở.',
-            '✅ Điểm danh: theo dõi chuyên cần theo ngày (có mặt, đi trễ, vắng, giờ đón, ghi chú).',
-            '📓 Nhật ký ngày: xem nhật ký giáo viên ghi cho từng học sinh (bữa ăn, giấc ngủ, hoạt động).',
-            '🏥 Sức khỏe: dị ứng, thuốc, ghi chú y tế, liên hệ khẩn cấp.',
-            '🚨 Sự cố: ghi nhận sự cố, mức độ, cách xử lý, phụ huynh xác nhận.',
-            '💰 Học phí: tạo hóa đơn, theo dõi thanh toán, nhắc qua Zalo ZNS.',
-            '📢 Thông báo: gửi theo vai trò, lớp, học sinh hoặc toàn trường; hỗ trợ push notification.',
-            '🍱 Thực đơn: lập thực đơn tuần, xuất bản cho phụ huynh xem.',
-            '📷 Thư viện ảnh: tạo album, tải ảnh, duyệt và xuất bản; lưu trữ & xóa khi không cần.',
-            '👤 Tài khoản: tạo/khóa/xóa tài khoản giáo viên và phụ huynh, gán cơ sở, liên kết học sinh.',
-            '🗄️ Lưu trữ: theo dõi dung lượng ảnh, tải về và xóa ảnh lưu trữ.',
+            'Quản lý học sinh, giáo viên, cơ sở, lớp và tài khoản người dùng.',
+            'Cấu hình thông tin trường, tài khoản nhận tiền, năm học, ngày nghỉ, học phí và khoản thu mặc định trong Cài đặt.',
+            'Duyệt ảnh, gửi thông báo, theo dõi sức khỏe, sự cố, nhật ký ngày và các báo cáo vận hành.',
+            'Có quyền tạo hoặc khóa tài khoản giáo viên/phụ huynh, gán cơ sở và liên kết phụ huynh với học sinh.',
         ],
     },
     {
-        title: '3. Quy Tắc Tài Khoản',
+        title: '3. Kế toán',
         bullets: [
-            'Mỗi email chỉ tạo được một tài khoản trong toàn hệ thống.',
-            'Giáo viên được phân cơ sở trực tiếp — chỉ thấy dữ liệu cơ sở được gán.',
-            'Phụ huynh được phân cơ sở qua học sinh liên kết.',
-            'Phụ huynh phải liên kết với học sinh trước khi lưu tài khoản.',
-            'Mật khẩu tạm thời tối thiểu 8 ký tự. Để trống khi sửa nếu không muốn đổi.',
+            'Vào Cài đặt > Mức học phí để khai báo học phí theo cơ sở và lớp trước khi lập bảng thu.',
+            'Khai báo khoản thu mặc định như nước uống, bán trú, tiếng Anh, STEM. Khoản nào không tick khi lập phiếu sẽ không xuất hiện trên phiếu.',
+            'Vào Bảng thu tháng, chọn tháng và lớp, kiểm tra học phí, tiền thừa, khoản phụ, vắng P/K và số ngày chưa điểm danh.',
+            'Bấm Tạo phiếu báo thu để xem preview. Phiếu nháp/chưa thanh toán sẽ được cập nhật nếu tính lại; phiếu đã thanh toán sẽ tạo điều chỉnh.',
+            'Vào Phiếu báo thu để xem chi tiết line-items, in phiếu, đánh dấu đã gửi phụ huynh hoặc đã thu.',
+        ],
+    },
+    {
+        title: '4. Quy tắc bảng thu tháng',
+        bullets: [
+            'P là vắng có phép và được hoàn tiền ăn theo mức cấu hình.',
+            'K là vắng không phép, không hoàn.',
+            'L là nghỉ lễ, không hoàn.',
+            'x/2 là nửa ngày, không hoàn; vẫn tính đủ một suất ăn.',
+            'Học sinh nhập học giữa tháng được pro-rate học phí tháng đầu theo số ngày học còn lại trong tháng.',
+            'Admin/kế toán có thể nhập học phí riêng cho học sinh nếu có học bổng, miễn giảm hoặc thỏa thuận đặc biệt.',
+            'Nếu còn ngày chưa điểm danh, hệ thống cảnh báo trong preview nhưng vẫn cho admin xác nhận tạo phiếu.',
+        ],
+    },
+    {
+        title: '5. Giáo viên',
+        bullets: [
+            'Điểm danh học sinh trong cơ sở được phân công.',
+            'Khi học sinh vắng, chọn rõ P - có phép hoặc K - không phép thay vì chỉ ghi chú tự do.',
+            'Ghi nhật ký ngày, bữa ăn, giấc ngủ, hoạt động và ghi chú cần gửi phụ huynh.',
+            'Tải ảnh hoạt động lên thư viện để admin duyệt và xuất bản.',
+        ],
+    },
+    {
+        title: '6. Phụ huynh',
+        bullets: [
+            'Xem hồ sơ bé, điểm danh, nhật ký ngày, thông báo, thực đơn và hình ảnh đã duyệt.',
+            'Xem phiếu báo thu/học phí, trạng thái thanh toán và biên lai sau khi nhà trường xác nhận thu.',
+            'Xem hồ sơ sức khỏe, báo cáo sự cố và phản hồi khi cần.',
+            'Quản lý đồng ý dữ liệu, quyền hình ảnh và bật thông báo trình duyệt nếu muốn nhận tin nhanh.',
+        ],
+    },
+    {
+        title: '7. Quy tắc tài khoản và hỗ trợ',
+        bullets: [
+            'Mỗi email chỉ tạo một tài khoản trong toàn hệ thống.',
+            'Giáo viên được phân cơ sở trực tiếp; phụ huynh được phân quyền qua học sinh liên kết.',
+            'Mật khẩu tạm thời tối thiểu 8 ký tự. Khi sửa tài khoản, để trống mật khẩu nếu không muốn đổi.',
             'Khóa tài khoản chặn đăng nhập nhưng không xóa hồ sơ.',
-        ],
-    },
-    {
-        title: '4. Bảng Thu Tháng',
-        bullets: [
-            'Cấu hình học phí theo cơ sở và lớp tại tab Mức học phí trước khi tạo phiếu báo thu.',
-            'Vắng P hoàn tiền ăn theo mức đã cấu hình; vắng K, nghỉ lễ và x/2 chỉ dùng để thống kê.',
-            'x/2 vẫn tính đủ một suất ăn.',
-            'Nếu còn ngày chưa điểm danh, hệ thống sẽ cảnh báo khi tạo phiếu báo thu.',
-            'Phiếu chưa thanh toán được cập nhật khi tính lại; phiếu đã thanh toán sẽ tạo bản điều chỉnh.',
-        ],
-    },
-    {
-        title: '5. Chức Năng Giáo Viên',
-        bullets: [
-            '✅ Điểm danh học sinh trong cơ sở được phân công.',
-            '📓 Ghi nhật ký ngày: bữa ăn, giấc ngủ, hoạt động, ghi chú.',
-            '📷 Tải ảnh hoạt động lên thư viện để admin duyệt và xuất bản.',
-            'Không xem được dữ liệu học sinh ngoài cơ sở của mình.',
-        ],
-    },
-    {
-        title: '6. Chức Năng Phụ Huynh',
-        bullets: [
-            'Xem hồ sơ, điểm danh, nhật ký ngày, thông báo, thực đơn, hình ảnh đã duyệt.',
-            'Xem hồ sơ sức khỏe, báo cáo sự cố, hóa đơn học phí.',
-            'Thiết lập quyền riêng tư và đồng ý hình ảnh.',
-            'Bật push notification để nhận thông báo trực tiếp trên trình duyệt / điện thoại.',
-            'Nhận thông báo Zalo ZNS (học phí, sự cố) nếu nhà trường đã cấu hình Zalo OA.',
-        ],
-    },
-    {
-        title: '7. Lưu Ý & Hỗ Trợ',
-        bullets: [
             'Không chia sẻ tài khoản. Đăng xuất sau khi dùng thiết bị công cộng.',
             'Báo ngay cho nhà trường nếu thông tin học sinh hoặc phụ huynh chưa chính xác.',
-            'Ảnh chỉ xuất bản khi phù hợp với quyền đồng ý của phụ huynh.',
-            'Liên hệ quản trị nếu: không đăng nhập được, dữ liệu bị thiếu, cần cấp lại mật khẩu, push notification hoặc Zalo không nhận được tin.',
+            'Liên hệ quản trị khi không đăng nhập được, dữ liệu bị thiếu, cần cấp lại mật khẩu hoặc không nhận được thông báo.',
         ],
     },
 ]

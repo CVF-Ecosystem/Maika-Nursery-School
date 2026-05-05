@@ -3,19 +3,21 @@ import { mapStudentFromSupabase } from './studentService'
 
 describe('student service', () => {
     it('maps Supabase rows to UI student shape', () => {
-        expect(mapStudentFromSupabase({
-            id: 's1',
-            facility_id: 'f1',
-            full_name: 'Bé Maika',
-            dob: null,
-            gender: null,
-            class_name: 'Nhà Trẻ',
-            parent_name: 'Phụ huynh',
-            parent_phone: null,
-            parent_email: null,
-            status: 'active',
-            notes: null,
-        })).toEqual({
+        expect(
+            mapStudentFromSupabase({
+                id: 's1',
+                facility_id: 'f1',
+                full_name: 'Bé Maika',
+                dob: null,
+                gender: null,
+                class_name: 'Nhà Trẻ',
+                parent_name: 'Phụ huynh',
+                parent_phone: null,
+                parent_email: null,
+                status: 'active',
+                notes: null,
+            }),
+        ).toEqual({
             id: 's1',
             facilityId: 'f1',
             name: 'Bé Maika',
@@ -25,6 +27,7 @@ describe('student service', () => {
             parentName: 'Phụ huynh',
             parentPhone: '',
             parentEmail: '',
+            enrollmentDate: '',
             status: 'active',
             notes: '',
         })

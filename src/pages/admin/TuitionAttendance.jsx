@@ -2,14 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { isSupabaseSession } from '../../data/backendMode'
 import { commit, getDB } from '../../data/store'
 import { listAttendanceByFacilityDateRange } from '../../features/attendance/attendanceService'
-import { listTuitionPlans } from '../../features/operations/operationalService'
+import { listFeeItems, listTuitionPlans } from '../../features/operations/operationalService'
 import {
+    deleteStudentTuitionOverride,
     listStudentTuitionCredits,
+    listStudentTuitionOverrides,
     saveMonthlyFeeNotices,
     upsertStudentTuitionCredit,
+    upsertStudentTuitionOverride,
 } from '../../features/payments/feeNoticeService'
 import { listStudents } from '../../features/students/studentService'
 import { fmtMoney } from '../../utils/format'
+import MoneyInput from '../../components/MoneyInput'
 import {
     DEFAULT_TUITION_SETTINGS,
     buildAttendanceMonthRows,
@@ -253,6 +257,9 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const [classes, setClasses] = useState([])
     const [attendance, setAttendance] = useState([])
     const [tuitionRules, setTuitionRules] = useState([])
+    const [feeItems, setFeeItems] = useState([])
+    const [tuitionOverrides, setTuitionOverrides] = useState({})
+    const [feeItemSelections, setFeeItemSelections] = useState({})
     const [classFilter, setClassFilter] = useState('')
     const [view, setView] = useState('tuition')
     const [loading, setLoading] = useState(false)
@@ -260,6 +267,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
     const [showPreview, setShowPreview] = useState(false)
+    const [feePickerRow, setFeePickerRow] = useState(null)
 
     useEffect(() => {
         const next = loadSavedSettings(yearMonth)
@@ -279,24 +287,42 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             try {
                 const range = monthRange(yearMonth)
                 if (supabaseMode) {
-                    const [studentItems, attendanceItems, tuitionRuleItems, creditItems] = await Promise.all([
-                        listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
-                        listAttendanceByFacilityDateRange({
-                            facilityId: selectedFacilityId || undefined,
-                            startDate: range.startDate,
-                            endDate: range.endDate,
-                        }),
-                        listTuitionPlans({ activeOnly: true }),
-                        listStudentTuitionCredits({ facilityId: selectedFacilityId || undefined, yearMonth }),
-                    ])
+                    const [studentItems, attendanceItems, tuitionRuleItems, creditItems, feeItemItems, overrideItems] =
+                        await Promise.all([
+                            listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
+                            listAttendanceByFacilityDateRange({
+                                facilityId: selectedFacilityId || undefined,
+                                startDate: range.startDate,
+                                endDate: range.endDate,
+                            }),
+                            listTuitionPlans({ activeOnly: true }),
+                            listStudentTuitionCredits({ facilityId: selectedFacilityId || undefined, yearMonth }),
+                            listFeeItems({ activeOnly: true }),
+                            listStudentTuitionOverrides({ facilityId: selectedFacilityId || undefined, yearMonth }),
+                        ])
                     if (!mounted) return
                     setStudents(studentItems)
                     setClasses([...new Set(studentItems.map(student => student.className).filter(Boolean))])
                     setAttendance(attendanceItems)
                     setTuitionRules(tuitionRuleItems)
+                    setFeeItems(
+                        feeItemItems.filter(
+                            item =>
+                                item.category === 'optional' &&
+                                (!item.facility_id || !selectedFacilityId || item.facility_id === selectedFacilityId),
+                        ),
+                    )
                     setCredits(
                         Object.fromEntries(
                             creditItems.map(item => [item.student_id, normalizeTuitionNumber(item.amount)]),
+                        ),
+                    )
+                    setTuitionOverrides(
+                        Object.fromEntries(
+                            overrideItems.map(item => [
+                                item.student_id,
+                                { amount: normalizeTuitionNumber(item.amount), reason: item.reason || '' },
+                            ]),
                         ),
                     )
                     return
@@ -312,6 +338,8 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 setClasses(db.classes || [])
                 setAttendance(localAttendance)
                 setTuitionRules([])
+                setFeeItems([])
+                setTuitionOverrides({})
             } catch (ex) {
                 if (mounted) setError(ex.message || 'Không tải được dữ liệu điểm danh.')
             } finally {
@@ -348,15 +376,37 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 yearMonth,
                 settings: { ...settings, tuitionRules },
                 previousCredits: credits,
+                tuitionOverrides,
             }),
-        [attendanceModel.rows, credits, settings, tuitionRules, yearMonth],
+        [attendanceModel.rows, credits, settings, tuitionOverrides, tuitionRules, yearMonth],
     )
-    const summary = useMemo(() => summarizeTuitionRows(tuitionRows), [tuitionRows])
+    const feeItemMap = useMemo(() => new Map(feeItems.map(item => [item.id, item])), [feeItems])
+    const billingRows = useMemo(
+        () =>
+            tuitionRows.map(row => {
+                const selectedIds = feeItemSelections[row.studentId] || []
+                const extraFeeItems = selectedIds.map(id => feeItemMap.get(id)).filter(Boolean)
+                const optionalFeeTotal = extraFeeItems.reduce(
+                    (sum, item) => sum + normalizeTuitionNumber(item.default_amount),
+                    0,
+                )
+                return {
+                    ...row,
+                    baseAmountDue: row.amountDue,
+                    extraFeeItems,
+                    optionalFeeTotal,
+                    amountDue: row.amountDue + optionalFeeTotal,
+                    totalCredit: row.totalCredit,
+                }
+            }),
+        [feeItemMap, feeItemSelections, tuitionRows],
+    )
+    const summary = useMemo(() => summarizeTuitionRows(billingRows), [billingRows])
     const classOptions = supabaseMode
         ? classes.map(name => ({ id: name, name }))
         : classes.map(item => ({ id: item.id, name: item.name }))
     const classLabel = classOptions.find(item => item.id === classFilter)?.name || ''
-    const missingAttendanceCount = tuitionRows.filter(row => row.missingSchoolDays > 0).length
+    const missingAttendanceCount = billingRows.filter(row => row.missingSchoolDays > 0).length
 
     function updateSetting(name, value) {
         setSettings(prev => ({
@@ -384,6 +434,54 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         }
     }
 
+    async function updateTuitionOverride(studentId, value) {
+        const amount = normalizeTuitionNumber(value)
+        setTuitionOverrides(prev => ({
+            ...prev,
+            [studentId]: amount ? { amount, reason: `Nhập riêng tại bảng thu tháng ${yearMonth}.` } : null,
+        }))
+        if (!supabaseMode) return
+        const student = students.find(item => item.id === studentId)
+        if (!student?.facilityId) return
+        try {
+            if (!amount) {
+                await deleteStudentTuitionOverride({ studentId, yearMonth })
+                return
+            }
+            await upsertStudentTuitionOverride({
+                studentId,
+                facilityId: student.facilityId,
+                yearMonth,
+                amount,
+                reason: `Học phí riêng nhập tại bảng thu tháng ${yearMonth}.`,
+            })
+        } catch (ex) {
+            setError(ex.message || 'Chưa lưu được học phí riêng.')
+        }
+    }
+
+    function toggleStudentFeeItem(studentId, feeItemId, checked) {
+        setFeeItemSelections(prev => {
+            const current = new Set(prev[studentId] || [])
+            if (checked) current.add(feeItemId)
+            else current.delete(feeItemId)
+            return { ...prev, [studentId]: [...current] }
+        })
+    }
+
+    function toggleFeeItemForRows(feeItemId, checked) {
+        setFeeItemSelections(prev => {
+            const next = { ...prev }
+            billingRows.forEach(row => {
+                const current = new Set(next[row.studentId] || [])
+                if (checked) current.add(feeItemId)
+                else current.delete(feeItemId)
+                next[row.studentId] = [...current]
+            })
+            return next
+        })
+    }
+
     async function handleExport() {
         setError('')
         setMessage('')
@@ -392,7 +490,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 yearMonth,
                 days: attendanceModel.days,
                 attendanceRows: attendanceModel.rows,
-                tuitionRows,
+                tuitionRows: billingRows,
                 summary,
                 classLabel,
             })
@@ -403,7 +501,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     }
 
     function handleGenerateClick() {
-        const payableRows = tuitionRows.filter(row => row.studentId && row.amountDue > 0)
+        const payableRows = billingRows.filter(row => row.studentId && row.amountDue > 0)
         if (!payableRows.length) {
             setMessage('Không có khoản học phí cần tạo.')
             return
@@ -417,7 +515,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         setMessage('')
         setError('')
         try {
-            const payableRows = tuitionRows.filter(row => row.studentId && row.amountDue > 0)
+            const payableRows = billingRows.filter(row => row.studentId && row.amountDue > 0)
             if (!payableRows.length) {
                 setMessage('Không có khoản học phí cần tạo.')
                 return
@@ -523,11 +621,9 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         {supabaseMode ? (
                             <div style={readonlyInfoStyle}>Theo Cài đặt</div>
                         ) : (
-                            <input
-                                type="number"
-                                min="0"
+                            <MoneyInput
                                 value={settings.monthlyTuition}
-                                onChange={event => updateSetting('monthlyTuition', event.target.value)}
+                                onChange={value => updateSetting('monthlyTuition', value)}
                                 style={numberInputStyle()}
                             />
                         )}
@@ -535,11 +631,9 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     {!supabaseMode && (
                         <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
                             Hoàn/vắng phép
-                            <input
-                                type="number"
-                                min="0"
+                            <MoneyInput
                                 value={settings.refundPerPermittedAbsence}
-                                onChange={event => updateSetting('refundPerPermittedAbsence', event.target.value)}
+                                onChange={value => updateSetting('refundPerPermittedAbsence', value)}
                                 style={numberInputStyle()}
                             />
                         </label>
@@ -568,13 +662,13 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     </label>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <button onClick={handleExport} disabled={loading || !tuitionRows.length} style={buttonStyle()}>
+                    <button onClick={handleExport} disabled={loading || !billingRows.length} style={buttonStyle()}>
                         Xuất Excel
                     </button>
                     <button
                         onClick={handleGenerateClick}
-                        disabled={saving || loading || !tuitionRows.length}
-                        style={buttonStyle({ primary: true, disabled: saving || loading || !tuitionRows.length })}
+                        disabled={saving || loading || !billingRows.length}
+                        style={buttonStyle({ primary: true, disabled: saving || loading || !billingRows.length })}
                     >
                         {saving ? 'Đang tạo...' : supabaseMode ? 'Tạo phiếu báo thu' : 'Tạo khoản thu'}
                     </button>
@@ -636,7 +730,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             )}
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', marginBottom: 16 }}>
-                <SummaryChip label="Học sinh" value={tuitionRows.length} color="#6D28D9" />
+                <SummaryChip label="Học sinh" value={billingRows.length} color="#6D28D9" />
                 <SummaryChip label="Ngày chuẩn" value={attendanceModel.schoolDayCount} color="#2563EB" />
                 {view === 'tuition' && (
                     <>
@@ -651,11 +745,67 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
 
             {showPreview && (
                 <PreviewModal
-                    rows={tuitionRows.filter(row => row.studentId && row.amountDue > 0)}
+                    rows={billingRows.filter(row => row.studentId && row.amountDue > 0)}
                     yearMonth={yearMonth}
                     onConfirm={generateInvoices}
                     onClose={() => setShowPreview(false)}
                 />
+            )}
+            {feePickerRow && (
+                <FeeItemPickerModal
+                    row={feePickerRow}
+                    feeItems={feeItems}
+                    selectedIds={feeItemSelections[feePickerRow.studentId] || []}
+                    onToggle={toggleStudentFeeItem}
+                    onClose={() => setFeePickerRow(null)}
+                />
+            )}
+
+            {supabaseMode && feeItems.length > 0 && view === 'tuition' && (
+                <div
+                    style={{
+                        background: '#fff',
+                        borderRadius: 14,
+                        border: '1px solid #EDE9FE',
+                        padding: '12px 14px',
+                        marginBottom: 14,
+                    }}
+                >
+                    <div style={{ fontSize: 12, color: '#5B5490', fontWeight: 800, marginBottom: 8 }}>
+                        Khoản thu phụ áp dụng nhanh
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        {feeItems.map(item => {
+                            const allSelected =
+                                billingRows.length > 0 &&
+                                billingRows.every(row => (feeItemSelections[row.studentId] || []).includes(item.id))
+                            return (
+                                <label
+                                    key={item.id}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 7,
+                                        padding: '7px 10px',
+                                        borderRadius: 10,
+                                        border: `1.5px solid ${allSelected ? '#7C3AED' : '#DDD6FE'}`,
+                                        background: allSelected ? '#F5F3FF' : '#fff',
+                                        color: allSelected ? '#6D28D9' : '#5B5490',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={allSelected}
+                                        onChange={event => toggleFeeItemForRows(item.id, event.target.checked)}
+                                    />
+                                    {item.name} · {fmtMoney(item.default_amount)}
+                                </label>
+                            )
+                        })}
+                    </div>
+                </div>
             )}
 
             <div
@@ -671,15 +821,19 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
                         Đang tải dữ liệu...
                     </div>
-                ) : tuitionRows.length === 0 ? (
+                ) : billingRows.length === 0 ? (
                     <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
                         Chưa có học sinh hoặc dữ liệu phù hợp.
                     </div>
                 ) : view === 'tuition' ? (
                     <TuitionTable
-                        rows={tuitionRows}
+                        rows={billingRows}
                         credits={credits}
                         onCreditChange={updateCredit}
+                        onTuitionOverrideChange={updateTuitionOverride}
+                        feeItems={feeItems}
+                        feeItemSelections={feeItemSelections}
+                        onOpenFeePicker={setFeePickerRow}
                         summary={summary}
                     />
                 ) : (
@@ -690,25 +844,40 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     )
 }
 
-function TuitionTable({ rows, credits, onCreditChange, summary }) {
+function stickyCellStyle(left, width, zIndex = 2) {
+    return {
+        position: 'sticky',
+        left,
+        width,
+        minWidth: width,
+        maxWidth: width,
+        background: '#fff',
+        zIndex,
+        boxShadow: '1px 0 0 #EDE9FE',
+    }
+}
+
+function TuitionTable({ rows, credits, onCreditChange, onTuitionOverrideChange, onOpenFeePicker, summary }) {
     return (
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1120, fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1360, fontSize: 13 }}>
             <thead>
                 <tr style={{ background: '#F8F7FF' }}>
                     {[
-                        'STT',
-                        'MSHS',
-                        'Họ và tên',
-                        'Lớp',
-                        'Học phí',
-                        'Ngày học',
-                        'Suất ăn',
-                        'Vắng K',
-                        'Vắng P',
-                        'Hoàn lại',
-                        'Thừa tháng trước',
-                        'Phải thu',
-                    ].map(header => (
+                        ['STT', stickyCellStyle(0, 58, 4)],
+                        ['MSHS', stickyCellStyle(58, 104, 4)],
+                        ['Họ và tên', stickyCellStyle(162, 210, 4)],
+                        ['Lớp'],
+                        ['Học phí'],
+                        ['Học phí riêng'],
+                        ['Khoản phụ'],
+                        ['Ngày học'],
+                        ['Suất ăn'],
+                        ['Vắng K'],
+                        ['Vắng P'],
+                        ['Hoàn lại'],
+                        ['Thừa tháng trước'],
+                        ['Phải thu'],
+                    ].map(([header, extraStyle]) => (
                         <th
                             key={header}
                             style={{
@@ -718,6 +887,8 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                                 fontSize: 11,
                                 fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
+                                background: '#F8F7FF',
+                                ...(extraStyle || {}),
                             }}
                         >
                             {header}
@@ -727,28 +898,95 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
             </thead>
             <tbody>
                 <tr style={{ background: '#FAFAFF', borderBottom: '1px solid #EDE9FE' }}>
-                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 700, color: '#1E1B4B' }}>
+                    <td
+                        colSpan={3}
+                        style={{
+                            padding: '10px 14px',
+                            fontWeight: 700,
+                            color: '#1E1B4B',
+                            ...stickyCellStyle(0, 372, 3),
+                            background: '#FAFAFF',
+                        }}
+                    >
                         Tổng cộng
                     </td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>—</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.monthlyTuition)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>—</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>
+                        {fmtMoney(rows.reduce((sum, row) => sum + (row.optionalFeeTotal || 0), 0))}
+                    </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.actualDays}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.mealDays}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.unpermittedAbsences}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.permittedAbsences}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.totalCredit)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.refundAmount)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.previousCredit)}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: '#059669' }}>
                         {fmtMoney(summary.amountDue)}
                     </td>
                 </tr>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 600 }}>{index + 1}</td>
-                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 700 }}>{row.studentCode}</td>
-                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 600 }}>{row.studentName}</td>
+                        <td
+                            style={{
+                                padding: '11px 14px',
+                                color: '#6B6494',
+                                fontWeight: 600,
+                                ...stickyCellStyle(0, 58),
+                            }}
+                        >
+                            {index + 1}
+                        </td>
+                        <td
+                            style={{
+                                padding: '11px 14px',
+                                color: '#7C3AED',
+                                fontWeight: 700,
+                                ...stickyCellStyle(58, 104),
+                            }}
+                        >
+                            {row.studentCode}
+                        </td>
+                        <td
+                            style={{
+                                padding: '11px 14px',
+                                color: '#1E1B4B',
+                                fontWeight: 600,
+                                ...stickyCellStyle(162, 210),
+                            }}
+                        >
+                            {row.studentName}
+                        </td>
                         <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 600 }}>
                             {row.className || '-'}
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>{fmtMoney(row.monthlyTuition)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>
+                            {fmtMoney(row.monthlyTuition)}
+                            {row.isProrated && (
+                                <div style={{ fontSize: 10, color: '#B45309', marginTop: 2 }}>
+                                    Pro-rate {row.billableSchoolDays}/{row.schoolDayCount} ngày
+                                </div>
+                            )}
+                        </td>
+                        <td style={{ padding: '9px 14px' }}>
+                            <MoneyInput
+                                value={row.tuitionOverrideAmount || ''}
+                                onChange={value => onTuitionOverrideChange(row.studentId, value)}
+                                style={numberInputStyle(118)}
+                                aria-label={`Học phí riêng của ${row.studentName}`}
+                            />
+                        </td>
+                        <td style={{ padding: '9px 14px' }}>
+                            <button
+                                type="button"
+                                onClick={() => onOpenFeePicker(row)}
+                                style={buttonStyle()}
+                                aria-label={`Chọn khoản phụ cho ${row.studentName}`}
+                            >
+                                {row.extraFeeItems?.length || 0} khoản · {fmtMoney(row.optionalFeeTotal || 0)}
+                            </button>
+                        </td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>{row.actualDays}</td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>{row.mealDays}</td>
                         <td
@@ -771,11 +1009,9 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                         </td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>{fmtMoney(row.refundAmount)}</td>
                         <td style={{ padding: '9px 14px' }}>
-                            <input
-                                type="number"
-                                min="0"
+                            <MoneyInput
                                 value={credits[row.studentId] || 0}
-                                onChange={event => onCreditChange(row.studentId, event.target.value)}
+                                onChange={value => onCreditChange(row.studentId, value)}
                                 style={numberInputStyle(120)}
                                 aria-label={`Tiền thừa tháng trước của ${row.studentName}`}
                             />
@@ -806,6 +1042,119 @@ function SummaryChip({ label, value, color }) {
         >
             <span style={{ color: '#7C6D9B', fontSize: 11, fontWeight: 600 }}>{label}</span>
             <span style={{ color, fontSize: 13, fontWeight: 700 }}>{value}</span>
+        </div>
+    )
+}
+
+function FeeItemPickerModal({ row, feeItems, selectedIds, onToggle, onClose }) {
+    const selectedSet = new Set(selectedIds)
+    const selectedTotal = feeItems
+        .filter(item => selectedSet.has(item.id))
+        .reduce((sum, item) => sum + normalizeTuitionNumber(item.default_amount), 0)
+
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(30,27,74,0.45)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 20,
+            }}
+            onClick={e => {
+                if (e.target === e.currentTarget) onClose()
+            }}
+        >
+            <div
+                style={{
+                    width: 'min(520px, 100%)',
+                    maxHeight: '86vh',
+                    overflow: 'hidden',
+                    background: '#fff',
+                    borderRadius: 16,
+                    boxShadow: '0 8px 40px rgba(109,40,217,0.18)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <div
+                    style={{
+                        padding: '16px 18px',
+                        borderBottom: '1px solid #EDE9FE',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                    }}
+                >
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 900, color: '#1E1B4B' }}>Khoản thu phụ</div>
+                        <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 2 }}>
+                            {row.studentName} · {row.className || 'Chưa có lớp'}
+                        </div>
+                    </div>
+                    <button onClick={onClose} style={buttonStyle()} aria-label="Đóng chọn khoản phụ">
+                        Đóng
+                    </button>
+                </div>
+                <div style={{ padding: 18, overflowY: 'auto', display: 'grid', gap: 8 }}>
+                    {feeItems.map(item => {
+                        const checked = selectedSet.has(item.id)
+                        return (
+                            <label
+                                key={item.id}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '10px 12px',
+                                    borderRadius: 10,
+                                    border: `1.5px solid ${checked ? '#7C3AED' : '#EDE9FE'}`,
+                                    background: checked ? '#F5F3FF' : '#fff',
+                                    color: '#1E1B4B',
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={event => onToggle(row.studentId, item.id, event.target.checked)}
+                                />
+                                <span style={{ flex: 1 }}>
+                                    {item.name}
+                                    <span style={{ color: '#7C6D9B', fontWeight: 500 }}> / {item.unit}</span>
+                                </span>
+                                <span style={{ color: '#059669', whiteSpace: 'nowrap' }}>
+                                    {fmtMoney(item.default_amount)}
+                                </span>
+                            </label>
+                        )
+                    })}
+                    {!feeItems.length && (
+                        <div style={{ color: '#7C6D9B', fontWeight: 700, fontSize: 13 }}>
+                            Chưa có khoản thu phụ đang áp dụng trong Cài đặt.
+                        </div>
+                    )}
+                </div>
+                <div
+                    style={{
+                        padding: '12px 18px',
+                        borderTop: '1px solid #EDE9FE',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        color: '#059669',
+                        fontSize: 13,
+                        fontWeight: 900,
+                    }}
+                >
+                    <span>Tổng khoản phụ</span>
+                    <span>{fmtMoney(selectedTotal)}</span>
+                </div>
+            </div>
         </div>
     )
 }
@@ -940,24 +1289,32 @@ function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                         <thead>
                             <tr style={{ background: '#F8F7FF', position: 'sticky', top: 0 }}>
-                                {['Học sinh', 'Lớp', 'Học phí', 'Vắng P', 'Hoàn', 'Thừa trước', 'Phải thu', ''].map(
-                                    h => (
-                                        <th
-                                            key={h}
-                                            style={{
-                                                padding: '9px 12px',
-                                                textAlign: 'left',
-                                                color: '#7C6D9B',
-                                                fontSize: 11,
-                                                fontWeight: 700,
-                                                borderBottom: '1.5px solid #DDD6FE',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {h}
-                                        </th>
-                                    ),
-                                )}
+                                {[
+                                    'Học sinh',
+                                    'Lớp',
+                                    'Học phí',
+                                    'Khoản phụ',
+                                    'Vắng P',
+                                    'Hoàn',
+                                    'Thừa trước',
+                                    'Phải thu',
+                                    '',
+                                ].map(h => (
+                                    <th
+                                        key={h}
+                                        style={{
+                                            padding: '9px 12px',
+                                            textAlign: 'left',
+                                            color: '#7C6D9B',
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            borderBottom: '1.5px solid #DDD6FE',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
@@ -969,6 +1326,14 @@ function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
                                     <td style={{ padding: '9px 12px', color: '#6B6494' }}>{row.className || '—'}</td>
                                     <td style={{ padding: '9px 12px', fontWeight: 600 }}>
                                         {fmtMoney(row.monthlyTuition)}
+                                    </td>
+                                    <td
+                                        style={{
+                                            padding: '9px 12px',
+                                            color: row.optionalFeeTotal ? '#6D28D9' : '#9B93C9',
+                                        }}
+                                    >
+                                        {row.optionalFeeTotal ? fmtMoney(row.optionalFeeTotal) : '—'}
                                     </td>
                                     <td
                                         style={{
@@ -1063,13 +1428,17 @@ function AttendanceMatrix({ days, rows }) {
             style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                minWidth: Math.max(900, 296 + days.length * 33),
+                minWidth: Math.max(980, 372 + days.length * 33),
                 fontSize: 13,
             }}
         >
             <thead>
                 <tr style={{ background: '#F8F7FF' }}>
-                    {['STT', 'MSHS', 'Họ và tên'].map(header => (
+                    {[
+                        ['STT', stickyCellStyle(0, 58, 4)],
+                        ['MSHS', stickyCellStyle(58, 104, 4)],
+                        ['Họ và tên', stickyCellStyle(162, 210, 4)],
+                    ].map(([header, extraStyle]) => (
                         <th
                             key={header}
                             rowSpan={2}
@@ -1080,6 +1449,8 @@ function AttendanceMatrix({ days, rows }) {
                                 fontSize: 11,
                                 fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
+                                background: '#F8F7FF',
+                                ...(extraStyle || {}),
                             }}
                         >
                             {header}
@@ -1123,9 +1494,20 @@ function AttendanceMatrix({ days, rows }) {
             <tbody>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 600 }}>{index + 1}</td>
-                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 700 }}>{row.studentCode}</td>
-                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 600, minWidth: 190 }}>
+                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 600, ...stickyCellStyle(0, 58) }}>
+                            {index + 1}
+                        </td>
+                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 700, ...stickyCellStyle(58, 104) }}>
+                            {row.studentCode}
+                        </td>
+                        <td
+                            style={{
+                                padding: '10px',
+                                color: '#1E1B4B',
+                                fontWeight: 600,
+                                ...stickyCellStyle(162, 210),
+                            }}
+                        >
                             {row.studentName}
                         </td>
                         {days.map(day => {

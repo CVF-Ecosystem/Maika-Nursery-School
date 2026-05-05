@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listFeeNoticeItems, listFeeNotices, updateFeeNoticeStatus } from '../../features/payments/feeNoticeService'
 import { listStudents } from '../../features/students/studentService'
+import { sendInvoiceZns } from '../../features/zalo/zaloService'
 import { fmtMoney } from '../../utils/format'
 import FeeNoticePrint from './invoices/FeeNoticePrint'
 
@@ -62,6 +63,15 @@ function ItemTypeBadge({ type }) {
             {label}
         </span>
     )
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
 }
 
 const STATUS_FILTERS = [
@@ -132,6 +142,86 @@ export default function FeeNotices({ selectedFacilityId = '' }) {
             setTimeout(() => setActionMsg(''), 3000)
         } catch {
             setActionMsg('Không cập nhật được trạng thái.')
+        }
+    }
+
+    async function sendZaloNotice(notice) {
+        const student = studentMap[notice.student_id]
+        try {
+            const dueDate = notice.year_month ? `${notice.year_month}-10` : ''
+            await sendInvoiceZns({
+                phone: student?.parentPhone,
+                studentName: student?.name,
+                amount: notice.total_amount,
+                dueDate,
+                invoiceNumber: notice.notice_number,
+                facilityId: notice.facility_id,
+                invoiceId: notice.linked_invoice_id || notice.id,
+            })
+            await markStatus(notice, notice.status === 'draft' ? 'sent' : notice.status)
+            setActionMsg(`Đã gửi Zalo cho phiếu ${notice.notice_number}.`)
+        } catch {
+            setActionMsg('Không gửi được Zalo. Kiểm tra số điện thoại và cấu hình ZNS.')
+        }
+    }
+
+    async function printVisibleNotices() {
+        const rows = filtered.slice(0, 120)
+        if (!rows.length) return
+        setActionMsg('Đang chuẩn bị file in...')
+        try {
+            const pairs = await Promise.all(
+                rows.map(async notice => [notice.id, await listFeeNoticeItems({ noticeId: notice.id })]),
+            )
+            const itemsMap = Object.fromEntries(pairs)
+            const html = rows
+                .map(notice => {
+                    const student = studentMap[notice.student_id]
+                    const items = itemsMap[notice.id] || []
+                    return `<section class="page">
+                        <div class="header">
+                            <div class="school">Nhà Trẻ Tư Thục Maika</div>
+                            <h1>PHIẾU THÔNG BÁO THU</h1>
+                            <div>${escapeHtml(notice.year_month || '')}</div>
+                        </div>
+                        <div class="info"><span>Số phiếu</span><b>${escapeHtml(notice.notice_number || '')}</b></div>
+                        <div class="info"><span>Học sinh</span><b>${escapeHtml(student?.name || '')}</b></div>
+                        <div class="info"><span>Lớp</span><b>${escapeHtml(student?.className || '')}</b></div>
+                        <hr/>
+                        ${items
+                            .map(
+                                item => `<div class="item">
+                                    <span>${escapeHtml(item.name)}${
+                                        Number(item.quantity) !== 1
+                                            ? ` <small>x ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</small>`
+                                            : ''
+                                    }</span>
+                                    <b>${item.amount < 0 ? '-' : ''}${fmtMoney(Math.abs(item.amount))}</b>
+                                </div>`,
+                            )
+                            .join('')}
+                        <hr/>
+                        <div class="total"><span>Tổng phải thu</span><b>${fmtMoney(notice.total_amount)}</b></div>
+                        <div class="footer">In ngày ${new Date().toLocaleDateString('vi-VN')}</div>
+                    </section>`
+                })
+                .join('')
+            const w = window.open('', '_blank', 'width=800,height=1000')
+            if (!w) return
+            w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>In phiếu báo thu</title>
+                <style>
+                    body{font-family:system-ui,sans-serif;color:#1E1B4B;margin:0;background:#f7f5ff}
+                    .page{width:680px;min-height:940px;margin:20px auto;padding:38px 44px;background:#fff;page-break-after:always}
+                    .header{text-align:center;margin-bottom:18px}.school{font-size:13px;color:#7C6D9B}
+                    h1{font-size:20px;color:#6D28D9;margin:4px 0}.info,.item,.total{display:flex;justify-content:space-between;gap:18px;padding:8px 0;border-bottom:1px solid #F0EEFF}
+                    .info span{color:#7C6D9B}.item small{color:#7C6D9B}.total{font-size:18px;color:#6D28D9;font-weight:900;border-bottom:none}
+                    hr{border:none;border-top:1.5px dashed #DDD6FE;margin:14px 0}.footer{text-align:center;color:#9B93C9;font-size:12px;margin-top:28px}
+                    @media print{body{background:#fff}.page{margin:0 auto;box-shadow:none}}
+                </style></head><body>${html}<script>window.onload=function(){setTimeout(function(){window.print()},350)}</script></body></html>`)
+            w.document.close()
+            setActionMsg(`Đã mở file in ${rows.length} phiếu.`)
+        } catch {
+            setActionMsg('Không chuẩn bị được file in hàng loạt.')
         }
     }
 
@@ -220,6 +310,22 @@ export default function FeeNotices({ selectedFacilityId = '' }) {
                     >
                         {filtered.length} phiếu
                     </div>
+                    <button
+                        onClick={printVisibleNotices}
+                        disabled={!filtered.length}
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: 9,
+                            border: '1.5px solid #DDD6FE',
+                            background: '#fff',
+                            color: '#6D28D9',
+                            fontWeight: 700,
+                            fontSize: 12,
+                            cursor: filtered.length ? 'pointer' : 'not-allowed',
+                        }}
+                    >
+                        In tất cả
+                    </button>
                 </div>
 
                 {actionMsg && (
@@ -569,6 +675,25 @@ export default function FeeNotices({ selectedFacilityId = '' }) {
                                 Đánh dấu đã gửi PH
                             </button>
                         )}
+                        {selectedStudent?.parentPhone &&
+                            selectedNotice.status !== 'paid' &&
+                            selectedNotice.status !== 'cancelled' && (
+                                <button
+                                    onClick={() => sendZaloNotice(selectedNotice)}
+                                    style={{
+                                        padding: '5px 12px',
+                                        borderRadius: 8,
+                                        border: '1.5px solid #BFDBFE',
+                                        background: '#EFF6FF',
+                                        color: '#2563EB',
+                                        fontWeight: 700,
+                                        fontSize: 12,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Gửi Zalo
+                                </button>
+                            )}
                     </div>
                 </div>
             )}

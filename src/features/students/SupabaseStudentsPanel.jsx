@@ -21,6 +21,7 @@ const emptyForm = {
     parentName: '',
     parentPhone: '',
     parentEmail: '',
+    enrollmentDate: '',
     status: 'active',
     notes: '',
 }
@@ -124,6 +125,16 @@ function StudentEditor({ form, facilities, classOptions, canEdit, onChange, onCa
                         <option value="active">Đang học</option>
                         <option value="inactive">Nghỉ học</option>
                     </select>
+                </div>
+                <div>
+                    <label style={ls}>Ngày nhập học</label>
+                    <input
+                        disabled={!canEdit}
+                        type="date"
+                        style={is}
+                        value={form.enrollmentDate}
+                        onChange={e => set('enrollmentDate', e.target.value)}
+                    />
                 </div>
                 <div>
                     <label style={ls}>Phụ huynh</label>
@@ -264,6 +275,9 @@ async function readStudentImportFile(file, facilityId) {
                     'parentphone',
                 ]),
                 parentEmail: pickImportValue(row, ['email', 'emailphuhuynh', 'parentemail']),
+                enrollmentDate: normalizeImportDate(
+                    pickImportValue(row, ['ngaynhaphoc', 'ngayvaohoc', 'enrolldate', 'enrollmentdate', 'startdate']),
+                ),
                 status: normalizeStudentStatus(pickImportValue(row, ['trangthai', 'status'])),
                 notes: [code ? `MSHS: ${code}` : '', notes, address ? `Địa chỉ: ${address}` : '']
                     .filter(Boolean)

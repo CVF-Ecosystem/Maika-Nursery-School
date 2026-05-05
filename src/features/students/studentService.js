@@ -11,6 +11,7 @@ const STUDENT_COLUMNS = `
     parent_name,
     parent_phone,
     parent_email,
+    enrollment_date,
     status,
     notes
 `
@@ -26,6 +27,7 @@ export function mapStudentFromSupabase(row) {
         parentName: row.parent_name || '',
         parentPhone: row.parent_phone || '',
         parentEmail: row.parent_email || '',
+        enrollmentDate: row.enrollment_date || '',
         status: row.status || 'active',
         notes: row.notes || '',
     }
@@ -77,6 +79,7 @@ export async function saveStudent(input) {
         parent_name: input.parentName || null,
         parent_phone: input.parentPhone || null,
         parent_email: input.parentEmail || null,
+        enrollment_date: input.enrollmentDate || null,
         status: input.status || 'active',
         notes: input.notes || null,
     }

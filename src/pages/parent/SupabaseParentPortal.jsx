@@ -9,6 +9,7 @@ import {
     subscribeMessages,
 } from '../../features/messages/messageService'
 import { listMyLinkedStudents } from '../../features/parents/parentService'
+import { listFeeNoticeItems, listFeeNotices } from '../../features/payments/feeNoticeService'
 import {
     getPushPermission,
     isPushSubscribed,
@@ -17,6 +18,7 @@ import {
     unsubscribeFromPush,
 } from '../../features/push/pushService'
 import { sanitizeText } from '../../utils/security'
+import { fmtMoney } from '../../utils/format'
 
 const AttendanceAdvanced = lazy(() => import('../admin/AttendanceAdvanced'))
 const MediaLibrary = lazy(() => import('../admin/MediaLibrary'))
@@ -42,6 +44,124 @@ const TABS = [
 
 function Loading() {
     return <div style={{ padding: 40, textAlign: 'center', color: '#7C6D9B', fontWeight: 800 }}>Đang tải...</div>
+}
+
+function ParentFeeNotices({ student }) {
+    const [notices, setNotices] = useState([])
+    const [itemsByNotice, setItemsByNotice] = useState({})
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        let mounted = true
+        async function load() {
+            setLoading(true)
+            try {
+                const data = await listFeeNotices({ facilityId: student.facilityId })
+                const studentNotices = data.filter(notice => notice.student_id === student.id).slice(0, 6)
+                const pairs = await Promise.all(
+                    studentNotices.map(async notice => [notice.id, await listFeeNoticeItems({ noticeId: notice.id })]),
+                )
+                if (!mounted) return
+                setNotices(studentNotices)
+                setItemsByNotice(Object.fromEntries(pairs))
+            } finally {
+                if (mounted) setLoading(false)
+            }
+        }
+        load()
+        return () => {
+            mounted = false
+        }
+    }, [student.facilityId, student.id])
+
+    if (loading) {
+        return <div style={{ padding: 18, color: '#7C6D9B', fontWeight: 800 }}>Đang tải phiếu báo thu...</div>
+    }
+    if (!notices.length) return null
+
+    const statusLabel = {
+        draft: 'Chưa gửi',
+        sent: 'Đã gửi',
+        paid: 'Đã thanh toán',
+        cancelled: 'Đã hủy',
+        adjusted: 'Điều chỉnh',
+    }
+
+    return (
+        <div style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
+            {notices.map(notice => {
+                const items = itemsByNotice[notice.id] || []
+                const isPaid = notice.status === 'paid'
+                return (
+                    <div
+                        key={notice.id}
+                        style={{
+                            background: '#fff',
+                            borderRadius: 14,
+                            border: '1px solid #EDE9FE',
+                            overflow: 'hidden',
+                            boxShadow: '0 2px 14px rgba(109,40,217,0.07)',
+                        }}
+                    >
+                        <div
+                            style={{
+                                padding: '12px 14px',
+                                background: '#F8F7FF',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 12,
+                            }}
+                        >
+                            <div>
+                                <div style={{ fontWeight: 900, color: '#1E1B4B' }}>
+                                    Phiếu báo thu {notice.year_month}
+                                </div>
+                                <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 2 }}>
+                                    {notice.notice_number || ''}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ color: isPaid ? '#059669' : '#DC2626', fontWeight: 900 }}>
+                                    {fmtMoney(notice.total_amount)}
+                                </div>
+                                <div style={{ fontSize: 12, color: '#7C6D9B', fontWeight: 700 }}>
+                                    {statusLabel[notice.status] || notice.status}
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ padding: '10px 14px', display: 'grid', gap: 6 }}>
+                            {items.map(item => (
+                                <div
+                                    key={item.id}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        gap: 12,
+                                        fontSize: 13,
+                                        color: '#1E1B4B',
+                                    }}
+                                >
+                                    <span>
+                                        {item.name}
+                                        {Number(item.quantity) !== 1 && (
+                                            <span style={{ color: '#7C6D9B' }}>
+                                                {' '}
+                                                x {item.quantity} {item.unit}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span style={{ fontWeight: 800, color: item.amount < 0 ? '#059669' : '#1E1B4B' }}>
+                                        {item.amount < 0 ? '-' : ''}
+                                        {fmtMoney(Math.abs(item.amount))}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
 }
 
 function PushBanner({ students }) {
@@ -790,9 +910,12 @@ export default function SupabaseParentPortal() {
                     </Suspense>
                 )}
                 {student && tab === 'invoices' && (
-                    <Suspense fallback={<Loading />}>
-                        <Invoices readOnly filterStudentId={student.id} />
-                    </Suspense>
+                    <>
+                        <ParentFeeNotices student={student} />
+                        <Suspense fallback={<Loading />}>
+                            <Invoices readOnly filterStudentId={student.id} />
+                        </Suspense>
+                    </>
                 )}
                 {student && tab === 'messages' && <ParentMessages student={student} />}
                 {student && tab === 'privacy' && (
