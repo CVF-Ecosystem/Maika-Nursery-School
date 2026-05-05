@@ -21,14 +21,13 @@ const NAV_ITEMS = [
     { id: 'backups', icon: '⇩', label: 'Lưu trữ' },
     { id: 'settings', icon: '🏫', label: 'Cấu hình' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo' },
-    { id: 'attendanceAdv', icon: '📲', label: 'Điểm danh+' },
     { id: 'mealMenu', icon: '🍱', label: 'Thực đơn' },
     { id: 'media', icon: '🖼️', label: 'Thư viện ảnh' },
 ]
 
 const GROUPS = [
     { label: 'QUẢN LÝ', ids: ['dashboard', 'students', 'teachers'] },
-    { label: 'HOẠT ĐỘNG', ids: ['attendance', 'attendanceAdv', 'reports', 'health', 'incidents'] },
+    { label: 'HOẠT ĐỘNG', ids: ['attendance', 'reports', 'health', 'incidents'] },
     { label: 'TÀI CHÍNH', ids: ['finance', 'tuitionAttendance'] },
     { label: 'GIAO TIẾP', ids: ['messages', 'tourRequests', 'calendar', 'notifications'] },
     { label: 'NỘI DUNG', ids: ['mealMenu', 'media', 'resources', 'gamification'] },

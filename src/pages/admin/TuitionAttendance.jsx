@@ -66,6 +66,7 @@ function numberInputStyle(width = 132) {
         fontWeight: 800,
         color: '#1E1B4B',
         background: '#fff',
+        lineHeight: 1.25,
     }
 }
 
@@ -77,7 +78,8 @@ function buttonStyle({ primary = false, danger = false, disabled = false } = {})
         background: disabled ? '#F8F7FF' : primary ? 'linear-gradient(135deg,#6D28D9,#8B5CF6)' : '#fff',
         color: disabled ? '#A8A0C8' : primary ? '#fff' : danger ? '#DC2626' : '#6D28D9',
         fontSize: 13,
-        fontWeight: 900,
+        fontWeight: 800,
+        lineHeight: 1.25,
         cursor: disabled ? 'not-allowed' : 'pointer',
         whiteSpace: 'nowrap',
     }
@@ -438,7 +440,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 }}
             >
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
                         Tháng tính phí
                         <input
                             type="month"
@@ -447,7 +449,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             style={numberInputStyle(150)}
                         />
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
                         Lớp
                         <select
                             value={classFilter}
@@ -462,7 +464,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             ))}
                         </select>
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
                         Học phí tháng
                         <input
                             type="number"
@@ -472,7 +474,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             style={numberInputStyle()}
                         />
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 800 }}>
+                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 700 }}>
                         Hoàn/vắng phép
                         <input
                             type="number"
@@ -494,7 +496,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             background: '#fff',
                             color: '#5B5490',
                             fontSize: 12,
-                            fontWeight: 900,
+                            fontWeight: 700,
                         }}
                     >
                         <input
@@ -533,7 +535,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             border: `1.5px solid ${view === id ? '#7C3AED' : '#DDD6FE'}`,
                             background: view === id ? '#EDE9FE' : '#fff',
                             color: view === id ? '#6D28D9' : '#6B6494',
-                            fontWeight: 900,
+                            fontWeight: 700,
                             fontSize: 13,
                         }}
                     >
@@ -550,7 +552,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         borderRadius: 10,
                         background: '#ECFDF5',
                         color: '#047857',
-                        fontWeight: 800,
+                        fontWeight: 700,
                         fontSize: 13,
                     }}
                 >
@@ -565,7 +567,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         borderRadius: 10,
                         background: '#FEF2F2',
                         color: '#DC2626',
-                        fontWeight: 800,
+                        fontWeight: 700,
                         fontSize: 13,
                     }}
                 >
@@ -589,12 +591,12 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     ['Phải thu', fmtMoney(summary.amountDue), '#059669', '#ECFDF5'],
                 ].map(([label, value, color, bg]) => (
                     <div key={label} style={{ background: bg, borderRadius: 12, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 11, color, fontWeight: 900, textTransform: 'uppercase' }}>{label}</div>
+                        <div style={{ fontSize: 11, color, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
                         <div
                             style={{
-                                fontSize: typeof value === 'string' ? 17 : 24,
+                                fontSize: typeof value === 'string' ? 16 : 22,
                                 color,
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 marginTop: 4,
                             }}
                         >
@@ -614,11 +616,11 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 }}
             >
                 {loading ? (
-                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 800, textAlign: 'center' }}>
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
                         Đang tải dữ liệu...
                     </div>
                 ) : tuitionRows.length === 0 ? (
-                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 800, textAlign: 'center' }}>
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
                         Chưa có học sinh hoặc dữ liệu phù hợp.
                     </div>
                 ) : view === 'tuition' ? (
@@ -638,7 +640,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
 
 function TuitionTable({ rows, credits, onCreditChange, summary }) {
     return (
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1120 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1120, fontSize: 13 }}>
             <thead>
                 <tr style={{ background: '#F8F7FF' }}>
                     {[
@@ -662,7 +664,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                                 textAlign: 'left',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -673,35 +675,35 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
             </thead>
             <tbody>
                 <tr style={{ background: '#FAFAFF', borderBottom: '1px solid #EDE9FE' }}>
-                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 900, color: '#1E1B4B' }}>
+                    <td colSpan={4} style={{ padding: '10px 14px', fontWeight: 800, color: '#1E1B4B' }}>
                         Tổng cộng
                     </td>
-                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{fmtMoney(summary.monthlyTuition)}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.actualDays}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.unpermittedAbsences}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{summary.permittedAbsences}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 900 }}>{fmtMoney(summary.totalCredit)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{fmtMoney(summary.monthlyTuition)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.actualDays}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.unpermittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{summary.permittedAbsences}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800 }}>{fmtMoney(summary.totalCredit)}</td>
                     <td />
-                    <td style={{ padding: '10px 14px', fontWeight: 900, color: '#059669' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 800, color: '#059669' }}>
                         {fmtMoney(summary.amountDue)}
                     </td>
                     <td />
                 </tr>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 800 }}>{index + 1}</td>
-                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 900 }}>{row.studentCode}</td>
-                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 900 }}>{row.studentName}</td>
-                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 800 }}>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 700 }}>{index + 1}</td>
+                        <td style={{ padding: '11px 14px', color: '#7C3AED', fontWeight: 800 }}>{row.studentCode}</td>
+                        <td style={{ padding: '11px 14px', color: '#1E1B4B', fontWeight: 700 }}>{row.studentName}</td>
+                        <td style={{ padding: '11px 14px', color: '#6B6494', fontWeight: 700 }}>
                             {row.className || '-'}
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{fmtMoney(row.monthlyTuition)}</td>
-                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{row.actualDays}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{fmtMoney(row.monthlyTuition)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{row.actualDays}</td>
                         <td
                             style={{
                                 padding: '11px 14px',
                                 color: row.unpermittedAbsences ? '#DC2626' : '#6B6494',
-                                fontWeight: 900,
+                                fontWeight: 700,
                             }}
                         >
                             {row.unpermittedAbsences}
@@ -710,12 +712,12 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                             style={{
                                 padding: '11px 14px',
                                 color: row.permittedAbsences ? '#B45309' : '#6B6494',
-                                fontWeight: 900,
+                                fontWeight: 700,
                             }}
                         >
                             {row.permittedAbsences}
                         </td>
-                        <td style={{ padding: '11px 14px', fontWeight: 900 }}>{fmtMoney(row.refundAmount)}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 700 }}>{fmtMoney(row.refundAmount)}</td>
                         <td style={{ padding: '9px 14px' }}>
                             <input
                                 type="number"
@@ -726,7 +728,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                                 aria-label={`Tiền thừa tháng trước của ${row.studentName}`}
                             />
                         </td>
-                        <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 900 }}>
+                        <td style={{ padding: '11px 14px', color: '#059669', fontWeight: 800 }}>
                             {fmtMoney(row.amountDue)}
                         </td>
                         <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 700 }}>
@@ -741,7 +743,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
 
 function AttendanceMatrix({ days, rows }) {
     return (
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1260 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1260, fontSize: 13 }}>
             <thead>
                 <tr style={{ background: '#F8F7FF' }}>
                     {['STT', 'MSHS', 'Họ và tên'].map(header => (
@@ -753,7 +755,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'left',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -769,7 +771,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 borderBottom: '1px solid #EDE9FE',
                             }}
                         >
@@ -785,7 +787,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'center',
                                 color: '#7C6D9B',
                                 fontSize: 11,
-                                fontWeight: 900,
+                                fontWeight: 800,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -802,7 +804,7 @@ function AttendanceMatrix({ days, rows }) {
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#9B93C9',
                                 fontSize: 10,
-                                fontWeight: 800,
+                                fontWeight: 700,
                                 borderBottom: '1.5px solid #DDD6FE',
                             }}
                         >
@@ -814,9 +816,9 @@ function AttendanceMatrix({ days, rows }) {
             <tbody>
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 800 }}>{index + 1}</td>
-                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 900 }}>{row.studentCode}</td>
-                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 900, minWidth: 190 }}>
+                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 700 }}>{index + 1}</td>
+                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 800 }}>{row.studentCode}</td>
+                        <td style={{ padding: '10px', color: '#1E1B4B', fontWeight: 700, minWidth: 190 }}>
                             {row.studentName}
                         </td>
                         {days.map(day => {
@@ -842,7 +844,7 @@ function AttendanceMatrix({ days, rows }) {
                                             background: bg,
                                             color,
                                             fontSize: 11,
-                                            fontWeight: 900,
+                                            fontWeight: 800,
                                         }}
                                     >
                                         {symbol}
@@ -850,16 +852,16 @@ function AttendanceMatrix({ days, rows }) {
                                 </td>
                             )
                         })}
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.fullDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.halfDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>{row.actualDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.fullDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.halfDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>{row.actualDays}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
                             {row.permittedAbsences}
                         </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
                             {row.holidayAbsences}
                         </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 900 }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 700 }}>
                             {row.unpermittedAbsences}
                         </td>
                     </tr>
