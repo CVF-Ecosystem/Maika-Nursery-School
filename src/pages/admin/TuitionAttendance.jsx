@@ -90,6 +90,10 @@ function isDuplicateInvoiceNumberError(error) {
     return text.includes('duplicate key') || text.includes('invoices_invoice_number_key')
 }
 
+function monthTitle(range) {
+    return `Tháng ${String(range.month).padStart(2, '0')}/${range.year}`
+}
+
 async function exportWorkbook({ yearMonth, days, attendanceRows, tuitionRows, summary, classLabel }) {
     const XLSX = await import('@e965/xlsx')
     const range = monthRange(yearMonth)
@@ -336,6 +340,12 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         ? classes.map(name => ({ id: name, name }))
         : classes.map(item => ({ id: item.id, name: item.name }))
     const classLabel = classOptions.find(item => item.id === classFilter)?.name || ''
+    const period = monthRange(yearMonth)
+    const sundayCount = attendanceModel.days.filter(day => day.isSunday).length
+    const saturdayCount = attendanceModel.days.filter(day => day.isSaturday).length
+    const monthSummary = `${monthTitle(period)} có ${period.daysInMonth} ngày lịch, ${sundayCount} Chủ nhật${
+        settings.includeSaturday ? '' : `, ${saturdayCount} thứ bảy`
+    }. Tính học phí ${attendanceModel.schoolDayCount} ngày (${settings.includeSaturday ? 'thứ hai-thứ bảy' : 'thứ hai-thứ sáu'}).`
 
     function updateSetting(name, value) {
         setSettings(prev => ({
@@ -617,34 +627,35 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             )}
 
             <div
-                className="landing-section-grid"
+                className="mobile-stack"
                 style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
-                    gap: 12,
-                    marginBottom: 18,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 14,
+                    background: '#fff',
+                    border: '1px solid #EDE9FE',
+                    borderRadius: 14,
+                    padding: '13px 16px',
+                    marginBottom: 16,
+                    boxShadow: '0 2px 14px rgba(109,40,217,0.06)',
                 }}
             >
-                {[
-                    ['Học sinh', tuitionRows.length, '#6D28D9', '#F5F3FF'],
-                    ['Ngày chuẩn', attendanceModel.schoolDayCount, '#2563EB', '#EFF6FF'],
-                    ['Vắng phép', summary.permittedAbsences, '#B45309', '#FFFBEB'],
-                    ['Phải thu', fmtMoney(summary.amountDue), '#059669', '#ECFDF5'],
-                ].map(([label, value, color, bg]) => (
-                    <div key={label} style={{ background: bg, borderRadius: 12, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 11, color, fontWeight: 700, textTransform: 'uppercase' }}>{label}</div>
-                        <div
-                            style={{
-                                fontSize: typeof value === 'string' ? 16 : 22,
-                                color,
-                                fontWeight: 700,
-                                marginTop: 4,
-                            }}
-                        >
-                            {value}
-                        </div>
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ color: '#1E1B4B', fontSize: 13, fontWeight: 700 }}>{monthSummary}</div>
+                    <div style={{ color: '#7C6D9B', fontSize: 12, marginTop: 4 }}>
+                        Quy ước: x đi học, x/2 nửa ngày, P vắng có phép, K vắng không phép.
                     </div>
-                ))}
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <SummaryChip label="Học sinh" value={tuitionRows.length} color="#6D28D9" />
+                    {view === 'tuition' && (
+                        <>
+                            <SummaryChip label="Vắng P" value={summary.permittedAbsences} color="#B45309" />
+                            <SummaryChip label="Phải thu" value={fmtMoney(summary.amountDue)} color="#059669" />
+                        </>
+                    )}
+                </div>
             </div>
 
             <div
@@ -782,9 +793,36 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
     )
 }
 
+function SummaryChip({ label, value, color }) {
+    return (
+        <div
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                borderRadius: 999,
+                background: '#F8F7FF',
+                border: '1px solid #EDE9FE',
+                padding: '7px 10px',
+                whiteSpace: 'nowrap',
+            }}
+        >
+            <span style={{ color: '#7C6D9B', fontSize: 11, fontWeight: 600 }}>{label}</span>
+            <span style={{ color, fontSize: 13, fontWeight: 700 }}>{value}</span>
+        </div>
+    )
+}
+
 function AttendanceMatrix({ days, rows }) {
     return (
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1260, fontSize: 13 }}>
+        <table
+            style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                minWidth: Math.max(900, 296 + days.length * 33),
+                fontSize: 13,
+            }}
+        >
             <thead>
                 <tr style={{ background: '#F8F7FF' }}>
                     {['STT', 'MSHS', 'Họ và tên'].map(header => (
@@ -807,8 +845,8 @@ function AttendanceMatrix({ days, rows }) {
                         <th
                             key={day.date}
                             style={{
-                                width: 36,
-                                padding: '8px 4px',
+                                width: 33,
+                                padding: '8px 2px',
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#7C6D9B',
                                 fontSize: 11,
@@ -819,29 +857,13 @@ function AttendanceMatrix({ days, rows }) {
                             {day.day}
                         </th>
                     ))}
-                    {['Đủ', 'Nửa', 'Tổng', 'P', 'L', 'K'].map(header => (
-                        <th
-                            key={header}
-                            rowSpan={2}
-                            style={{
-                                padding: '12px 8px',
-                                textAlign: 'center',
-                                color: '#7C6D9B',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                borderBottom: '1.5px solid #DDD6FE',
-                            }}
-                        >
-                            {header}
-                        </th>
-                    ))}
                 </tr>
                 <tr style={{ background: '#F8F7FF' }}>
                     {days.map(day => (
                         <th
                             key={day.date}
                             style={{
-                                padding: '6px 3px',
+                                padding: '6px 2px',
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#9B93C9',
                                 fontSize: 10,
@@ -869,7 +891,7 @@ function AttendanceMatrix({ days, rows }) {
                                 <td
                                     key={day.date}
                                     style={{
-                                        padding: '7px 4px',
+                                        padding: '7px 2px',
                                         textAlign: 'center',
                                         background: day.isSunday ? '#FAFAFA' : 'transparent',
                                     }}
@@ -879,7 +901,7 @@ function AttendanceMatrix({ days, rows }) {
                                             display: 'inline-flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            width: 30,
+                                            width: 27,
                                             height: 26,
                                             borderRadius: 7,
                                             background: bg,
@@ -893,18 +915,6 @@ function AttendanceMatrix({ days, rows }) {
                                 </td>
                             )
                         })}
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.fullDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.halfDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>{row.actualDays}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
-                            {row.permittedAbsences}
-                        </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
-                            {row.holidayAbsences}
-                        </td>
-                        <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600 }}>
-                            {row.unpermittedAbsences}
-                        </td>
                     </tr>
                 ))}
             </tbody>

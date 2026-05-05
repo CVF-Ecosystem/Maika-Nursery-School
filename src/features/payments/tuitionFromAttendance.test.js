@@ -16,6 +16,16 @@ describe('tuitionFromAttendance', () => {
         expect(days.filter(day => day.isSchoolDay)).toHaveLength(26)
     })
 
+    it('updates calendar and billable days when changing months', () => {
+        const february = monthDays('2026-02', true)
+        const may = monthDays('2026-05', true)
+
+        expect(february).toHaveLength(28)
+        expect(february.filter(day => day.isSchoolDay)).toHaveLength(24)
+        expect(may).toHaveLength(31)
+        expect(may.filter(day => day.isSchoolDay)).toHaveLength(26)
+    })
+
     it('maps monthly attendance into symbols and tuition rows', () => {
         const students = [{ id: 'MC_01', name: 'Trần Phan Bảo Anh', className: 'Mầm + Chồi' }]
         const attendance = [
