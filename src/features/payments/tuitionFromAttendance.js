@@ -66,6 +66,8 @@ function normalizeText(value = '') {
 
 function isPermittedAbsence(record) {
     const note = normalizeText(record?.note || '')
+    if (note.startsWith('[k]')) return false
+    if (note.startsWith('[p]')) return true
     return (
         note === 'p' ||
         note.includes('co phep') ||

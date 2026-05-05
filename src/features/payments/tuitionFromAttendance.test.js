@@ -42,4 +42,17 @@ describe('tuitionFromAttendance', () => {
         expect(tuitionRows[0].amountDue).toBe(1275000)
         expect(summarizeTuitionRows(tuitionRows).amountDue).toBe(1275000)
     })
+
+    it('lets explicit K/P markers override free-text absence notes', () => {
+        const students = [{ id: 'MC_01', name: 'Trần Phan Bảo Anh', className: 'Mầm + Chồi' }]
+        const attendance = [
+            { studentId: 'MC_01', date: '2025-08-01', status: 'absent', note: '[K] Phụ huynh xin phép muộn' },
+            { studentId: 'MC_01', date: '2025-08-02', status: 'absent', note: '[P] Không ghi thêm' },
+        ]
+
+        const model = buildAttendanceMonthRows({ students, attendance, yearMonth: '2025-08', includeSaturday: true })
+
+        expect(model.rows[0].marks['2025-08-01']).toBe('K')
+        expect(model.rows[0].marks['2025-08-02']).toBe('P')
+    })
 })

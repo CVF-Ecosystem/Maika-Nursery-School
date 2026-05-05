@@ -252,32 +252,36 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
     async function saveDetail(input) {
         setSaving(true)
         try {
+            const { absenceType: _absenceType, ...attendanceInput } = input
             if (supabaseMode) {
-                const student = students.find(s => s.id === input.studentId)
+                const student = students.find(s => s.id === attendanceInput.studentId)
                 const profile = await getCurrentProfile().catch(() => null)
                 const optimistic = {
-                    studentId: input.studentId,
+                    studentId: attendanceInput.studentId,
                     facilityId: student?.facilityId || profile?.facility_id || selectedFacilityId,
                     date,
-                    status: input.status,
-                    checkInTime: input.checkInTime,
-                    checkOutTime: input.checkOutTime,
-                    pickupPerson: input.pickupPerson,
-                    pickupPhone: input.pickupPhone,
-                    lateReason: input.lateReason,
-                    earlyPickupReason: input.earlyPickupReason,
-                    note: input.note,
+                    status: attendanceInput.status,
+                    checkInTime: attendanceInput.checkInTime,
+                    checkOutTime: attendanceInput.checkOutTime,
+                    pickupPerson: attendanceInput.pickupPerson,
+                    pickupPhone: attendanceInput.pickupPhone,
+                    lateReason: attendanceInput.lateReason,
+                    earlyPickupReason: attendanceInput.earlyPickupReason,
+                    note: attendanceInput.note,
                     recordedBy: profile?.id || '',
                 }
                 setRecords(prev => {
-                    const next = { ...prev, [input.studentId]: { ...(prev[input.studentId] || {}), ...optimistic } }
+                    const next = {
+                        ...prev,
+                        [attendanceInput.studentId]: { ...(prev[attendanceInput.studentId] || {}), ...optimistic },
+                    }
                     cacheTeacherData(`attendance:${student?.facilityId || selectedFacilityId || 'all'}:${date}`, next)
                     return next
                 })
                 if (isOnline()) {
                     try {
                         const saved = await upsertAttendance(optimistic)
-                        setRecords(prev => ({ ...prev, [input.studentId]: saved }))
+                        setRecords(prev => ({ ...prev, [attendanceInput.studentId]: saved }))
                     } catch (error) {
                         enqueueOfflineAction('attendance', optimistic)
                         setErr(
@@ -293,11 +297,11 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                 setSaving(false)
                 return
             }
-            const res = await apiFetch(`/api/attendance-records/${input.studentId}/${date}`, {
+            const res = await apiFetch(`/api/attendance-records/${attendanceInput.studentId}/${date}`, {
                 method: 'PUT',
-                body: JSON.stringify(input),
+                body: JSON.stringify(attendanceInput),
             })
-            setRecords(prev => ({ ...prev, [input.studentId]: res.data }))
+            setRecords(prev => ({ ...prev, [attendanceInput.studentId]: res.data }))
             setEditModal(null)
         } catch (ex) {
             setErr(ex.message)
@@ -671,7 +675,31 @@ function SummaryPill({ label, value, color, bg }) {
     )
 }
 
+function isPermittedAbsenceNote(value = '') {
+    const text = String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .toLowerCase()
+    if (text.startsWith('[k]')) return false
+    if (text.startsWith('[p]')) return true
+    return text === 'p' || text.includes('co phep') || text.includes('xin phep') || text.includes('xin nghi')
+}
+
+function absenceTypeFromNote(value = '') {
+    return isPermittedAbsenceNote(value) ? 'permitted' : 'unpermitted'
+}
+
+function noteWithAbsenceType(note = '', absenceType = 'unpermitted') {
+    const text = String(note || '').trim()
+    const cleaned = text.replace(/^\[(?:P|K)\]\s*/i, '').trim()
+    if (absenceType === 'permitted') return `[P] ${cleaned || 'Vắng có phép'}`
+    return `[K] ${cleaned || 'Vắng không phép'}`
+}
+
 function DetailModal({ student, rec, date, saving, onSave, onClose }) {
+    const initialNote = rec?.note || ''
     const [form, setForm] = useState({
         status: rec?.status || 'present',
         checkInTime: rec?.checkInTime || rec?.check_in_time || '',
@@ -680,7 +708,8 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
         pickupPhone: rec?.pickupPhone || rec?.pickup_phone || '',
         lateReason: rec?.lateReason || rec?.late_reason || '',
         earlyPickupReason: rec?.earlyPickupReason || rec?.early_pickup_reason || '',
-        note: rec?.note || '',
+        absenceType: absenceTypeFromNote(initialNote),
+        note: initialNote,
     })
 
     return (
@@ -734,7 +763,13 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                     {Object.entries(STATUS_CONFIG).map(([key, conf]) => (
                         <button
                             key={key}
-                            onClick={() => setForm(f => ({ ...f, status: key }))}
+                            onClick={() =>
+                                setForm(f => ({
+                                    ...f,
+                                    status: key,
+                                    note: key === 'absent' ? noteWithAbsenceType(f.note, f.absenceType) : f.note,
+                                }))
+                            }
                             style={{
                                 padding: '8px 16px',
                                 borderRadius: 20,
@@ -794,6 +829,49 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                         style={{ marginBottom: 12 }}
                     />
                 )}
+                {form.status === 'absent' && (
+                    <div style={{ marginBottom: 12 }}>
+                        <label
+                            style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: '#5B5490',
+                                display: 'block',
+                                marginBottom: 6,
+                            }}
+                        >
+                            Loại vắng
+                        </label>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {[
+                                ['unpermitted', 'K - Không phép', '#DC2626', '#FEF2F2'],
+                                ['permitted', 'P - Có phép', '#B45309', '#FFFBEB'],
+                            ].map(([value, label, color, bg]) => (
+                                <button
+                                    key={value}
+                                    onClick={() =>
+                                        setForm(f => ({
+                                            ...f,
+                                            absenceType: value,
+                                            note: noteWithAbsenceType(f.note, value),
+                                        }))
+                                    }
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 10,
+                                        border: `1.5px solid ${form.absenceType === value ? color : '#DDD6FE'}`,
+                                        background: form.absenceType === value ? bg : '#fff',
+                                        color: form.absenceType === value ? color : '#6B6494',
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                    }}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {form.status === 'early_pickup' && (
                     <LabelInput
                         label="Lý do đón sớm"
@@ -812,7 +890,14 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                 />
 
                 <button
-                    onClick={() => onSave({ studentId: student.id, ...form })}
+                    onClick={() =>
+                        onSave({
+                            studentId: student.id,
+                            ...form,
+                            note:
+                                form.status === 'absent' ? noteWithAbsenceType(form.note, form.absenceType) : form.note,
+                        })
+                    }
                     disabled={saving}
                     style={{
                         width: '100%',
