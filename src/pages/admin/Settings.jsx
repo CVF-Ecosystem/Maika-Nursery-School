@@ -6,17 +6,21 @@ import { getPaymentSettings, savePaymentSettings } from '../../features/payments
 import { listStudents } from '../../features/students/studentService'
 import {
     createAcademicYear,
+    createFeeItem,
     createSchoolHoliday,
     createTuitionPlan,
     deleteSchoolHoliday,
     getSchoolSettings,
     listAcademicYears,
+    listFeeItems,
     listSchoolHolidays,
     listTuitionPlans,
     saveSchoolSettings,
     updateAcademicYear,
+    updateFeeItem,
     updateTuitionPlan,
 } from '../../features/operations/operationalService'
+import { listFacilities } from '../../features/facilities/facilityService'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -546,13 +550,25 @@ function AcademicTab() {
 function TuitionTab() {
     const supabaseMode = isSupabaseSession()
     const [plans, setPlans] = useState([])
+    const [facilities, setFacilities] = useState([])
+    const [feeItems, setFeeItems] = useState([])
     const [editing, setEditing] = useState(null)
-    const [form, setForm] = useState({ name: '', amount: '', billingCycle: 'monthly', description: '', isActive: true })
+    const [editingFeeItem, setEditingFeeItem] = useState(null)
+    const [form, setForm] = useState(defaultTuitionForm())
+    const [feeItemForm, setFeeItemForm] = useState(defaultFeeItemForm())
     const [err, setErr] = useState('')
 
     function reload() {
-        const request = supabaseMode ? listTuitionPlans() : apiFetch('/api/tuition-plans')
-        request.then(setPlans).catch(() => setErr('Lỗi tải dữ liệu'))
+        const request = supabaseMode
+            ? Promise.all([listTuitionPlans(), listFacilities(), listFeeItems()])
+            : Promise.all([apiFetch('/api/tuition-plans'), Promise.resolve([]), Promise.resolve([])])
+        request
+            .then(([tuitionPlans, facilityItems, feeItemItems]) => {
+                setPlans(tuitionPlans)
+                setFacilities(facilityItems)
+                setFeeItems(feeItemItems)
+            })
+            .catch(() => setErr('Lỗi tải dữ liệu'))
     }
 
     useEffect(reload, [supabaseMode])
@@ -561,8 +577,12 @@ function TuitionTab() {
         setEditing(p.id)
         setForm({
             name: p.name,
+            facilityId: p.facility_id || '',
+            className: p.class_name || p.class_id || '',
             amount: p.amount,
             billingCycle: p.billing_cycle,
+            refundPerPermittedAbsence: p.refund_per_permitted_absence ?? 20000,
+            mealPricePerDay: p.meal_price_per_day ?? 0,
             description: p.description || '',
             isActive: !!p.is_active,
         })
@@ -570,7 +590,25 @@ function TuitionTab() {
 
     function cancelEdit() {
         setEditing(null)
-        setForm({ name: '', amount: '', billingCycle: 'monthly', description: '', isActive: true })
+        setForm(defaultTuitionForm())
+    }
+
+    function startFeeItemEdit(item) {
+        setEditingFeeItem(item.id)
+        setFeeItemForm({
+            facilityId: item.facility_id || '',
+            name: item.name,
+            unit: item.unit || 'tháng',
+            defaultAmount: item.default_amount || 0,
+            category: item.category || 'optional',
+            displayOrder: item.display_order || 100,
+            isActive: item.is_active !== false,
+        })
+    }
+
+    function cancelFeeItemEdit() {
+        setEditingFeeItem(null)
+        setFeeItemForm(defaultFeeItemForm())
     }
 
     async function handleSubmit(e) {
@@ -597,19 +635,47 @@ function TuitionTab() {
         }
     }
 
+    async function handleFeeItemSubmit(e) {
+        e.preventDefault()
+        setErr('')
+        try {
+            if (editingFeeItem) await updateFeeItem(editingFeeItem, feeItemForm)
+            else await createFeeItem(feeItemForm)
+            cancelFeeItemEdit()
+            reload()
+        } catch (ex) {
+            setErr(ex.message)
+        }
+    }
+
     return (
-        <div>
+        <div style={{ display: 'grid', gap: 18 }}>
             <form
                 onSubmit={handleSubmit}
                 style={{ background: '#F8F7FF', borderRadius: 12, padding: 16, marginBottom: 20 }}
             >
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 12 }}>
-                    {editing ? '✏️ Chỉnh sửa mức phí' : '➕ Thêm mức học phí'}
+                    {editing ? 'Chỉnh sửa mức học phí' : 'Thêm mức học phí'}
                 </div>
                 <div
                     className="mobile-two-col"
-                    style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}
+                    style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 12, marginBottom: 12 }}
                 >
+                    <div>
+                        <label style={lblStyle}>Cơ sở</label>
+                        <select
+                            value={form.facilityId}
+                            onChange={e => setForm(f => ({ ...f, facilityId: e.target.value }))}
+                            style={inpStyle}
+                        >
+                            <option value="">Áp dụng chung</option>
+                            {facilities.map(facility => (
+                                <option key={facility.id} value={facility.id}>
+                                    {facility.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <div>
                         <label style={lblStyle}>Tên mức phí</label>
                         <input
@@ -621,6 +687,20 @@ function TuitionTab() {
                         />
                     </div>
                     <div>
+                        <label style={lblStyle}>Lớp</label>
+                        <input
+                            value={form.className}
+                            onChange={e => setForm(f => ({ ...f, className: e.target.value }))}
+                            placeholder="VD: Mầm + Chồi"
+                            style={inpStyle}
+                        />
+                    </div>
+                </div>
+                <div
+                    className="mobile-two-col"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}
+                >
+                    <div>
                         <label style={lblStyle}>Số tiền (VND)</label>
                         <input
                             type="number"
@@ -629,6 +709,28 @@ function TuitionTab() {
                             placeholder="3000000"
                             style={inpStyle}
                             required
+                            min="0"
+                        />
+                    </div>
+                    <div>
+                        <label style={lblStyle}>Hoàn vắng P/ngày</label>
+                        <input
+                            type="number"
+                            value={form.refundPerPermittedAbsence}
+                            onChange={e => setForm(f => ({ ...f, refundPerPermittedAbsence: e.target.value }))}
+                            placeholder="20000"
+                            style={inpStyle}
+                            min="0"
+                        />
+                    </div>
+                    <div>
+                        <label style={lblStyle}>Tiền ăn/ngày</label>
+                        <input
+                            type="number"
+                            value={form.mealPricePerDay}
+                            onChange={e => setForm(f => ({ ...f, mealPricePerDay: e.target.value }))}
+                            placeholder="0"
+                            style={inpStyle}
                             min="0"
                         />
                     </div>
@@ -674,7 +776,7 @@ function TuitionTab() {
                 {err && <div style={{ fontSize: 13, color: '#DC2626', marginBottom: 8 }}>{err}</div>}
                 <div style={{ display: 'flex', gap: 8 }}>
                     <button type="submit" style={btnStyle}>
-                        {editing ? '💾 Lưu' : '➕ Thêm'}
+                        {editing ? 'Lưu' : 'Thêm'}
                     </button>
                     {editing && (
                         <button
@@ -723,6 +825,10 @@ function TuitionTab() {
                             <div style={{ fontSize: 13, color: '#6D28D9', fontWeight: 600, marginTop: 2 }}>
                                 {Number(p.amount).toLocaleString('vi-VN')}đ / {CYCLE_LABEL[p.billing_cycle]}
                             </div>
+                            <div style={{ fontSize: 12, color: '#7C6D9B', marginTop: 2 }}>
+                                {facilityName(facilities, p.facility_id)} · {p.class_name || p.class_id || 'Tất cả lớp'}{' '}
+                                · Hoàn P {Number(p.refund_per_permitted_absence || 0).toLocaleString('vi-VN')}đ/ngày
+                            </div>
                             {p.description && <div style={{ fontSize: 12, color: '#7C6D9B' }}>{p.description}</div>}
                         </div>
                         <button
@@ -737,14 +843,184 @@ function TuitionTab() {
                                 cursor: 'pointer',
                             }}
                         >
-                            ✏️ Sửa
+                            Sửa
                         </button>
                     </div>
                 ))}
                 {plans.length === 0 && <div style={{ color: '#9CA3AF', fontSize: 13 }}>Chưa có mức học phí nào.</div>}
             </div>
+
+            {supabaseMode && (
+                <form onSubmit={handleFeeItemSubmit} style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B', marginBottom: 12 }}>
+                        Khoản thu mặc định
+                    </div>
+                    <div
+                        className="mobile-two-col"
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1.2fr 1fr .8fr .8fr .7fr',
+                            gap: 12,
+                            marginBottom: 12,
+                        }}
+                    >
+                        <div>
+                            <label style={lblStyle}>Tên khoản</label>
+                            <input
+                                value={feeItemForm.name}
+                                onChange={e => setFeeItemForm(f => ({ ...f, name: e.target.value }))}
+                                style={inpStyle}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label style={lblStyle}>Cơ sở</label>
+                            <select
+                                value={feeItemForm.facilityId}
+                                onChange={e => setFeeItemForm(f => ({ ...f, facilityId: e.target.value }))}
+                                style={inpStyle}
+                            >
+                                <option value="">Áp dụng chung</option>
+                                {facilities.map(facility => (
+                                    <option key={facility.id} value={facility.id}>
+                                        {facility.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label style={lblStyle}>Đơn vị</label>
+                            <input
+                                value={feeItemForm.unit}
+                                onChange={e => setFeeItemForm(f => ({ ...f, unit: e.target.value }))}
+                                style={inpStyle}
+                            />
+                        </div>
+                        <div>
+                            <label style={lblStyle}>Số tiền mặc định</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={feeItemForm.defaultAmount}
+                                onChange={e => setFeeItemForm(f => ({ ...f, defaultAmount: e.target.value }))}
+                                style={inpStyle}
+                            />
+                        </div>
+                        <div>
+                            <label style={lblStyle}>Thứ tự</label>
+                            <input
+                                type="number"
+                                value={feeItemForm.displayOrder}
+                                onChange={e => setFeeItemForm(f => ({ ...f, displayOrder: e.target.value }))}
+                                style={inpStyle}
+                            />
+                        </div>
+                    </div>
+                    <label
+                        style={{
+                            fontSize: 12,
+                            color: '#5B5490',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            marginBottom: 12,
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={feeItemForm.isActive}
+                            onChange={e => setFeeItemForm(f => ({ ...f, isActive: e.target.checked }))}
+                        />
+                        Đang áp dụng
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                        <button type="submit" style={btnStyle}>
+                            {editingFeeItem ? 'Lưu khoản thu' : 'Thêm khoản thu'}
+                        </button>
+                        {editingFeeItem && (
+                            <button
+                                type="button"
+                                onClick={cancelFeeItemEdit}
+                                style={{ ...btnStyle, background: '#E5E7EB', color: '#374151' }}
+                            >
+                                Hủy
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {feeItems.map(item => (
+                            <div
+                                key={item.id}
+                                style={{
+                                    border: '1px solid #EDE9FE',
+                                    borderRadius: 10,
+                                    padding: '10px 12px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    gap: 10,
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1E1B4B' }}>{item.name}</div>
+                                    <div style={{ fontSize: 12, color: '#7C6D9B' }}>
+                                        {facilityName(facilities, item.facility_id)} · {item.unit} ·{' '}
+                                        {Number(item.default_amount || 0).toLocaleString('vi-VN')}đ
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => startFeeItemEdit(item)}
+                                    style={{
+                                        fontSize: 12,
+                                        border: '1px solid #DDD6FE',
+                                        background: 'none',
+                                        borderRadius: 6,
+                                        padding: '4px 10px',
+                                        color: '#6D28D9',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Sửa
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </form>
+            )}
         </div>
     )
+}
+
+function defaultTuitionForm() {
+    return {
+        name: '',
+        facilityId: '',
+        className: '',
+        amount: '',
+        billingCycle: 'monthly',
+        refundPerPermittedAbsence: 20000,
+        mealPricePerDay: 0,
+        description: '',
+        isActive: true,
+    }
+}
+
+function defaultFeeItemForm() {
+    return {
+        facilityId: '',
+        name: '',
+        unit: 'tháng',
+        defaultAmount: 0,
+        category: 'optional',
+        displayOrder: 100,
+        isActive: true,
+    }
+}
+
+function facilityName(facilities, facilityId) {
+    if (!facilityId) return 'Áp dụng chung'
+    return facilities.find(facility => facility.id === facilityId)?.name || 'Cơ sở'
 }
 
 // ─── Tab: Đồng ý dữ liệu (admin overview) ────────────────────────────────────

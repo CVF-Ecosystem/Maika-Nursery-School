@@ -3,6 +3,8 @@ const TYPE_PREFIX = {
     meal: 'TA',
     material: 'HL',
     activity: 'HD',
+    fee_notice: 'TB',
+    tuition_adjustment: 'DC',
     other: 'KT',
 }
 
@@ -30,10 +32,24 @@ export function receiptPrefix(type = 'tuition') {
     return TYPE_PREFIX[type] || TYPE_PREFIX.other
 }
 
-export function buildReceiptNumber({ type = 'tuition', dueDate, studentCode = '', fallbackCode = 'AUTO', existingNumbers = [] } = {}) {
+export function buildReceiptNumber({
+    type = 'tuition',
+    dueDate,
+    studentCode = '',
+    fallbackCode = 'AUTO',
+    existingNumbers = [],
+} = {}) {
     const code = cleanReceiptStudentCode(studentCode) || cleanReceiptStudentCode(fallbackCode) || 'AUTO'
     const base = `${receiptPrefix(type)}-${receiptPeriod(dueDate)}-${code}`
-    const existing = new Set(existingNumbers.map(number => String(number || '').trim().toUpperCase()).filter(Boolean))
+    const existing = new Set(
+        existingNumbers
+            .map(number =>
+                String(number || '')
+                    .trim()
+                    .toUpperCase(),
+            )
+            .filter(Boolean),
+    )
     let candidate = base
     let suffix = 2
     while (existing.has(candidate.toUpperCase())) {
@@ -44,6 +60,8 @@ export function buildReceiptNumber({ type = 'tuition', dueDate, studentCode = ''
 }
 
 export function studentCodeFromReceiptNumber(invoiceNumber = '') {
-    const match = String(invoiceNumber || '').trim().match(/^(?:HP|TA|HL|HD|KT)-\d{6}-([A-Z0-9_]+)(?:-\d{2})?$/i)
+    const match = String(invoiceNumber || '')
+        .trim()
+        .match(/^(?:HP|TA|HL|HD|TB|DC|KT)-\d{6}-([A-Z0-9_]+)(?:-\d{2})?$/i)
     return match ? match[1].toUpperCase() : ''
 }

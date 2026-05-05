@@ -72,6 +72,38 @@ describe('tuitionFromAttendance', () => {
         expect(model.rows[0].marks['2025-08-02']).toBe('P')
     })
 
+    it('uses explicit absence type and class tuition rules before note fallback', () => {
+        const students = [{ id: 'MC_01', name: 'Trần Phan Bảo Anh', className: 'Mầm + Chồi', facilityId: 'cs-1' }]
+        const attendance = [
+            { studentId: 'MC_01', date: '2025-08-01', status: 'absent', absenceType: 'permitted', note: '[K] cũ' },
+            { studentId: 'MC_01', date: '2025-08-02', status: 'early_pickup' },
+        ]
+
+        const model = buildAttendanceMonthRows({ students, attendance, yearMonth: '2025-08', includeSaturday: true })
+        const tuitionRows = buildTuitionRows({
+            attendanceRows: model.rows,
+            yearMonth: '2025-08',
+            settings: {
+                monthlyTuition: 1300000,
+                refundPerPermittedAbsence: 20000,
+                tuitionRules: [
+                    {
+                        facility_id: 'cs-1',
+                        class_name: 'Mầm + Chồi',
+                        amount: 1500000,
+                        refund_per_permitted_absence: 30000,
+                        meal_price_per_day: 30000,
+                    },
+                ],
+            },
+        })
+
+        expect(model.rows[0].marks['2025-08-01']).toBe('P')
+        expect(model.rows[0].mealDays).toBe(1)
+        expect(tuitionRows[0].amountDue).toBe(1470000)
+        expect(tuitionRows[0].tuitionRuleSource).toBe('settings')
+    })
+
     it('creates a unique invoice number when a receipt already exists', () => {
         const row = {
             dueDate: '2025-08-01',

@@ -1,12 +1,18 @@
 import { getCurrentProfile } from '../auth/authService'
 import { requireSupabase } from '../../lib/supabaseClient'
 
-const NOTIFICATION_COLUMNS = 'id, title, body, type, priority, target_role, target_class_id, target_student_id, channel, status, scheduled_at, sent_at, created_by, created_at, updated_at'
-const SETTINGS_COLUMNS = 'id, school_name, logo_url, address, phone, email, hours_open, hours_close, pickup_start, pickup_end, timezone, current_academic_year_id, zalo_oa_token, zalo_zns_invoice_template, zalo_zns_incident_template, updated_at'
+const NOTIFICATION_COLUMNS =
+    'id, title, body, type, priority, target_role, target_class_id, target_student_id, channel, status, scheduled_at, sent_at, created_by, created_at, updated_at'
+const SETTINGS_COLUMNS =
+    'id, school_name, logo_url, address, phone, email, hours_open, hours_close, pickup_start, pickup_end, timezone, current_academic_year_id, zalo_oa_token, zalo_zns_invoice_template, zalo_zns_incident_template, updated_at'
 const ACADEMIC_YEAR_COLUMNS = 'id, name, start_date, end_date, is_current, created_at'
 const HOLIDAY_COLUMNS = 'id, name, date, is_recurring, note, created_at'
-const TUITION_COLUMNS = 'id, name, class_id, amount, currency, billing_cycle, description, is_active, created_at, updated_at'
-const MEAL_COLUMNS = 'id, week_start, day_of_week, meal_type, dishes, ingredients, allergen_notes, is_published, created_by, created_at, updated_at'
+const TUITION_COLUMNS =
+    'id, name, facility_id, class_id, class_name, amount, currency, billing_cycle, refund_per_permitted_absence, meal_price_per_day, description, is_active, created_at, updated_at'
+const FEE_ITEM_COLUMNS =
+    'id, facility_id, name, unit, default_amount, category, is_active, display_order, created_at, updated_at'
+const MEAL_COLUMNS =
+    'id, week_start, day_of_week, meal_type, dishes, ingredients, allergen_notes, is_published, created_by, created_at, updated_at'
 
 const DEFAULT_SETTINGS = {
     id: 1,
@@ -64,11 +70,7 @@ export async function createNotification(input) {
     const client = requireSupabase()
     const profile = await getCurrentProfile()
     const payload = notificationPayload(input, profile?.id, { partial: false })
-    const { data, error } = await client
-        .from('notifications')
-        .insert(payload)
-        .select(NOTIFICATION_COLUMNS)
-        .single()
+    const { data, error } = await client.from('notifications').insert(payload).select(NOTIFICATION_COLUMNS).single()
     if (error) throw error
     return data
 }
@@ -106,7 +108,9 @@ function notificationPayload(input, createdBy, { partial } = { partial: true }) 
         ...(field(input, 'body', partial) ? { body: input.body } : {}),
         ...(field(input, 'type', partial) ? { type: input.type || 'general' } : {}),
         ...(field(input, 'priority', partial) ? { priority: input.priority || 'normal' } : {}),
-        ...(field(input, 'targetRole', partial) ? { target_role: input.targetRole === '' ? null : input.targetRole } : {}),
+        ...(field(input, 'targetRole', partial)
+            ? { target_role: input.targetRole === '' ? null : input.targetRole }
+            : {}),
         ...(field(input, 'targetClassId', partial) ? { target_class_id: input.targetClassId || null } : {}),
         ...(field(input, 'targetStudentId', partial) ? { target_student_id: input.targetStudentId || null } : {}),
         ...(field(input, 'channel', partial) ? { channel: input.channel || 'app' } : {}),
@@ -123,11 +127,7 @@ function field(input, key, partial) {
 
 export async function getSchoolSettings() {
     const client = requireSupabase()
-    const { data, error } = await client
-        .from('school_settings')
-        .select(SETTINGS_COLUMNS)
-        .eq('id', 1)
-        .maybeSingle()
+    const { data, error } = await client.from('school_settings').select(SETTINGS_COLUMNS).eq('id', 1).maybeSingle()
     if (error) throw error
     return data || DEFAULT_SETTINGS
 }
@@ -147,9 +147,11 @@ export async function saveSchoolSettings(input) {
         pickup_end: input.pickupEnd || '18:00',
         timezone: input.timezone || 'Asia/Ho_Chi_Minh',
         current_academic_year_id: input.currentAcademicYearId || null,
-        zalo_oa_token: input.zaloOaToken !== undefined ? (input.zaloOaToken || null) : undefined,
-        zalo_zns_invoice_template: input.zaloZnsInvoiceTemplate !== undefined ? (input.zaloZnsInvoiceTemplate || null) : undefined,
-        zalo_zns_incident_template: input.zaloZnsIncidentTemplate !== undefined ? (input.zaloZnsIncidentTemplate || null) : undefined,
+        zalo_oa_token: input.zaloOaToken !== undefined ? input.zaloOaToken || null : undefined,
+        zalo_zns_invoice_template:
+            input.zaloZnsInvoiceTemplate !== undefined ? input.zaloZnsInvoiceTemplate || null : undefined,
+        zalo_zns_incident_template:
+            input.zaloZnsIncidentTemplate !== undefined ? input.zaloZnsIncidentTemplate || null : undefined,
         updated_at: new Date().toISOString(),
     }
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
@@ -211,10 +213,7 @@ export async function updateAcademicYear(id, input) {
 
 async function clearCurrentAcademicYear() {
     const client = requireSupabase()
-    const { error } = await client
-        .from('academic_years')
-        .update({ is_current: false })
-        .eq('is_current', true)
+    const { error } = await client.from('academic_years').update({ is_current: false }).eq('is_current', true)
     if (error) throw error
 }
 
@@ -252,7 +251,12 @@ export async function deleteSchoolHoliday(id) {
 
 export async function listTuitionPlans({ activeOnly = false } = {}) {
     const client = requireSupabase()
-    let query = client.from('tuition_plans').select(TUITION_COLUMNS).order('name', { ascending: true })
+    let query = client
+        .from('tuition_plans')
+        .select(TUITION_COLUMNS)
+        .order('facility_id', { ascending: true, nullsFirst: true })
+        .order('class_name', { ascending: true, nullsFirst: true })
+        .order('name', { ascending: true })
     if (activeOnly) query = query.eq('is_active', true)
     const { data, error } = await query
     if (error) throw error
@@ -286,12 +290,65 @@ export async function updateTuitionPlan(id, input) {
 function tuitionPayload(input) {
     return {
         name: input.name,
-        class_id: input.classId || null,
+        facility_id: input.facilityId || null,
+        class_id: input.classId || input.className || null,
+        class_name: input.className || input.classId || null,
         amount: Number(input.amount || 0),
         currency: input.currency || 'VND',
         billing_cycle: input.billingCycle || 'monthly',
+        refund_per_permitted_absence: Number(input.refundPerPermittedAbsence || 0),
+        meal_price_per_day: Number(input.mealPricePerDay || 0),
         description: input.description || null,
         is_active: input.isActive !== false,
+    }
+}
+
+export async function listFeeItems({ activeOnly = false } = {}) {
+    const client = requireSupabase()
+    let query = client
+        .from('fee_items')
+        .select(FEE_ITEM_COLUMNS)
+        .order('display_order', { ascending: true })
+        .order('name', { ascending: true })
+    if (activeOnly) query = query.eq('is_active', true)
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+}
+
+export async function createFeeItem(input) {
+    const client = requireSupabase()
+    const { data, error } = await client
+        .from('fee_items')
+        .insert(feeItemPayload(input))
+        .select(FEE_ITEM_COLUMNS)
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function updateFeeItem(id, input) {
+    const client = requireSupabase()
+    const payload = { ...feeItemPayload(input), updated_at: new Date().toISOString() }
+    const { data, error } = await client
+        .from('fee_items')
+        .update(payload)
+        .eq('id', id)
+        .select(FEE_ITEM_COLUMNS)
+        .single()
+    if (error) throw error
+    return data
+}
+
+function feeItemPayload(input) {
+    return {
+        facility_id: input.facilityId || null,
+        name: input.name,
+        unit: input.unit || 'tháng',
+        default_amount: Number(input.defaultAmount || 0),
+        category: input.category || 'optional',
+        is_active: input.isActive !== false,
+        display_order: Number(input.displayOrder || 100),
     }
 }
 
@@ -339,17 +396,13 @@ export function subscribeNotifications({ facilityId, onChange }) {
     const client = requireSupabase()
     const channel = client
         .channel(`notifications:${facilityId || 'all'}`)
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'notifications' },
-            payload => {
-                const row = payload.new?.id ? payload.new : null
-                const old = payload.old?.id ? payload.old : null
-                const rowFacilityId = row?.facility_id || old?.facility_id || ''
-                if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
-                onChange({ eventType: payload.eventType, record: row, oldRecord: old })
-            },
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, payload => {
+            const row = payload.new?.id ? payload.new : null
+            const old = payload.old?.id ? payload.old : null
+            const rowFacilityId = row?.facility_id || old?.facility_id || ''
+            if (facilityId && rowFacilityId && rowFacilityId !== facilityId) return
+            onChange({ eventType: payload.eventType, record: row, oldRecord: old })
+        })
         .subscribe()
     return () => client.removeChannel(channel)
 }

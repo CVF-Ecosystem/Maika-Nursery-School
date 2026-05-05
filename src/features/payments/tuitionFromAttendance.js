@@ -65,6 +65,8 @@ function normalizeText(value = '') {
 }
 
 function isPermittedAbsence(record) {
+    if (record?.absenceType === 'permitted' || record?.absence_type === 'permitted') return true
+    if (record?.absenceType === 'unpermitted' || record?.absence_type === 'unpermitted') return false
     const note = normalizeText(record?.note || '')
     if (note.startsWith('[k]')) return false
     if (note.startsWith('[p]')) return true
@@ -81,7 +83,7 @@ export function attendanceSymbol(record) {
     if (!record) return ''
     if (record.status === 'present' || record.status === 'late') return 'x'
     if (record.status === 'early_pickup') return 'x/2'
-    if (record.status === 'holiday') return 'L'
+    if (record.status === 'holiday' || record.absenceType === 'holiday' || record.absence_type === 'holiday') return 'L'
     if (record.status === 'absent') return isPermittedAbsence(record) ? 'P' : 'K'
     return ''
 }
@@ -96,6 +98,42 @@ function classNameForStudent(student, classes = []) {
     if (student?.className) return student.className
     const cls = classes.find(item => item.id === student?.classId)
     return cls?.name || ''
+}
+
+function sameText(a = '', b = '') {
+    return normalizeText(a).replace(/\s+/g, ' ').trim() === normalizeText(b).replace(/\s+/g, ' ').trim()
+}
+
+export function resolveTuitionRuleForRow(row, settings = {}) {
+    const rules = Array.isArray(settings.tuitionRules) ? settings.tuitionRules : []
+    const activeRules = rules.filter(rule => rule && rule.is_active !== false && rule.isActive !== false)
+    const studentFacilityId = row.student?.facilityId || row.student?.facility_id || row.facilityId || ''
+    const className = row.className || ''
+    const facilityRules = activeRules.filter(rule => {
+        const ruleFacilityId = rule.facilityId || rule.facility_id || ''
+        return !ruleFacilityId || !studentFacilityId || ruleFacilityId === studentFacilityId
+    })
+    const classRule = facilityRules.find(rule => {
+        const ruleClass = rule.className || rule.class_name || rule.classId || rule.class_id || ''
+        return ruleClass && sameText(ruleClass, className)
+    })
+    const defaultRule = facilityRules.find(
+        rule => !(rule.className || rule.class_name || rule.classId || rule.class_id),
+    )
+    const rule = classRule || defaultRule || null
+
+    return {
+        id: rule?.id || '',
+        name: rule?.name || '',
+        monthlyTuition: normalizeTuitionNumber(rule?.amount ?? settings.monthlyTuition),
+        refundPerPermittedAbsence: normalizeTuitionNumber(
+            rule?.refundPerPermittedAbsence ?? rule?.refund_per_permitted_absence ?? settings.refundPerPermittedAbsence,
+        ),
+        mealPricePerDay: normalizeTuitionNumber(
+            rule?.mealPricePerDay ?? rule?.meal_price_per_day ?? settings.mealPricePerDay,
+        ),
+        source: rule ? 'settings' : 'fallback',
+    }
 }
 
 function prefixForClass(className = '') {
@@ -135,6 +173,7 @@ export function buildAttendanceMonthRows({
             fullDays: 0,
             halfDays: 0,
             actualDays: 0,
+            mealDays: 0,
             permittedAbsences: 0,
             holidayAbsences: 0,
             unpermittedAbsences: 0,
@@ -148,6 +187,7 @@ export function buildAttendanceMonthRows({
             counts.actualDays += attendanceWeight(symbol)
             if (symbol === 'x') counts.fullDays += 1
             if (symbol === 'x/2') counts.halfDays += 1
+            if (symbol === 'x' || symbol === 'x/2') counts.mealDays += 1
             if (symbol === 'P') counts.permittedAbsences += 1
             if (symbol === 'L') counts.holidayAbsences += 1
             if (symbol === 'K') counts.unpermittedAbsences += 1
@@ -175,8 +215,9 @@ export function buildTuitionRows({ attendanceRows = [], yearMonth, settings = {}
     const dueDate = `${range.year}-${String(range.month).padStart(2, '0')}-01`
 
     return attendanceRows.map(row => {
-        const monthlyTuition = normalizeTuitionNumber(mergedSettings.monthlyTuition)
-        const refundPerPermittedAbsence = normalizeTuitionNumber(mergedSettings.refundPerPermittedAbsence)
+        const rule = resolveTuitionRuleForRow(row, mergedSettings)
+        const monthlyTuition = rule.monthlyTuition
+        const refundPerPermittedAbsence = rule.refundPerPermittedAbsence
         const previousCredit = normalizeTuitionNumber(previousCredits[row.studentId])
         const refundAmount = row.permittedAbsences * refundPerPermittedAbsence
         const totalCredit = previousCredit + refundAmount
@@ -186,6 +227,10 @@ export function buildTuitionRows({ attendanceRows = [], yearMonth, settings = {}
             ...row,
             monthlyTuition,
             refundPerPermittedAbsence,
+            mealPricePerDay: rule.mealPricePerDay,
+            tuitionRuleId: rule.id,
+            tuitionRuleName: rule.name,
+            tuitionRuleSource: rule.source,
             previousCredit,
             refundAmount,
             totalCredit,
@@ -201,6 +246,7 @@ export function summarizeTuitionRows(rows = []) {
         (sum, row) => ({
             monthlyTuition: sum.monthlyTuition + row.monthlyTuition,
             actualDays: sum.actualDays + row.actualDays,
+            mealDays: sum.mealDays + row.mealDays,
             permittedAbsences: sum.permittedAbsences + row.permittedAbsences,
             unpermittedAbsences: sum.unpermittedAbsences + row.unpermittedAbsences,
             totalCredit: sum.totalCredit + row.totalCredit,
@@ -209,6 +255,7 @@ export function summarizeTuitionRows(rows = []) {
         {
             monthlyTuition: 0,
             actualDays: 0,
+            mealDays: 0,
             permittedAbsences: 0,
             unpermittedAbsences: 0,
             totalCredit: 0,

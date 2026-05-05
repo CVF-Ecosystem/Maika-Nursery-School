@@ -211,6 +211,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     facilityId: student?.facilityId || profile?.facility_id || selectedFacilityId,
                     date,
                     status,
+                    absenceType: status === 'absent' ? 'unpermitted' : '',
                     checkInTime: status !== 'absent' ? now : '',
                     recordedBy: profile?.id || '',
                 }
@@ -252,7 +253,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
     async function saveDetail(input) {
         setSaving(true)
         try {
-            const { absenceType: _absenceType, ...attendanceInput } = input
+            const attendanceInput = input
             if (supabaseMode) {
                 const student = students.find(s => s.id === attendanceInput.studentId)
                 const profile = await getCurrentProfile().catch(() => null)
@@ -261,6 +262,7 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
                     facilityId: student?.facilityId || profile?.facility_id || selectedFacilityId,
                     date,
                     status: attendanceInput.status,
+                    absenceType: attendanceInput.status === 'absent' ? attendanceInput.absenceType : '',
                     checkInTime: attendanceInput.checkInTime,
                     checkOutTime: attendanceInput.checkOutTime,
                     pickupPerson: attendanceInput.pickupPerson,
@@ -708,7 +710,7 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
         pickupPhone: rec?.pickupPhone || rec?.pickup_phone || '',
         lateReason: rec?.lateReason || rec?.late_reason || '',
         earlyPickupReason: rec?.earlyPickupReason || rec?.early_pickup_reason || '',
-        absenceType: absenceTypeFromNote(initialNote),
+        absenceType: rec?.absenceType || rec?.absence_type || absenceTypeFromNote(initialNote),
         note: initialNote,
     })
 

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { isSupabaseSession } from '../../data/backendMode'
 import { commit, getDB } from '../../data/store'
 import { listAttendanceByFacilityDateRange } from '../../features/attendance/attendanceService'
+import { listTuitionPlans } from '../../features/operations/operationalService'
 import {
-    listInvoices as listSupabaseInvoices,
-    saveInvoice as saveSupabaseInvoice,
-} from '../../features/sensitive/sensitiveService'
+    listStudentTuitionCredits,
+    saveMonthlyFeeNotices,
+    upsertStudentTuitionCredit,
+} from '../../features/payments/feeNoticeService'
 import { listStudents } from '../../features/students/studentService'
 import { fmtMoney } from '../../utils/format'
 import {
@@ -70,6 +72,18 @@ function numberInputStyle(width = 132) {
     }
 }
 
+const readonlyInfoStyle = {
+    minWidth: 132,
+    padding: '9px 11px',
+    borderRadius: 10,
+    border: '1.5px solid #DDD6FE',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#5B5490',
+    background: '#fff',
+    lineHeight: 1.25,
+}
+
 function buttonStyle({ primary = false, danger = false, disabled = false } = {}) {
     return {
         padding: '10px 14px',
@@ -83,11 +97,6 @@ function buttonStyle({ primary = false, danger = false, disabled = false } = {})
         cursor: disabled ? 'not-allowed' : 'pointer',
         whiteSpace: 'nowrap',
     }
-}
-
-function isDuplicateInvoiceNumberError(error) {
-    const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
-    return text.includes('duplicate key') || text.includes('invoices_invoice_number_key')
 }
 
 function monthTitle(range) {
@@ -247,6 +256,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const [students, setStudents] = useState([])
     const [classes, setClasses] = useState([])
     const [attendance, setAttendance] = useState([])
+    const [tuitionRules, setTuitionRules] = useState([])
     const [classFilter, setClassFilter] = useState('')
     const [view, setView] = useState('tuition')
     const [loading, setLoading] = useState(false)
@@ -272,18 +282,26 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             try {
                 const range = monthRange(yearMonth)
                 if (supabaseMode) {
-                    const [studentItems, attendanceItems] = await Promise.all([
+                    const [studentItems, attendanceItems, tuitionRuleItems, creditItems] = await Promise.all([
                         listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
                         listAttendanceByFacilityDateRange({
                             facilityId: selectedFacilityId || undefined,
                             startDate: range.startDate,
                             endDate: range.endDate,
                         }),
+                        listTuitionPlans({ activeOnly: true }),
+                        listStudentTuitionCredits({ facilityId: selectedFacilityId || undefined, yearMonth }),
                     ])
                     if (!mounted) return
                     setStudents(studentItems)
                     setClasses([...new Set(studentItems.map(student => student.className).filter(Boolean))])
                     setAttendance(attendanceItems)
+                    setTuitionRules(tuitionRuleItems)
+                    setCredits(
+                        Object.fromEntries(
+                            creditItems.map(item => [item.student_id, normalizeTuitionNumber(item.amount)]),
+                        ),
+                    )
                     return
                 }
 
@@ -296,6 +314,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 setStudents(localStudents)
                 setClasses(db.classes || [])
                 setAttendance(localAttendance)
+                setTuitionRules([])
             } catch (ex) {
                 if (mounted) setError(ex.message || 'Không tải được dữ liệu điểm danh.')
             } finally {
@@ -330,10 +349,10 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             buildTuitionRows({
                 attendanceRows: attendanceModel.rows,
                 yearMonth,
-                settings,
+                settings: { ...settings, tuitionRules },
                 previousCredits: credits,
             }),
-        [attendanceModel.rows, credits, settings, yearMonth],
+        [attendanceModel.rows, credits, settings, tuitionRules, yearMonth],
     )
     const summary = useMemo(() => summarizeTuitionRows(tuitionRows), [tuitionRows])
     const classOptions = supabaseMode
@@ -354,8 +373,23 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         }))
     }
 
-    function updateCredit(studentId, value) {
-        setCredits(prev => ({ ...prev, [studentId]: normalizeTuitionNumber(value) }))
+    async function updateCredit(studentId, value) {
+        const amount = normalizeTuitionNumber(value)
+        setCredits(prev => ({ ...prev, [studentId]: amount }))
+        if (!supabaseMode) return
+        const student = students.find(item => item.id === studentId)
+        if (!student?.facilityId) return
+        try {
+            await upsertStudentTuitionCredit({
+                studentId,
+                facilityId: student.facilityId,
+                yearMonth,
+                amount,
+                note: `Tiền thừa/cấn trừ nhập tại bảng thu tháng ${yearMonth}.`,
+            })
+        } catch (ex) {
+            setError(ex.message || 'Chưa lưu được tiền thừa tháng trước.')
+        }
     }
 
     async function handleExport() {
@@ -388,48 +422,23 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             }
 
             if (supabaseMode) {
-                const existing = await listSupabaseInvoices({ facilityId: selectedFacilityId || undefined })
-                const existingNumbers = new Set(existing.map(invoice => invoice.invoice_number).filter(Boolean))
-                const existingTuitionKeys = new Set(
-                    existing
-                        .filter(invoice => invoice.type === 'tuition' && invoice.student_id && invoice.due_date)
-                        .map(invoice => `${invoice.student_id}:${invoice.due_date}`),
-                )
-                let created = 0
-                let skipped = 0
-                for (const row of payableRows) {
-                    const tuitionKey = `${row.studentId}:${row.dueDate}`
-                    if (existingTuitionKeys.has(tuitionKey)) {
-                        skipped += 1
-                        continue
-                    }
-                    let saved = false
-                    for (let attempt = 0; attempt < 10 && !saved; attempt += 1) {
-                        const invoiceNumber = tuitionInvoiceNumber(row, [...existingNumbers])
-                        try {
-                            await saveSupabaseInvoice({
-                                studentId: row.studentId,
-                                invoiceNumber,
-                                type: 'tuition',
-                                description: row.description,
-                                amount: row.amountDue,
-                                dueDate: row.dueDate,
-                                status: 'pending',
-                                notes: `Từ bảng điểm danh tháng ${yearMonth}. Đi học ${row.actualDays}/${row.schoolDayCount} ngày, vắng phép ${row.permittedAbsences}, vắng không phép ${row.unpermittedAbsences}.`,
-                            })
-                            existingNumbers.add(invoiceNumber)
-                            existingTuitionKeys.add(tuitionKey)
-                            created += 1
-                            saved = true
-                        } catch (ex) {
-                            if (!isDuplicateInvoiceNumberError(ex)) throw ex
-                            existingNumbers.add(invoiceNumber)
-                        }
-                    }
-                    if (!saved) throw new Error('Không tạo được mã biên lai không trùng. Vui lòng thử lại.')
+                const missingRows = payableRows.filter(row => row.missingSchoolDays > 0)
+                if (missingRows.length) {
+                    const ok = window.confirm(
+                        `${missingRows.length} học sinh còn ngày chưa điểm danh. Vẫn tạo phiếu thông báo để kiểm tra/cập nhật sau?`,
+                    )
+                    if (!ok) return
                 }
+
+                const result = await saveMonthlyFeeNotices({
+                    rows: payableRows,
+                    yearMonth,
+                    facilityId: selectedFacilityId || undefined,
+                })
                 setMessage(
-                    `Đã tạo ${created} khoản thu học phí${skipped ? `, bỏ qua ${skipped} khoản đã tồn tại` : ''}.`,
+                    `Đã tạo ${result.created}, cập nhật ${result.updated} phiếu thông báo${
+                        result.adjusted ? `, tạo ${result.adjusted} bản điều chỉnh` : ''
+                    }${result.credited ? `, ghi ${result.credited} khoản cấn trừ tháng sau` : ''}.`,
                 )
                 return
             }
@@ -516,25 +525,31 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         </select>
                     </label>
                     <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
-                        Học phí tháng
-                        <input
-                            type="number"
-                            min="0"
-                            value={settings.monthlyTuition}
-                            onChange={event => updateSetting('monthlyTuition', event.target.value)}
-                            style={numberInputStyle()}
-                        />
+                        {supabaseMode ? 'Nguồn học phí' : 'Học phí tháng'}
+                        {supabaseMode ? (
+                            <div style={readonlyInfoStyle}>Theo Cài đặt</div>
+                        ) : (
+                            <input
+                                type="number"
+                                min="0"
+                                value={settings.monthlyTuition}
+                                onChange={event => updateSetting('monthlyTuition', event.target.value)}
+                                style={numberInputStyle()}
+                            />
+                        )}
                     </label>
-                    <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
-                        Hoàn/vắng phép
-                        <input
-                            type="number"
-                            min="0"
-                            value={settings.refundPerPermittedAbsence}
-                            onChange={event => updateSetting('refundPerPermittedAbsence', event.target.value)}
-                            style={numberInputStyle()}
-                        />
-                    </label>
+                    {!supabaseMode && (
+                        <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#5B5490', fontWeight: 600 }}>
+                            Hoàn/vắng phép
+                            <input
+                                type="number"
+                                min="0"
+                                value={settings.refundPerPermittedAbsence}
+                                onChange={event => updateSetting('refundPerPermittedAbsence', event.target.value)}
+                                style={numberInputStyle()}
+                            />
+                        </label>
+                    )}
                     <label
                         style={{
                             display: 'flex',
@@ -567,7 +582,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         disabled={saving || loading || !tuitionRows.length}
                         style={buttonStyle({ primary: true, disabled: saving || loading || !tuitionRows.length })}
                     >
-                        {saving ? 'Đang tạo...' : 'Tạo khoản thu'}
+                        {saving ? 'Đang tạo...' : supabaseMode ? 'Tạo phiếu báo thu' : 'Tạo khoản thu'}
                     </button>
                 </div>
             </div>
@@ -644,7 +659,8 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                 <div style={{ minWidth: 0 }}>
                     <div style={{ color: '#1E1B4B', fontSize: 13, fontWeight: 700 }}>{monthSummary}</div>
                     <div style={{ color: '#7C6D9B', fontSize: 12, marginTop: 4 }}>
-                        Quy ước: x đi học, x/2 nửa ngày, P vắng có phép, K vắng không phép.
+                        Quy ước: x đi học, x/2 nửa ngày, P vắng có phép được hoàn tiền ăn, K không phép. x/2 vẫn tính đủ
+                        1 suất ăn.
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -702,6 +718,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                         'Lớp',
                         'Học phí',
                         'Ngày học',
+                        'Suất ăn',
                         'Vắng K',
                         'Vắng P',
                         'Hoàn lại',
@@ -732,6 +749,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                     </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.monthlyTuition)}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.actualDays}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.mealDays}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.unpermittedAbsences}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{summary.permittedAbsences}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmtMoney(summary.totalCredit)}</td>
@@ -751,6 +769,7 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                         </td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>{fmtMoney(row.monthlyTuition)}</td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>{row.actualDays}</td>
+                        <td style={{ padding: '11px 14px', fontWeight: 600 }}>{row.mealDays}</td>
                         <td
                             style={{
                                 padding: '11px 14px',
@@ -784,7 +803,12 @@ function TuitionTable({ rows, credits, onCreditChange, summary }) {
                             {fmtMoney(row.amountDue)}
                         </td>
                         <td style={{ padding: '11px 14px', color: '#9B93C9', fontSize: 12, fontWeight: 600 }}>
-                            {row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : ''}
+                            {[
+                                row.missingSchoolDays ? `Còn ${row.missingSchoolDays} ngày chưa điểm danh` : '',
+                                row.tuitionRuleSource === 'fallback' ? 'Chưa có cấu hình lớp, dùng mặc định' : '',
+                            ]
+                                .filter(Boolean)
+                                .join('. ')}
                         </td>
                     </tr>
                 ))}

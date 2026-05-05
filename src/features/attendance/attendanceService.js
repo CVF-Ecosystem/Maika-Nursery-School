@@ -6,6 +6,7 @@ const ATTENDANCE_COLUMNS = `
     facility_id,
     attendance_date,
     status,
+    absence_type,
     note,
     meal_photo_url,
     meal_photo_path,
@@ -25,6 +26,7 @@ export function mapAttendanceFromSupabase(row) {
         facilityId: row.facility_id,
         date: row.attendance_date,
         status: row.status,
+        absenceType: row.absence_type || '',
         note: row.note || '',
         mealPhotoUrl: row.meal_photo_url || '',
         mealPhotoPath: row.meal_photo_path || '',
@@ -81,6 +83,7 @@ export async function upsertAttendance(record) {
         p_early_pickup_reason: record.earlyPickupReason || null,
         p_meal_photo_url: record.mealPhotoUrl || null,
         p_meal_photo_path: record.mealPhotoPath || null,
+        p_absence_type: record.absenceType || null,
     })
 
     if (error) throw error
