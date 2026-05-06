@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseSession } from '../../data/backendMode'
 import { commit, getDB } from '../../data/store'
 import { listAttendanceByFacilityDateRange } from '../../features/attendance/attendanceService'
@@ -60,6 +60,10 @@ function statusColor(symbol) {
     if (symbol === 'K') return ['#FEF2F2', '#DC2626']
     if (symbol === 'L') return ['#F5F5F4', '#6B7280']
     return ['transparent', '#9B93C9']
+}
+
+function attendanceTableMinWidth(days = []) {
+    return Math.max(980, 372 + days.length * 38)
 }
 
 function numberInputStyle(width = 132) {
@@ -829,16 +833,16 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     overflow: 'hidden',
                 }}
             >
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    {loading ? (
-                        <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
-                            Đang tải dữ liệu...
-                        </div>
-                    ) : billingRows.length === 0 ? (
-                        <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
-                            Chưa có học sinh hoặc dữ liệu phù hợp.
-                        </div>
-                    ) : view === 'tuition' ? (
+                {loading ? (
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
+                        Đang tải dữ liệu...
+                    </div>
+                ) : billingRows.length === 0 ? (
+                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
+                        Chưa có học sinh hoặc dữ liệu phù hợp.
+                    </div>
+                ) : view === 'tuition' ? (
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                         <TuitionTable
                             rows={pageRows}
                             pageOffset={pageOffset}
@@ -850,15 +854,17 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             onOpenFeePicker={setFeePickerRow}
                             summary={summary}
                         />
-                    ) : (
+                    </div>
+                ) : (
+                    <SyncedTableScroll width={attendanceTableMinWidth(attendanceModel.days)}>
                         <AttendanceMatrix
                             days={attendanceModel.days}
                             rows={attendancePageRows}
                             pageOffset={pageOffset}
                             yearMonth={yearMonth}
                         />
-                    )}
-                </div>
+                    </SyncedTableScroll>
+                )}
                 {!loading && totalPages > 1 && (
                     <Pagination
                         page={page}
@@ -1544,17 +1550,68 @@ function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
     )
 }
 
+function SyncedTableScroll({ width, children }) {
+    const topRef = useRef(null)
+    const bodyRef = useRef(null)
+    const syncingRef = useRef(false)
+
+    function syncScroll(sourceRef, targetRef) {
+        if (syncingRef.current || !sourceRef.current || !targetRef.current) return
+        syncingRef.current = true
+        targetRef.current.scrollLeft = sourceRef.current.scrollLeft
+        requestAnimationFrame(() => {
+            syncingRef.current = false
+        })
+    }
+
+    return (
+        <div>
+            <div
+                ref={topRef}
+                onScroll={() => syncScroll(topRef, bodyRef)}
+                style={{
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    WebkitOverflowScrolling: 'touch',
+                    borderBottom: '1px solid #EDE9FE',
+                    background: '#fff',
+                }}
+                aria-label="Cuộn ngang bảng điểm danh"
+            >
+                <div style={{ width, height: 12 }} />
+            </div>
+            <div
+                ref={bodyRef}
+                onScroll={() => syncScroll(bodyRef, topRef)}
+                style={{
+                    overflow: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    maxHeight: 'calc(100vh - 270px)',
+                    minHeight: 360,
+                }}
+            >
+                {children}
+            </div>
+        </div>
+    )
+}
+
 function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
     const range = monthRange(yearMonth)
     const monthTitle = `Tháng ${String(range.month).padStart(2, '0')} năm ${range.year}`
     const gridBorder = '1px solid #D8D1F3'
+    const stickyTopStyle = top => ({
+        position: 'sticky',
+        top,
+        zIndex: 6,
+    })
 
     return (
         <table
             style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                minWidth: Math.max(980, 372 + days.length * 38),
+                minWidth: attendanceTableMinWidth(days),
                 fontSize: 13,
                 border: gridBorder,
             }}
@@ -1577,7 +1634,9 @@ function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
                                 fontWeight: 700,
                                 border: gridBorder,
                                 background: '#F8F7FF',
+                                ...stickyTopStyle(0),
                                 ...(extraStyle || {}),
+                                zIndex: 8,
                             }}
                         >
                             {header}
@@ -1593,6 +1652,7 @@ function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
                             fontWeight: 900,
                             border: gridBorder,
                             background: '#fff',
+                            ...stickyTopStyle(0),
                         }}
                     >
                         {monthTitle}
@@ -1610,6 +1670,8 @@ function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
                                 fontSize: 11,
                                 fontWeight: 700,
                                 border: gridBorder,
+                                background: '#F8F7FF',
+                                ...stickyTopStyle(33),
                             }}
                         >
                             {day.day}
@@ -1630,6 +1692,8 @@ function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
                                 fontWeight: 700,
                                 border: gridBorder,
                                 verticalAlign: 'middle',
+                                background: '#F8F7FF',
+                                ...stickyTopStyle(66),
                             }}
                         >
                             <span
