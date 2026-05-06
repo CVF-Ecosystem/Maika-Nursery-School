@@ -56,8 +56,8 @@ function ParentFeeNotices({ student }) {
         async function load() {
             setLoading(true)
             try {
-                const data = await listFeeNotices({ facilityId: student.facilityId })
-                const studentNotices = data.filter(notice => notice.student_id === student.id).slice(0, 6)
+                const data = await listFeeNotices({ facilityId: student.facilityId, studentId: student.id })
+                const studentNotices = data.slice(0, 6)
                 const pairs = await Promise.all(
                     studentNotices.map(async notice => [notice.id, await listFeeNoticeItems({ noticeId: notice.id })]),
                 )

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { isSupabaseSession } from '../../data/backendMode'
 import { listFeeNoticeItems, listFeeNotices, updateFeeNoticeStatus } from '../../features/payments/feeNoticeService'
+import { getPaymentSettings } from '../../features/payments/paymentSettings'
 import { listStudents } from '../../features/students/studentService'
 import { sendInvoiceZns } from '../../features/zalo/zaloService'
 import { fmtMoney } from '../../utils/format'
-import FeeNoticePrint from './invoices/FeeNoticePrint'
+import FeeNoticePrint, { buildFeeNoticeHtml, NOTICE_PAGE_CSS } from './invoices/FeeNoticePrint'
 
 function currentYearMonth() {
     const now = new Date()
@@ -65,15 +66,6 @@ function ItemTypeBadge({ type }) {
     )
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
-}
-
 const STATUS_FILTERS = [
     ['', 'Tất cả'],
     ['draft', 'Nháp'],
@@ -102,7 +94,7 @@ export default function FeeNotices({ selectedFacilityId = '' }) {
             try {
                 const [noticeList, studentList] = await Promise.all([
                     listFeeNotices({ facilityId: selectedFacilityId || undefined, yearMonth }),
-                    listStudents({ facilityId: selectedFacilityId || undefined, status: 'active' }),
+                    listStudents({ facilityId: selectedFacilityId || undefined }),
                 ])
                 if (!mounted) return
                 setNotices(noticeList)
@@ -170,54 +162,29 @@ export default function FeeNotices({ selectedFacilityId = '' }) {
         if (!rows.length) return
         setActionMsg('Đang chuẩn bị file in...')
         try {
+            const settings = getPaymentSettings()
             const pairs = await Promise.all(
                 rows.map(async notice => [notice.id, await listFeeNoticeItems({ noticeId: notice.id })]),
             )
             const itemsMap = Object.fromEntries(pairs)
-            const html = rows
+            const pagesHtml = rows
                 .map(notice => {
                     const student = studentMap[notice.student_id]
                     const items = itemsMap[notice.id] || []
-                    return `<section class="page">
-                        <div class="header">
-                            <div class="school">Nhà Trẻ Tư Thục Maika</div>
-                            <h1>PHIẾU THÔNG BÁO THU</h1>
-                            <div>${escapeHtml(notice.year_month || '')}</div>
-                        </div>
-                        <div class="info"><span>Số phiếu</span><b>${escapeHtml(notice.notice_number || '')}</b></div>
-                        <div class="info"><span>Học sinh</span><b>${escapeHtml(student?.name || '')}</b></div>
-                        <div class="info"><span>Lớp</span><b>${escapeHtml(student?.className || '')}</b></div>
-                        <hr/>
-                        ${items
-                            .map(
-                                item => `<div class="item">
-                                    <span>${escapeHtml(item.name)}${
-                                        Number(item.quantity) !== 1
-                                            ? ` <small>x ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</small>`
-                                            : ''
-                                    }</span>
-                                    <b>${item.amount < 0 ? '-' : ''}${fmtMoney(Math.abs(item.amount))}</b>
-                                </div>`,
-                            )
-                            .join('')}
-                        <hr/>
-                        <div class="total"><span>Tổng phải thu</span><b>${fmtMoney(notice.total_amount)}</b></div>
-                        <div class="footer">In ngày ${new Date().toLocaleDateString('vi-VN')}</div>
-                    </section>`
+                    return `<div class="notice-page">${buildFeeNoticeHtml(notice, items, student, settings)}</div>`
                 })
                 .join('')
             const w = window.open('', '_blank', 'width=800,height=1000')
             if (!w) return
             w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>In phiếu báo thu</title>
                 <style>
-                    body{font-family:system-ui,sans-serif;color:#1E1B4B;margin:0;background:#f7f5ff}
-                    .page{width:680px;min-height:940px;margin:20px auto;padding:38px 44px;background:#fff;page-break-after:always}
-                    .header{text-align:center;margin-bottom:18px}.school{font-size:13px;color:#7C6D9B}
-                    h1{font-size:20px;color:#6D28D9;margin:4px 0}.info,.item,.total{display:flex;justify-content:space-between;gap:18px;padding:8px 0;border-bottom:1px solid #F0EEFF}
-                    .info span{color:#7C6D9B}.item small{color:#7C6D9B}.total{font-size:18px;color:#6D28D9;font-weight:900;border-bottom:none}
-                    hr{border:none;border-top:1.5px dashed #DDD6FE;margin:14px 0}.footer{text-align:center;color:#9B93C9;font-size:12px;margin-top:28px}
-                    @media print{body{background:#fff}.page{margin:0 auto;box-shadow:none}}
-                </style></head><body>${html}<script>window.onload=function(){setTimeout(function(){window.print()},350)}</script></body></html>`)
+                    ${NOTICE_PAGE_CSS}
+                    body{background:#f7f5ff}
+                    .notice-page{max-width:640px;margin:20px auto;background:#fff;padding:36px 40px;page-break-after:always}
+                    @media print{body{background:#fff}.notice-page{margin:0 auto;padding:28px 32px}}
+                </style></head><body>${pagesHtml}
+                <script>window.onload=function(){setTimeout(function(){window.print()},350)}</script>
+                </body></html>`)
             w.document.close()
             setActionMsg(`Đã mở file in ${rows.length} phiếu.`)
         } catch {

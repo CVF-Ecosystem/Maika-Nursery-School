@@ -37,11 +37,12 @@ function adjustmentInvoiceNumber(row, existingNumbers = []) {
     })
 }
 
-export async function listFeeNotices({ facilityId, yearMonth } = {}) {
+export async function listFeeNotices({ facilityId, yearMonth, studentId } = {}) {
     const client = requireSupabase()
     let query = client.from('fee_notices').select(NOTICE_COLUMNS).order('created_at', { ascending: false })
     if (facilityId) query = query.eq('facility_id', facilityId)
     if (yearMonth) query = query.eq('year_month', yearMonth)
+    if (studentId) query = query.eq('student_id', studentId)
     const { data, error } = await query
     if (error) throw error
     return data || []
