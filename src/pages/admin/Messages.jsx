@@ -81,7 +81,7 @@ function SupabaseMessages({ selectedFacilityId }) {
                 }
             },
         })
-    }, [selectedFacilityId, selected?.id])
+    }, [selectedFacilityId])
 
     async function handleSelect(m) {
         setSelected({ ...m })
