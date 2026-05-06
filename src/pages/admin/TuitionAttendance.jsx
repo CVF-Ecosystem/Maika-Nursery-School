@@ -809,7 +809,6 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
             )}
 
             <div
-                className="mobile-scroll-table"
                 style={{
                     background: '#fff',
                     borderRadius: 16,
@@ -817,28 +816,30 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     overflow: 'hidden',
                 }}
             >
-                {loading ? (
-                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
-                        Đang tải dữ liệu...
-                    </div>
-                ) : billingRows.length === 0 ? (
-                    <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
-                        Chưa có học sinh hoặc dữ liệu phù hợp.
-                    </div>
-                ) : view === 'tuition' ? (
-                    <TuitionTable
-                        rows={billingRows}
-                        credits={credits}
-                        onCreditChange={updateCredit}
-                        onTuitionOverrideChange={updateTuitionOverride}
-                        feeItems={feeItems}
-                        feeItemSelections={feeItemSelections}
-                        onOpenFeePicker={setFeePickerRow}
-                        summary={summary}
-                    />
-                ) : (
-                    <AttendanceMatrix days={attendanceModel.days} rows={attendanceModel.rows} />
-                )}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    {loading ? (
+                        <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
+                            Đang tải dữ liệu...
+                        </div>
+                    ) : billingRows.length === 0 ? (
+                        <div style={{ padding: 36, color: '#7C6D9B', fontWeight: 700, textAlign: 'center' }}>
+                            Chưa có học sinh hoặc dữ liệu phù hợp.
+                        </div>
+                    ) : view === 'tuition' ? (
+                        <TuitionTable
+                            rows={billingRows}
+                            credits={credits}
+                            onCreditChange={updateCredit}
+                            onTuitionOverrideChange={updateTuitionOverride}
+                            feeItems={feeItems}
+                            feeItemSelections={feeItemSelections}
+                            onOpenFeePicker={setFeePickerRow}
+                            summary={summary}
+                        />
+                    ) : (
+                        <AttendanceMatrix days={attendanceModel.days} rows={attendanceModel.rows} />
+                    )}
+                </div>
             </div>
         </div>
     )
