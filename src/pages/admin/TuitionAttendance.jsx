@@ -1554,6 +1554,20 @@ function SyncedTableScroll({ width, children }) {
     const topRef = useRef(null)
     const bodyRef = useRef(null)
     const syncingRef = useRef(false)
+    const [scrollWidth, setScrollWidth] = useState(width)
+
+    useEffect(() => {
+        const updateScrollWidth = () => {
+            const nextWidth = Math.max(width, bodyRef.current?.scrollWidth || 0)
+            setScrollWidth(nextWidth)
+        }
+        const frame = requestAnimationFrame(updateScrollWidth)
+        window.addEventListener('resize', updateScrollWidth)
+        return () => {
+            cancelAnimationFrame(frame)
+            window.removeEventListener('resize', updateScrollWidth)
+        }
+    }, [width, children])
 
     function syncScroll(sourceRef, targetRef) {
         if (syncingRef.current || !sourceRef.current || !targetRef.current) return
@@ -1578,7 +1592,7 @@ function SyncedTableScroll({ width, children }) {
                 }}
                 aria-label="Cuộn ngang bảng điểm danh"
             >
-                <div style={{ width, height: 12 }} />
+                <div style={{ width: scrollWidth, height: 12 }} />
             </div>
             <div
                 ref={bodyRef}
