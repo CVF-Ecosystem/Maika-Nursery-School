@@ -192,6 +192,38 @@ export default function Sidebar({ active, onNav, unreadCount, isMobile = false, 
                     </div>
                 ))}
             </nav>
+            {/* Trang chủ */}
+            <div style={{ padding: '0 10px 10px', borderTop: '1px solid rgba(167,139,250,0.15)' }}>
+                <button
+                    onClick={() => navigate('/')}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        marginTop: 8,
+                        borderRadius: 10,
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#8B83C3',
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                        e.currentTarget.style.color = '#C4B5FD'
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.color = '#8B83C3'
+                    }}
+                >
+                    <span style={{ fontSize: 15, width: 22, textAlign: 'center', opacity: 0.75 }}>🏠</span>
+                    <span>Trang chủ</span>
+                </button>
+            </div>
             {/* Footer */}
             <div
                 style={{

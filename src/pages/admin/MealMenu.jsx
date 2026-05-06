@@ -150,7 +150,7 @@ export default function MealMenu({ readOnly = false }) {
                     <thead>
                         <tr style={{ background: '#F5F3FF' }}>
                             <th style={th}>Bữa ăn</th>
-                            {DAYS.slice(0, 5).map((d, i) => (
+                            {DAYS.slice(0, 6).map((d, i) => (
                                 <th key={i} style={th}>
                                     {d}
                                 </th>
@@ -171,7 +171,7 @@ export default function MealMenu({ readOnly = false }) {
                                 >
                                     {mt.label}
                                 </td>
-                                {[1, 2, 3, 4, 5].map(day => {
+                                {[1, 2, 3, 4, 5, 6].map(day => {
                                     const menu = getMenu(day, mt.value)
                                     const isEditing = editCell?.dayOfWeek === day && editCell?.mealType === mt.value
                                     return (

@@ -355,25 +355,6 @@ export default function AdminApp() {
                 >
                     <Suspense fallback={<LoadingSpinner />}>{current.component(handleNav, scope)}</Suspense>
                 </main>
-                <button
-                    onClick={() => navigate('/')}
-                    style={{
-                        position: 'fixed',
-                        bottom: isMobile ? 12 : 20,
-                        right: isMobile ? 12 : 20,
-                        zIndex: 999,
-                        padding: isMobile ? '10px 12px' : '10px 20px',
-                        borderRadius: 50,
-                        background: 'linear-gradient(135deg,#1E1B4B,#2D2870)',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: 13,
-                        border: 'none',
-                        boxShadow: '0 4px 16px rgba(30,27,75,0.4)',
-                    }}
-                >
-                    {isMobile ? '🌸' : '🌸 Trang chủ'}
-                </button>
             </div>
         </div>
     )
