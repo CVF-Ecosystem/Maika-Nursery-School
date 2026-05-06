@@ -1236,9 +1236,11 @@ export default function Invoices({ readOnly = false, filterStudentId = null, sel
                                         )}
                                         <td style={{ padding: '12px 16px', fontSize: 13, color: '#4B4899' }}>
                                             {inv.description}
-                                            {inv.notes && (
-                                                <div style={{ fontSize: 11, color: '#9B93C9' }}>{inv.notes}</div>
-                                            )}
+                                            {inv.notes &&
+                                                inv.type !== 'tuition' &&
+                                                inv.type !== 'tuition_adjustment' && (
+                                                    <div style={{ fontSize: 11, color: '#9B93C9' }}>{inv.notes}</div>
+                                                )}
                                         </td>
                                         <td
                                             style={{
