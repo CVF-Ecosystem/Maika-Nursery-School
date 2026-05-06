@@ -200,6 +200,20 @@ export default function AttendanceAdvanced({ readOnly = false, filterStudentId, 
 
     async function quickMark(studentId, status) {
         if (readOnly) return
+        if (status === 'absent') {
+            const student = students.find(s => s.id === studentId)
+            setEditModal({
+                student,
+                rec: {
+                    ...(records[studentId] || {}),
+                    studentId,
+                    date,
+                    status: 'absent',
+                    absenceType: records[studentId]?.absenceType || records[studentId]?.absence_type || '',
+                },
+            })
+            return
+        }
         setSavingIds(prev => [...new Set([...prev, studentId])])
         try {
             const now = new Date().toTimeString().slice(0, 5)
@@ -693,15 +707,18 @@ function absenceTypeFromNote(value = '') {
     return isPermittedAbsenceNote(value) ? 'permitted' : 'unpermitted'
 }
 
-function noteWithAbsenceType(note = '', absenceType = 'unpermitted') {
+function noteWithAbsenceType(note = '', absenceType = '') {
     const text = String(note || '').trim()
     const cleaned = text.replace(/^\[(?:P|K)\]\s*/i, '').trim()
     if (absenceType === 'permitted') return `[P] ${cleaned || 'Vắng có phép'}`
-    return `[K] ${cleaned || 'Vắng không phép'}`
+    if (absenceType === 'unpermitted') return `[K] ${cleaned || 'Vắng không phép'}`
+    return cleaned
 }
 
 function DetailModal({ student, rec, date, saving, onSave, onClose }) {
     const initialNote = rec?.note || ''
+    const initialAbsenceType =
+        rec?.absenceType || rec?.absence_type || (initialNote ? absenceTypeFromNote(initialNote) : '')
     const [form, setForm] = useState({
         status: rec?.status || 'present',
         checkInTime: rec?.checkInTime || rec?.check_in_time || '',
@@ -710,9 +727,10 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
         pickupPhone: rec?.pickupPhone || rec?.pickup_phone || '',
         lateReason: rec?.lateReason || rec?.late_reason || '',
         earlyPickupReason: rec?.earlyPickupReason || rec?.early_pickup_reason || '',
-        absenceType: rec?.absenceType || rec?.absence_type || absenceTypeFromNote(initialNote),
+        absenceType: initialAbsenceType,
         note: initialNote,
     })
+    const absenceTypeMissing = form.status === 'absent' && !form.absenceType
 
     return (
         <div
@@ -769,7 +787,10 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                                 setForm(f => ({
                                     ...f,
                                     status: key,
-                                    note: key === 'absent' ? noteWithAbsenceType(f.note, f.absenceType) : f.note,
+                                    note:
+                                        key === 'absent' && f.absenceType
+                                            ? noteWithAbsenceType(f.note, f.absenceType)
+                                            : f.note,
                                 }))
                             }
                             style={{
@@ -872,6 +893,11 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                                 </button>
                             ))}
                         </div>
+                        {absenceTypeMissing && (
+                            <div style={{ marginTop: 6, color: '#DC2626', fontSize: 12, fontWeight: 700 }}>
+                                Chọn rõ K hoặc P trước khi lưu vắng mặt.
+                            </div>
+                        )}
                     </div>
                 )}
                 {form.status === 'early_pickup' && (
@@ -893,6 +919,7 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
 
                 <button
                     onClick={() =>
+                        !absenceTypeMissing &&
                         onSave({
                             studentId: student.id,
                             ...form,
@@ -900,17 +927,18 @@ function DetailModal({ student, rec, date, saving, onSave, onClose }) {
                                 form.status === 'absent' ? noteWithAbsenceType(form.note, form.absenceType) : form.note,
                         })
                     }
-                    disabled={saving}
+                    disabled={saving || absenceTypeMissing}
                     style={{
                         width: '100%',
                         padding: '14px',
                         borderRadius: 14,
                         border: 'none',
-                        background: saving ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
-                        color: saving ? '#7C6D9B' : '#fff',
+                        background:
+                            saving || absenceTypeMissing ? '#DDD6FE' : 'linear-gradient(135deg,#6D28D9,#8B5CF6)',
+                        color: saving || absenceTypeMissing ? '#7C6D9B' : '#fff',
                         fontWeight: 800,
                         fontSize: 15,
-                        cursor: saving ? 'wait' : 'pointer',
+                        cursor: saving ? 'wait' : absenceTypeMissing ? 'not-allowed' : 'pointer',
                     }}
                 >
                     {saving ? 'Đang lưu...' : '💾 Lưu điểm danh'}

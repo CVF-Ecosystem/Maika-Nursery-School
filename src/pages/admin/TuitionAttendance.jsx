@@ -855,6 +855,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             days={attendanceModel.days}
                             rows={attendancePageRows}
                             pageOffset={pageOffset}
+                            yearMonth={yearMonth}
                         />
                     )}
                 </div>
@@ -1543,14 +1544,19 @@ function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
     )
 }
 
-function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
+function AttendanceMatrix({ days, rows, pageOffset = 0, yearMonth }) {
+    const range = monthRange(yearMonth)
+    const monthTitle = `Tháng ${String(range.month).padStart(2, '0')} năm ${range.year}`
+    const gridBorder = '1px solid #D8D1F3'
+
     return (
         <table
             style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                minWidth: Math.max(980, 372 + days.length * 33),
+                minWidth: Math.max(980, 372 + days.length * 38),
                 fontSize: 13,
+                border: gridBorder,
             }}
         >
             <thead>
@@ -1562,14 +1568,14 @@ function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
                     ].map(([header, extraStyle]) => (
                         <th
                             key={header}
-                            rowSpan={2}
+                            rowSpan={3}
                             style={{
                                 padding: '12px 10px',
                                 textAlign: 'left',
                                 color: '#7C6D9B',
                                 fontSize: 11,
                                 fontWeight: 700,
-                                borderBottom: '1.5px solid #DDD6FE',
+                                border: gridBorder,
                                 background: '#F8F7FF',
                                 ...(extraStyle || {}),
                             }}
@@ -1577,17 +1583,33 @@ function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
                             {header}
                         </th>
                     ))}
+                    <th
+                        colSpan={days.length}
+                        style={{
+                            padding: '7px 8px',
+                            textAlign: 'center',
+                            color: '#1E1B4B',
+                            fontSize: 14,
+                            fontWeight: 900,
+                            border: gridBorder,
+                            background: '#fff',
+                        }}
+                    >
+                        {monthTitle}
+                    </th>
+                </tr>
+                <tr style={{ background: '#F8F7FF' }}>
                     {days.map(day => (
                         <th
                             key={day.date}
                             style={{
-                                width: 33,
+                                width: 38,
                                 padding: '8px 2px',
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#7C6D9B',
                                 fontSize: 11,
                                 fontWeight: 700,
-                                borderBottom: '1px solid #EDE9FE',
+                                border: gridBorder,
                             }}
                         >
                             {day.day}
@@ -1599,26 +1621,55 @@ function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
                         <th
                             key={day.date}
                             style={{
-                                padding: '6px 2px',
+                                width: 38,
+                                height: 78,
+                                padding: '4px 2px',
                                 textAlign: 'center',
                                 color: day.isSunday ? '#DC2626' : '#9B93C9',
                                 fontSize: 10,
                                 fontWeight: 700,
-                                borderBottom: '1.5px solid #DDD6FE',
+                                border: gridBorder,
+                                verticalAlign: 'middle',
                             }}
                         >
-                            {day.weekdayLabel.replace('Thứ ', 'T')}
+                            <span
+                                style={{
+                                    display: 'inline-block',
+                                    width: 72,
+                                    lineHeight: 1,
+                                    whiteSpace: 'nowrap',
+                                    transform: 'rotate(-90deg)',
+                                }}
+                            >
+                                {day.weekdayLabel}
+                            </span>
                         </th>
                     ))}
                 </tr>
             </thead>
             <tbody>
                 {rows.map((row, index) => (
-                    <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
-                        <td style={{ padding: '10px', color: '#6B6494', fontWeight: 600, ...stickyCellStyle(0, 58) }}>
+                    <tr key={row.studentId}>
+                        <td
+                            style={{
+                                padding: '10px',
+                                color: '#6B6494',
+                                fontWeight: 600,
+                                border: gridBorder,
+                                ...stickyCellStyle(0, 58),
+                            }}
+                        >
                             {pageOffset + index + 1}
                         </td>
-                        <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 700, ...stickyCellStyle(58, 104) }}>
+                        <td
+                            style={{
+                                padding: '10px',
+                                color: '#7C3AED',
+                                fontWeight: 700,
+                                border: gridBorder,
+                                ...stickyCellStyle(58, 104),
+                            }}
+                        >
                             {row.studentCode}
                         </td>
                         <td
@@ -1626,6 +1677,7 @@ function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
                                 padding: '10px',
                                 color: '#1E1B4B',
                                 fontWeight: 600,
+                                border: gridBorder,
                                 ...stickyCellStyle(162, 210),
                             }}
                         >
@@ -1641,6 +1693,7 @@ function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
                                         padding: '7px 2px',
                                         textAlign: 'center',
                                         background: day.isSunday ? '#FAFAFA' : 'transparent',
+                                        border: gridBorder,
                                     }}
                                 >
                                     <span
