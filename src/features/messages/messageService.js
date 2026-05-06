@@ -90,8 +90,9 @@ export async function markMessageRead(id) {
 
 export function subscribeMessages({ facilityId, onChange }) {
     const client = requireSupabase()
+    const uid = Math.random().toString(36).slice(2, 8)
     const channel = client
-        .channel(`messages:${facilityId || 'all'}`)
+        .channel(`messages:${facilityId || 'all'}:${uid}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
             const row = payload.new?.id ? payload.new : null
             const old = payload.old?.id ? payload.old : null
