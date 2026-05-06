@@ -297,7 +297,7 @@ export async function saveMonthlyFeeNotices({ rows = [], yearMonth, facilityId }
                     amount: delta,
                     dueDate: row.dueDate,
                     status: 'pending',
-                    notes: `Điều chỉnh tăng từ bảng điểm danh tháng ${yearMonth}.`,
+                    notes: null,
                 })
                 existingInvoiceNumbers.add(invoiceNumber)
             } else {
@@ -358,7 +358,7 @@ export async function saveMonthlyFeeNotices({ rows = [], yearMonth, facilityId }
             amount: row.amountDue,
             dueDate: row.dueDate,
             status: linkedInvoice?.status || 'pending',
-            notes: `Liên kết phiếu thông báo ${notice.notice_number}. Đi học ${row.actualDays}/${row.schoolDayCount} ngày, vắng P ${row.permittedAbsences}, vắng K ${row.unpermittedAbsences}.`,
+            notes: null,
         })
         existingInvoiceNumbers.add(invoice.invoice_number)
 

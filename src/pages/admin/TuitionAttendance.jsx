@@ -562,7 +562,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                     date: row.dueDate,
                     status: 'pending',
                     method: '',
-                    notes: `Từ bảng điểm danh tháng ${yearMonth}.`,
+                    notes: null,
                 })
                 existingNumbers.add(invoiceNumber)
                 existingTuitionKeys.add(tuitionKey)
