@@ -247,6 +247,8 @@ async function exportWorkbook({ yearMonth, days, attendanceRows, tuitionRows, su
     XLSX.writeFile(workbook, `bang-hoc-phi-diem-danh-${suffix}-${yearMonth}.xlsx`)
 }
 
+const PAGE_SIZE = 25
+
 export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const supabaseMode = isSupabaseSession()
     const [yearMonth, setYearMonth] = useState(currentYearMonth)
@@ -262,6 +264,7 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
     const [feeItemSelections, setFeeItemSelections] = useState({})
     const [classFilter, setClassFilter] = useState('')
     const [view, setView] = useState('tuition')
+    const [page, setPage] = useState(1)
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [message, setMessage] = useState('')
@@ -402,6 +405,16 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
         [feeItemMap, feeItemSelections, tuitionRows],
     )
     const summary = useMemo(() => summarizeTuitionRows(billingRows), [billingRows])
+    const totalPages = Math.ceil(billingRows.length / PAGE_SIZE)
+    const pageOffset = (page - 1) * PAGE_SIZE
+    const pageRows = billingRows.slice(pageOffset, pageOffset + PAGE_SIZE)
+    const attendancePageRows = attendanceModel.rows.slice(pageOffset, pageOffset + PAGE_SIZE)
+
+    // Reset to page 1 when data or view changes
+    useEffect(() => {
+        setPage(1)
+    }, [yearMonth, classFilter, view, selectedFacilityId])
+
     const classOptions = supabaseMode
         ? classes.map(name => ({ id: name, name }))
         : classes.map(item => ({ id: item.id, name: item.name }))
@@ -827,7 +840,8 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                         </div>
                     ) : view === 'tuition' ? (
                         <TuitionTable
-                            rows={billingRows}
+                            rows={pageRows}
+                            pageOffset={pageOffset}
                             credits={credits}
                             onCreditChange={updateCredit}
                             onTuitionOverrideChange={updateTuitionOverride}
@@ -837,9 +851,107 @@ export default function TuitionAttendance({ selectedFacilityId = '' }) {
                             summary={summary}
                         />
                     ) : (
-                        <AttendanceMatrix days={attendanceModel.days} rows={attendanceModel.rows} />
+                        <AttendanceMatrix
+                            days={attendanceModel.days}
+                            rows={attendancePageRows}
+                            pageOffset={pageOffset}
+                        />
                     )}
                 </div>
+                {!loading && totalPages > 1 && (
+                    <Pagination
+                        page={page}
+                        total={billingRows.length}
+                        pageSize={PAGE_SIZE}
+                        totalPages={totalPages}
+                        onChange={setPage}
+                    />
+                )}
+            </div>
+        </div>
+    )
+}
+
+function Pagination({ page, total, pageSize, totalPages, onChange }) {
+    const start = (page - 1) * pageSize + 1
+    const end = Math.min(page * pageSize, total)
+    const pages = []
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+        pages.push(1)
+        if (page > 3) pages.push('…')
+        for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i)
+        if (page < totalPages - 2) pages.push('…')
+        pages.push(totalPages)
+    }
+    const btnBase = {
+        minWidth: 32,
+        height: 32,
+        borderRadius: 8,
+        border: '1.5px solid #DDD6FE',
+        background: '#fff',
+        color: '#6B6494',
+        fontWeight: 700,
+        fontSize: 13,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 8px',
+    }
+    return (
+        <div
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderTop: '1px solid #EDE9FE',
+                gap: 8,
+                flexWrap: 'wrap',
+            }}
+        >
+            <div style={{ fontSize: 12, color: '#7C6D9B', fontWeight: 600 }}>
+                {start}–{end} / {total} học sinh
+            </div>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button
+                    onClick={() => onChange(page - 1)}
+                    disabled={page === 1}
+                    style={{ ...btnBase, opacity: page === 1 ? 0.4 : 1 }}
+                    aria-label="Trang trước"
+                >
+                    ‹
+                </button>
+                {pages.map((p, i) =>
+                    p === '…' ? (
+                        <span key={`ellipsis-${i}`} style={{ padding: '0 4px', color: '#9B93C9' }}>
+                            …
+                        </span>
+                    ) : (
+                        <button
+                            key={p}
+                            onClick={() => onChange(p)}
+                            style={{
+                                ...btnBase,
+                                background: p === page ? '#7C3AED' : '#fff',
+                                color: p === page ? '#fff' : '#6B6494',
+                                border: p === page ? '1.5px solid #7C3AED' : '1.5px solid #DDD6FE',
+                            }}
+                        >
+                            {p}
+                        </button>
+                    ),
+                )}
+                <button
+                    onClick={() => onChange(page + 1)}
+                    disabled={page === totalPages}
+                    style={{ ...btnBase, opacity: page === totalPages ? 0.4 : 1 }}
+                    aria-label="Trang sau"
+                >
+                    ›
+                </button>
             </div>
         </div>
     )
@@ -858,7 +970,15 @@ function stickyCellStyle(left, width, zIndex = 2) {
     }
 }
 
-function TuitionTable({ rows, credits, onCreditChange, onTuitionOverrideChange, onOpenFeePicker, summary }) {
+function TuitionTable({
+    rows,
+    pageOffset = 0,
+    credits,
+    onCreditChange,
+    onTuitionOverrideChange,
+    onOpenFeePicker,
+    summary,
+}) {
     return (
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1360, fontSize: 13 }}>
             <thead>
@@ -937,7 +1057,7 @@ function TuitionTable({ rows, credits, onCreditChange, onTuitionOverrideChange, 
                                 ...stickyCellStyle(0, 58),
                             }}
                         >
-                            {index + 1}
+                            {pageOffset + index + 1}
                         </td>
                         <td
                             style={{
@@ -1423,7 +1543,7 @@ function PreviewModal({ rows, yearMonth, onConfirm, onClose }) {
     )
 }
 
-function AttendanceMatrix({ days, rows }) {
+function AttendanceMatrix({ days, rows, pageOffset = 0 }) {
     return (
         <table
             style={{
@@ -1496,7 +1616,7 @@ function AttendanceMatrix({ days, rows }) {
                 {rows.map((row, index) => (
                     <tr key={row.studentId} style={{ borderBottom: '1px solid #EDE9FE' }}>
                         <td style={{ padding: '10px', color: '#6B6494', fontWeight: 600, ...stickyCellStyle(0, 58) }}>
-                            {index + 1}
+                            {pageOffset + index + 1}
                         </td>
                         <td style={{ padding: '10px', color: '#7C3AED', fontWeight: 700, ...stickyCellStyle(58, 104) }}>
                             {row.studentCode}
