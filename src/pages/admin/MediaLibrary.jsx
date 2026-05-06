@@ -163,8 +163,7 @@ function LegacyMediaLibrary({ readOnly = false, forParent = false }) {
     if (!hasBackendAPI()) {
         return (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>Thư viện ảnh đang được chuẩn bị</div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Thư viện ảnh chưa khả dụng</div>
             </div>
         )
     }

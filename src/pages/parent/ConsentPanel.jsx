@@ -106,8 +106,7 @@ export default function ConsentPanel({ studentId, studentName }) {
                     boxShadow: '0 2px 14px rgba(109,40,217,0.07)',
                 }}
             >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Tính năng đang được chuẩn bị</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#1E1B4B' }}>Quyền riêng tư</div>
                 <div style={{ fontSize: 13, color: '#7C6D9B', marginTop: 6 }}>
                     Nhà trường sẽ thông báo khi phụ huynh có thể cập nhật quyền riêng tư trực tuyến.
                 </div>

@@ -51,11 +51,8 @@ const CYCLE_LABEL = { monthly: 'Hàng tháng', term: 'Học kỳ', yearly: 'Cả
 function NoBackend() {
     return (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: '#7C6D9B' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🔌</div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Cấu hình trường học đang được chuẩn bị</div>
-            <div style={{ fontSize: 13 }}>
-                Các thông tin vận hành của trường sẽ được cập nhật tại đây khi chức năng được bật.
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Cấu hình trường học</div>
+            <div style={{ fontSize: 13 }}>Chức năng sẽ hiển thị sau khi đăng nhập qua hệ thống mới.</div>
         </div>
     )
 }
